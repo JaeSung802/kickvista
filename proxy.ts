@@ -17,7 +17,12 @@ function getPreferredLocale(request: NextRequest): string {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip static assets
+  // 1. ROOT 먼저 막기 (중요)
+  if (pathname === "/") {
+    return NextResponse.next();
+  }
+
+  // 2. 정적 파일
   if (
     pathname === "/ads.txt" ||
     pathname === "/robots.txt" ||
