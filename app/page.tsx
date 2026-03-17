@@ -4,7 +4,9 @@
 // This fallback ensures any un-intercepted request still resolves.
 export default function RootPage() {
   // redirect("/ko");
-  <main>
-    <h1>KickVista</h1>
-  </main>
+  return (
+    <main>
+      <h1>KickVista</h1>
+    </main>
+  )
 }
