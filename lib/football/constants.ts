@@ -6,6 +6,8 @@ import type { League, LeagueSlug } from "./types";
  * e.g. March 2026 → 2025 (the 2025-26 season)
  */
 export function currentFootballSeason(): number {
+  // European seasons run Aug–May: Jan–Jul → previous year.
+  // e.g. March 2026 → 2025 (the 2025-26 season) — correct API parameter.
   const now = new Date();
   return now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
 }

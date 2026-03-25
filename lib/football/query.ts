@@ -35,12 +35,24 @@ const FINISHED_SET = new Set(["FT", "AET", "PEN"]);
  * UTC, calling it at 09:30 KST on March 25 returns "2026-03-24T00:30:00Z" —
  * the API receives yesterday's date and returns yesterday's fixtures.
  *
+ * Uses `Intl.DateTimeFormat` with timeZone "Asia/Seoul" instead of manual
+ * UTC+9 arithmetic — explicit, readable, and immune to off-by-one errors.
+ *
  * @param offsetDays Positive = future days, negative = past days.
  */
 function kstDateString(offsetDays = 0): string {
-  const KST_OFFSET_MS = 9 * 60 * 60 * 1000; // UTC+9
-  const ms = Date.now() + KST_OFFSET_MS + offsetDays * 24 * 60 * 60 * 1000;
-  return new Date(ms).toISOString().split("T")[0];
+  const d = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+  // formatToParts guarantees YYYY-MM-DD regardless of Node.js locale data.
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === "year")!.value;
+  const m = parts.find((p) => p.type === "month")!.value;
+  const day = parts.find((p) => p.type === "day")!.value;
+  return `${y}-${m}-${day}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,17 +73,23 @@ function kstDateString(offsetDays = 0): string {
 export async function queryHomeMatches(): Promise<Fixture[]> {
   const provider = getFootballProvider();
   const HOME_SLUGS: LeagueSlug[] = ["premier-league", "la-liga", "bundesliga", "serie-a"];
-  const leagues = HOME_SLUGS.map((s) => LEAGUE_BY_SLUG[s]);
+
+  // Filter out any slug that isn't registered in LEAGUE_BY_SLUG — prevents
+  // "Cannot read properties of undefined (reading 'id')" crashes at runtime.
+  const leagues = HOME_SLUGS
+    .map((s) => LEAGUE_BY_SLUG[s])
+    .filter((l): l is (typeof LEAGUE_BY_SLUG)[LeagueSlug] => {
+      if (!l) console.error(`[queryHomeMatches] LEAGUE_BY_SLUG lookup failed for a HOME_SLUG`);
+      return Boolean(l);
+    });
 
   // KST dates: using toISOString() would return UTC and show yesterday's date
   // in Korean morning hours (UTC+9 is 9 h ahead of UTC).
   const from = kstDateString(0);
   const to   = kstDateString(2);
 
-  // ── 배포 확인용 서버 사이드 로그 ─────────────────────────────────────────
-  // Vercel → Functions 탭에서 실시간으로 확인 가능.
-  // "Fetching matches for date: 2026-03-25" 가 오늘 KST 날짜와 일치하는지 검증.
-  console.log(`[queryHomeMatches] Fetching matches for date: ${from} → ${to} (KST)`);
+  // calendar year vs football season: 2026 calendar year → season param 2025 (2025-26)
+  console.log(`[queryHomeMatches] KST: ${from}→${to} | calYear=${new Date().getFullYear()} season=${leagues[0]?.season}`);
 
   const allFixtures = await Promise.all(
     leagues.map(async (league): Promise<Fixture[]> => {
@@ -126,10 +144,14 @@ export async function queryTodayFixtures(
 ): Promise<Fixture[]> {
   const provider = getFootballProvider();
   const today = kstDateString(0); // KST date — avoids UTC midnight off-by-one
-  console.log(`[queryTodayFixtures] Fetching matches for date: ${today} (KST)`);
+  console.log(`[queryTodayFixtures] KST: ${today} | calYear=${new Date().getFullYear()}`);
 
   if (leagueSlug) {
     const league = LEAGUE_BY_SLUG[leagueSlug];
+    if (!league) {
+      console.error(`[queryTodayFixtures] unknown leagueSlug: ${leagueSlug}`);
+      return [];
+    }
     return provider.fetchFixtures(league.id, today, league.season);
   }
 
@@ -157,11 +179,14 @@ export async function queryLeagueFixtures(
 ): Promise<Fixture[]> {
   const provider = getFootballProvider();
   const league = LEAGUE_BY_SLUG[leagueSlug];
+  if (!league) {
+    console.error(`[queryLeagueFixtures] unknown leagueSlug: ${leagueSlug}`);
+    return [];
+  }
 
-  // Try a wide date range first (today -30 days to +60 days)
-  const now   = new Date();
-  const from  = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  const to    = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  // Try a wide date range first (today -30 days to +60 days, KST)
+  const from = kstDateString(-30);
+  const to   = kstDateString(60);
 
   try {
     const rangeFixtures = await provider.fetchFixturesRange(league.id, from, to, league.season);
@@ -196,6 +221,10 @@ export async function queryUpcomingFixtures(
 ): Promise<Fixture[]> {
   const provider = getFootballProvider();
   const league = LEAGUE_BY_SLUG[leagueSlug];
+  if (!league) {
+    console.error(`[queryUpcomingFixtures] unknown leagueSlug: ${leagueSlug}`);
+    return [];
+  }
   const all = await provider.fetchFixtures(league.id, undefined, league.season);
 
   return all
@@ -213,6 +242,10 @@ export async function queryRecentResults(
 ): Promise<Fixture[]> {
   const provider = getFootballProvider();
   const league = LEAGUE_BY_SLUG[leagueSlug];
+  if (!league) {
+    console.error(`[queryRecentResults] unknown leagueSlug: ${leagueSlug}`);
+    return [];
+  }
   return provider.fetchResults(league.id, league.season, limit);
 }
 
@@ -228,6 +261,10 @@ export async function queryStandings(
 ): Promise<Standings | null> {
   const provider = getFootballProvider();
   const league = LEAGUE_BY_SLUG[leagueSlug];
+  if (!league) {
+    console.error(`[queryStandings] unknown leagueSlug: ${leagueSlug}`);
+    return null;
+  }
   try {
     const result = await provider.fetchStandings(league.id, league.season);
     return result;

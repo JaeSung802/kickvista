@@ -16,6 +16,8 @@ import {
   canonicalLeagueUrl,
 } from "@/lib/football/slugs";
 
+export const revalidate = 3600; // 1시간 ISR
+
 function isValidLeagueUrlSlug(value: string): boolean {
   return ALL_VALID_LEAGUE_URL_SLUGS.includes(value);
 }

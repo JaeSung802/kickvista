@@ -1,6 +1,12 @@
 import type { LeagueSlug } from "@/lib/football/types";
-import { LEAGUE_BY_SLUG } from "@/lib/football/constants";
+import { LEAGUE_BY_SLUG, currentFootballSeason } from "@/lib/football/constants";
 import { LeagueLogo } from "@/components/ui/LeagueLogo";
+
+// Compute season labels dynamically so they update automatically each season
+// e.g. March 2026 → currentFootballSeason() = 2025 → "2025/26"
+const _sy = currentFootballSeason();
+const EURO_SEASON = `${_sy}/${(_sy + 1).toString().slice(2)}`; // "2025/26"
+const CAL_SEASON  = String(_sy + 1);                            // "2026"
 
 interface LeagueHeaderProps {
   slug: LeagueSlug;
@@ -27,7 +33,7 @@ const leagueData: Partial<Record<
     nameKo: "프리미어리그",
     countryEn: "England",
     countryKo: "잉글랜드",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#3d195b",
   },
   "la-liga": {
@@ -36,7 +42,7 @@ const leagueData: Partial<Record<
     nameKo: "라 리가",
     countryEn: "Spain",
     countryKo: "스페인",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#c8102e",
   },
   "bundesliga": {
@@ -45,7 +51,7 @@ const leagueData: Partial<Record<
     nameKo: "분데스리가",
     countryEn: "Germany",
     countryKo: "독일",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#d20515",
   },
   "serie-a": {
@@ -54,7 +60,7 @@ const leagueData: Partial<Record<
     nameKo: "세리에 A",
     countryEn: "Italy",
     countryKo: "이탈리아",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#1f4e8c",
   },
   "ligue-1": {
@@ -63,7 +69,7 @@ const leagueData: Partial<Record<
     nameKo: "리그 1",
     countryEn: "France",
     countryKo: "프랑스",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#003087",
   },
   "champions-league": {
@@ -72,7 +78,7 @@ const leagueData: Partial<Record<
     nameKo: "UEFA 챔피언스리그",
     countryEn: "Europe",
     countryKo: "유럽",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#1e3a8a",
   },
   "europa-league": {
@@ -81,7 +87,7 @@ const leagueData: Partial<Record<
     nameKo: "UEFA 유로파리그",
     countryEn: "Europe",
     countryKo: "유럽",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#f97316",
   },
   "eredivisie": {
@@ -90,7 +96,7 @@ const leagueData: Partial<Record<
     nameKo: "에레디비시",
     countryEn: "Netherlands",
     countryKo: "네덜란드",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#f97316",
   },
   "primeira-liga": {
@@ -99,7 +105,7 @@ const leagueData: Partial<Record<
     nameKo: "프리메이라리가",
     countryEn: "Portugal",
     countryKo: "포르투갈",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#059669",
   },
   "saudi-pro-league": {
@@ -108,7 +114,7 @@ const leagueData: Partial<Record<
     nameKo: "사우디 프로리그",
     countryEn: "Saudi Arabia",
     countryKo: "사우디아라비아",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#064E3B",
   },
   "mls": {
@@ -117,7 +123,7 @@ const leagueData: Partial<Record<
     nameKo: "MLS",
     countryEn: "USA",
     countryKo: "미국",
-    season: "2026",
+    season: CAL_SEASON,
     accentColor: "#1d4ed8",
   },
   "k-league-1": {
@@ -126,7 +132,7 @@ const leagueData: Partial<Record<
     nameKo: "K리그1",
     countryEn: "South Korea",
     countryKo: "대한민국",
-    season: "2026",
+    season: CAL_SEASON,
     accentColor: "#003087",
   },
   "j1-league": {
@@ -135,7 +141,7 @@ const leagueData: Partial<Record<
     nameKo: "J1 리그",
     countryEn: "Japan",
     countryKo: "일본",
-    season: "2026",
+    season: CAL_SEASON,
     accentColor: "#c92424",
   },
   "liga-mx": {
@@ -144,7 +150,7 @@ const leagueData: Partial<Record<
     nameKo: "리가 MX",
     countryEn: "Mexico",
     countryKo: "멕시코",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#006847",
   },
   "super-lig": {
@@ -153,7 +159,7 @@ const leagueData: Partial<Record<
     nameKo: "쉬페르 리그",
     countryEn: "Turkey",
     countryKo: "튀르키예",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#c0392b",
   },
   "brasileirao": {
@@ -162,7 +168,7 @@ const leagueData: Partial<Record<
     nameKo: "브라질레이랑",
     countryEn: "Brazil",
     countryKo: "브라질",
-    season: "2026",
+    season: CAL_SEASON,
     accentColor: "#059669",
   },
   "scottish-premiership": {
@@ -171,7 +177,7 @@ const leagueData: Partial<Record<
     nameKo: "스코티시 프리미어십",
     countryEn: "Scotland",
     countryKo: "스코틀랜드",
-    season: "2025/26",
+    season: EURO_SEASON,
     accentColor: "#003380",
   },
 };
@@ -189,7 +195,7 @@ const FALLBACK_LEAGUE = {
   nameKo: "축구 리그",
   countryEn: "International",
   countryKo: "국제",
-  season: "2025/26",
+  season: EURO_SEASON,
   accentColor: "#059669",
 };
 

@@ -13,6 +13,8 @@ import {
   resolveLeagueUrlSlug,
 } from "@/lib/football/slugs";
 
+export const revalidate = 300; // 5분 ISR — fixture 상태 변경 반영
+
 function isValidLeagueUrlSlug(value: string): boolean {
   return ALL_VALID_LEAGUE_URL_SLUGS.includes(value);
 }

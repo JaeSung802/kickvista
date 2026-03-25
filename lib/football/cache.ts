@@ -22,13 +22,9 @@ export const CACHE_TTL = {
   LIVE: 30,
   /**
    * Today's fixture list — kick-off times, status changes, postponements.
-   *
-   * Reduced from 300 s → 60 s so that status transitions (NS → 1H → HT → FT)
-   * are visible within 1 minute.  The in-process Map cache in RealFootballProvider
-   * deduplicates concurrent requests within the same render cycle, so the
-   * actual API call rate stays low even on a busy server.
+   * 5분 캐시 — ISR 재생성 시에만 API를 호출하므로 API 사용량이 낮게 유지됨.
    */
-  FIXTURES_TODAY: 60,
+  FIXTURES_TODAY: 300,
   /** Recent results list */
   RESULTS: 300,
   /** League standings table */

@@ -2,9 +2,11 @@ import { notFound, redirect } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildLeagueMetadata } from "@/lib/seo/metadata";
 import type { LeagueSlug, StandingEntry } from "@/lib/football/types";
-import { LEAGUE_BY_SLUG } from "@/lib/football/constants";
+import { LEAGUE_BY_SLUG, currentFootballSeason } from "@/lib/football/constants";
 import { queryStandings } from "@/lib/football/query";
 import LeagueHeader from "@/components/league/LeagueHeader";
+
+export const revalidate = 3600; // 1시간 ISR
 import AdSlot from "@/components/ads/AdSlot";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import {
@@ -71,11 +73,15 @@ const FORM_COLORS: Record<string, { background: string; color: string }> = {
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
 
+// Build season label dynamically so it auto-updates each new season (e.g. "2025/26")
+const _sy  = currentFootballSeason();
+const _seasonStr = `${_sy}/${(_sy + 1).toString().slice(2)}`; // "2025/26"
+
 const labels = {
   en: {
     pageTitle: "Standings",
     subtitle:  "Current season table",
-    season:    "2025/26 Season",
+    season:    `${_seasonStr} Season`,
     updated:   "Updated",
     headers:   { pos: "#", club: "Club", mp: "MP", w: "W", d: "D", l: "L", gf: "GF", ga: "GA", gd: "GD", pts: "Pts", form: "Form" },
     zones: { cl: "Champions League", el: "Europa League", ecl: "Conference League", rel: "Relegation" },
@@ -85,7 +91,7 @@ const labels = {
   ko: {
     pageTitle: "순위표",
     subtitle:  "현재 시즌 테이블",
-    season:    "2025/26 시즌",
+    season:    `${_seasonStr} 시즌`,
     updated:   "업데이트",
     headers:   { pos: "#", club: "클럽", mp: "경기", w: "승", d: "무", l: "패", gf: "득", ga: "실", gd: "득실", pts: "승점", form: "최근" },
     zones: { cl: "챔피언스리그", el: "유로파리그", ecl: "컨퍼런스리그", rel: "강등권" },

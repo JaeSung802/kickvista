@@ -14,6 +14,8 @@ import { getServerUser, getServerProfile } from "@/lib/auth";
 import { getUserPrediction, getPredictionStats } from "@/lib/predictions";
 import type { Fixture, LineupPlayer } from "@/lib/football/types";
 
+export const revalidate = 300; // 5분 ISR
+
 // ─── Mock match data ──────────────────────────────────────────────────────────
 
 const MOCK_MATCHES: Record<string, Fixture & {
@@ -500,8 +502,6 @@ function formatMatchTime(dateStr: string, locale: Locale): string {
     timeStyle: "short",
   });
 }
-
-export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
