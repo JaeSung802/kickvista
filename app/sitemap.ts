@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { TEAM_REGISTRY } from "@/lib/football/teamRegistry";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://kickvista.io";
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://www.kickvista.com";
 const LOCALES  = ["ko", "en"] as const;
 
 // Must match the actual route slugs used in app/[locale]/league/[slug]/

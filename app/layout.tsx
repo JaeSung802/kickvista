@@ -6,12 +6,20 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://kickvista.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.kickvista.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "KickVista – Football Intelligence Hub",
   description: "Live football scores, standings & AI match analysis for all major leagues.",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  verification: {
+    google: "RguPr1rYN-xo1OAK04JGqOUesD3AMwK0EWWRD2wBWJ4",
+  },
 };
 
 /**

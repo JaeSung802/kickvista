@@ -19,7 +19,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const isKo = locale === "ko";
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://kickvista.app";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.kickvista.com";
   return {
     title: {
       default: isKo ? "킥비스타 – 축구 인텔리전스 허브" : "KickVista – Football Intelligence Hub",
