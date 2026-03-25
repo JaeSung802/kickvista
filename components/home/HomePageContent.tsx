@@ -176,33 +176,80 @@ const LEAGUE_PRIORITY: Record<string, number> = {
   "europa-league":    7,
 };
 
+/** KST 오늘 날짜 YYYY-MM-DD */
+function kstToday(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date());
+  return `${parts.find(p => p.type === "year")!.value}-${parts.find(p => p.type === "month")!.value}-${parts.find(p => p.type === "day")!.value}`;
+}
+
+/** YYYY-MM-DD → "오늘" / "3월 25일 (화)" / "Tue, Mar 25" */
+function formatDateLabel(dateKey: string, locale: Locale, isToday: boolean): string {
+  if (isToday) return locale === "ko" ? "오늘" : "Today";
+  const [y, mo, d] = dateKey.split("-").map(Number);
+  return new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-US", {
+    month: "short", day: "numeric", weekday: "short",
+  }).format(new Date(y, mo - 1, d));
+}
+
+interface DayGroup {
+  dateKey: string;
+  dateLabel: string;
+  isToday: boolean;
+  matches: MatchViewModel[];
+}
+
 interface LeagueGroup {
   leagueSlug: string;
   leagueName: string;
   leagueFlag: string;
   leagueLogo?: string;
-  matches: MatchViewModel[];
+  dayGroups: DayGroup[];
+  allMatches: MatchViewModel[];
 }
 
-function groupMatchesByLeague(matches: MatchViewModel[]): LeagueGroup[] {
-  const map = new Map<string, MatchViewModel[]>();
+function groupMatchesByLeague(matches: MatchViewModel[], locale: Locale): LeagueGroup[] {
+  const today = kstToday();
+  const leagueMap = new Map<string, MatchViewModel[]>();
   for (const m of matches) {
-    if (!map.has(m.leagueSlug)) map.set(m.leagueSlug, []);
-    map.get(m.leagueSlug)!.push(m);
+    if (!leagueMap.has(m.leagueSlug)) leagueMap.set(m.leagueSlug, []);
+    leagueMap.get(m.leagueSlug)!.push(m);
   }
-  return Array.from(map.entries())
-    .map(([slug, ms]) => ({
-      leagueSlug: slug,
-      leagueName: ms[0].league,
-      leagueFlag: ms[0].leagueFlag,
-      leagueLogo: LEAGUE_LOGO_MAP[slug],
-      // Live first, then by date + time
-      matches: ms.sort((a, b) => {
+
+  return Array.from(leagueMap.entries())
+    .map(([slug, ms]) => {
+      const sorted = [...ms].sort((a, b) => {
         if (a.status === "live" && b.status !== "live") return -1;
         if (b.status === "live" && a.status !== "live") return 1;
         return (a.date ?? "").localeCompare(b.date ?? "") || (a.time ?? "").localeCompare(b.time ?? "");
-      }),
-    }))
+      });
+
+      // 날짜별 서브 그룹핑
+      const dayMap = new Map<string, MatchViewModel[]>();
+      for (const m of sorted) {
+        const key = m.date ?? "unknown";
+        if (!dayMap.has(key)) dayMap.set(key, []);
+        dayMap.get(key)!.push(m);
+      }
+
+      const dayGroups: DayGroup[] = Array.from(dayMap.entries()).map(([dateKey, dayMatches]) => ({
+        dateKey,
+        dateLabel: formatDateLabel(dateKey, locale, dateKey === today),
+        isToday: dateKey === today,
+        matches: dayMatches,
+      }));
+
+      return {
+        leagueSlug: slug,
+        leagueName: ms[0].league,
+        leagueFlag: ms[0].leagueFlag,
+        leagueLogo: LEAGUE_LOGO_MAP[slug],
+        dayGroups,
+        allMatches: sorted,
+      };
+    })
     .sort((a, b) => (LEAGUE_PRIORITY[a.leagueSlug] ?? 99) - (LEAGUE_PRIORITY[b.leagueSlug] ?? 99));
 }
 
@@ -352,7 +399,7 @@ export default function HomePageContent({
 
   const liveMatches  = matches.filter((m) => m.status === "live");
   const otherMatches = matches.filter((m) => m.status !== "live");
-  const leagueGroups = groupMatchesByLeague([...liveMatches, ...otherMatches]);
+  const leagueGroups = groupMatchesByLeague([...liveMatches, ...otherMatches], locale);
 
   return (
     <>
@@ -404,7 +451,7 @@ export default function HomePageContent({
                           <span className="text-sm font-bold text-gray-700 flex-1 min-w-0 truncate">
                             {group.leagueName}
                           </span>
-                          {liveMatches.some((m) => m.leagueSlug === group.leagueSlug) && (
+                          {group.allMatches.some((m) => m.status === "live") && (
                             <span className="flex items-center gap-1 text-[11px] font-bold text-red-600">
                               <span className="relative flex h-1.5 w-1.5">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
@@ -421,10 +468,25 @@ export default function HomePageContent({
                           </a>
                         </div>
 
-                        {/* Match rows */}
+                        {/* Match rows — 날짜별 서브 그룹 */}
                         <div className="divide-y divide-gray-50">
-                          {group.matches.map((match) => (
-                            <MatchRow key={match.id} match={match} locale={locale} />
+                          {group.dayGroups.map((dayGroup) => (
+                            <div key={dayGroup.dateKey}>
+                              {/* 날짜 구분선 */}
+                              <div className="flex items-center gap-2 px-4 py-1.5 bg-gray-50/60 border-b border-gray-100">
+                                <span className={`text-[11px] font-bold ${dayGroup.isToday ? "text-emerald-600" : "text-gray-400"}`}>
+                                  {dayGroup.dateLabel}
+                                </span>
+                                {dayGroup.isToday && (
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 leading-none">
+                                    TODAY
+                                  </span>
+                                )}
+                              </div>
+                              {dayGroup.matches.map((match) => (
+                                <MatchRow key={match.id} match={match} locale={locale} />
+                              ))}
+                            </div>
                           ))}
                         </div>
                       </div>
