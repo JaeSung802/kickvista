@@ -1,29 +1,43 @@
 /**
- * AdSidebar — sticky 300 × 250 sidebar rectangle.
+ * AdSidebar — sticky desktop sidebar rectangle.
+ *
+ * Env vars (set in Vercel Dashboard → Environment Variables):
+ *   NEXT_PUBLIC_ADSENSE_ID             → publisher ID
+ *   NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE → slot ID for this unit
+ *
+ * slot prop is optional — defaults to NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE.
  *
  * Placement rules:
  *  - Use inside a sidebar <div> that is at least 300px wide
- *  - `position: sticky; top: 24px` so the ad scrolls into view naturally
- *  - Never at the very top of the sidebar — always place after at least one
- *    content widget (e.g., standings card) to avoid accidental clicks on load
- *  - 0px margin from sibling widgets handled by parent gap
+ *  - position: sticky; top: 24px so the ad follows the scroll naturally
+ *  - Never at the very top of the sidebar — place after at least one content
+ *    widget (e.g., standings card) to avoid accidental clicks on load
  */
 
 import AdLabel from "./AdLabel";
 import GoogleAdUnit from "./GoogleAdUnit";
 
 interface AdSidebarProps {
-  slot: string;
-  /** Use "tall" for 300×600 half-page unit when vertical space allows */
+  /** Defaults to NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE. */
+  slot?: string;
+  /** "tall" → 300×600 half-page unit when vertical space allows. */
   variant?: "medium" | "tall";
   className?: string;
 }
 
-const isProd = Boolean(process.env.NEXT_PUBLIC_ADSENSE_ID);
+const CLIENT_ID       = process.env.NEXT_PUBLIC_ADSENSE_ID               ?? "";
+const DEFAULT_SLOT    = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE   ?? "";
 
-export default function AdSidebar({ slot, variant = "medium", className = "" }: AdSidebarProps) {
+export default function AdSidebar({ slot = DEFAULT_SLOT, variant = "medium", className = "" }: AdSidebarProps) {
   const height = variant === "tall" ? 600 : 250;
   const label  = variant === "tall" ? "300 × 600 — Half Page" : "300 × 250 — Rectangle";
+
+  const isConfigured = Boolean(CLIENT_ID) && Boolean(slot);
+  const missingVar   = !CLIENT_ID
+    ? "NEXT_PUBLIC_ADSENSE_ID"
+    : !slot
+    ? "NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE"
+    : null;
 
   return (
     <div
@@ -50,7 +64,7 @@ export default function AdSidebar({ slot, variant = "medium", className = "" }: 
           maxWidth: "100%",
         }}
       >
-        {isProd ? (
+        {isConfigured ? (
           <GoogleAdUnit
             slot={slot}
             format="vertical"
@@ -58,7 +72,7 @@ export default function AdSidebar({ slot, variant = "medium", className = "" }: 
           />
         ) : (
           <div
-            data-ad-slot={slot}
+            data-ad-slot={slot || "unset"}
             style={{
               width: "100%",
               height,
@@ -75,9 +89,13 @@ export default function AdSidebar({ slot, variant = "medium", className = "" }: 
             }}
           >
             <span style={{ color: "#9ca3af", fontSize: 12, fontWeight: 500 }}>
-              Google AdSense
+              Google AdSense — {label}
             </span>
-            <span style={{ color: "#d1d5db", fontSize: 11 }}>{label}</span>
+            {missingVar && (
+              <span style={{ color: "#fca5a5", fontSize: 10, fontFamily: "monospace" }}>
+                env missing: {missingVar}
+              </span>
+            )}
           </div>
         )}
       </div>

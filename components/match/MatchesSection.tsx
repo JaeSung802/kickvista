@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import MatchCard, { Match } from "@/components/match/MatchCard";
+import AdBanner from "@/components/ads/AdBanner";
+
+/** Insert one in-feed ad after every AD_AFTER_N match cards. */
+const AD_AFTER_N = 3;
+// Slot is now read from NEXT_PUBLIC_ADSENSE_SLOT_BANNER inside AdBanner itself.
 
 interface MatchesSectionProps {
   locale: "ko" | "en";
@@ -202,11 +207,30 @@ export default function MatchesSection({ locale, matches: propMatches }: Matches
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {visibleMatches.map((match) => (
-              <MatchCard key={match.id} match={match} locale={locale} />
-            ))}
-          </div>
+          /*
+           * In-feed ad strategy: chunk matches into rows of AD_AFTER_N cards,
+           * then inject an AdBanner between each chunk (never after the last).
+           * The ad spans the full section width — clearly separated from cards.
+           */
+          (() => {
+            const chunks: Match[][] = [];
+            for (let i = 0; i < visibleMatches.length; i += AD_AFTER_N) {
+              chunks.push(visibleMatches.slice(i, i + AD_AFTER_N));
+            }
+            return chunks.map((chunk, chunkIdx) => (
+              <div key={chunkIdx}>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {chunk.map((match) => (
+                    <MatchCard key={match.id} match={match} locale={locale} />
+                  ))}
+                </div>
+                {/* In-feed ad between chunks — never after the last row */}
+                {chunkIdx < chunks.length - 1 && (
+                  <AdBanner />
+                )}
+              </div>
+            ));
+          })()
         )}
       </div>
     </section>

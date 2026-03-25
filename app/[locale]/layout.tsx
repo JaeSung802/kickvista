@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import AdAnchor from "@/components/ads/AdAnchor";
 import SettlementModal from "@/components/notifications/SettlementModal";
 import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
 import { getServerUser, getServerProfile } from "@/lib/auth";
@@ -84,12 +85,19 @@ export default async function LocaleLayout({
   return (
     <>
       <Navbar locale={locale as Locale} user={navUser} />
-      <div className="bg-gray-50 min-h-screen">
+      {/*
+       * pb-14 md:pb-0 — reserves 56px at the bottom on mobile so the sticky
+       * AdAnchor never covers the last line of body content or the footer.
+       * On desktop the anchor is hidden, so no padding is needed.
+       */}
+      <div className="bg-gray-50 min-h-screen pb-14 md:pb-0">
         {children}
       </div>
       <Footer locale={locale as Locale} />
       {/* Settlement notification — renders null on server, checks for wins on client */}
       {supabaseUser && <SettlementModal locale={locale as Locale} />}
+      {/* Mobile sticky anchor ad — reads NEXT_PUBLIC_ADSENSE_SLOT_ANCHOR internally */}
+      <AdAnchor />
     </>
   );
 }

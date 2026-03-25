@@ -1,25 +1,38 @@
 /**
  * AdInContent — medium rectangle (336 × 280) inserted between content blocks.
  *
+ * Env vars (set in Vercel Dashboard → Environment Variables):
+ *   NEXT_PUBLIC_ADSENSE_ID               → publisher ID
+ *   NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT  → slot ID for this unit
+ *
+ * slot prop is optional — defaults to NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT.
+ *
  * Placement rules (AdSense policy):
  *  - Insert after paragraph 1 and paragraph 3 in long-form articles
  *  - Never between a question and its answer or inside a code block
- *  - 24px top margin separates ad from preceding text
- *  - 24px bottom margin separates ad from following text
- *  - Centred so it's visually distinct from the surrounding prose column
+ *  - 24px top/bottom margin clearly separates the ad from surrounding text
  */
 
 import AdLabel from "./AdLabel";
 import GoogleAdUnit from "./GoogleAdUnit";
 
 interface AdInContentProps {
-  slot: string;
+  /** Defaults to NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT. */
+  slot?: string;
   className?: string;
 }
 
-const isProd = Boolean(process.env.NEXT_PUBLIC_ADSENSE_ID);
+const CLIENT_ID    = process.env.NEXT_PUBLIC_ADSENSE_ID                ?? "";
+const DEFAULT_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT  ?? "";
 
-export default function AdInContent({ slot, className = "" }: AdInContentProps) {
+export default function AdInContent({ slot = DEFAULT_SLOT, className = "" }: AdInContentProps) {
+  const isConfigured = Boolean(CLIENT_ID) && Boolean(slot);
+  const missingVar   = !CLIENT_ID
+    ? "NEXT_PUBLIC_ADSENSE_ID"
+    : !slot
+    ? "NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT"
+    : null;
+
   return (
     <div
       className={className}
@@ -45,7 +58,7 @@ export default function AdInContent({ slot, className = "" }: AdInContentProps) 
           position: "relative",
         }}
       >
-        {isProd ? (
+        {isConfigured ? (
           <GoogleAdUnit
             slot={slot}
             format="rectangle"
@@ -53,7 +66,7 @@ export default function AdInContent({ slot, className = "" }: AdInContentProps) 
           />
         ) : (
           <div
-            data-ad-slot={slot}
+            data-ad-slot={slot || "unset"}
             style={{
               width: "100%",
               height: 280,
@@ -70,9 +83,13 @@ export default function AdInContent({ slot, className = "" }: AdInContentProps) 
             }}
           >
             <span style={{ color: "#9ca3af", fontSize: 12, fontWeight: 500 }}>
-              Google AdSense
+              Google AdSense — 336 × 280 In-Content
             </span>
-            <span style={{ color: "#d1d5db", fontSize: 11 }}>336 × 280 — In-Content</span>
+            {missingVar && (
+              <span style={{ color: "#fca5a5", fontSize: 10, fontFamily: "monospace" }}>
+                env missing: {missingVar}
+              </span>
+            )}
           </div>
         )}
       </div>

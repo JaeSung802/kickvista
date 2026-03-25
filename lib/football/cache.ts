@@ -20,9 +20,16 @@
 export const CACHE_TTL = {
   /** Live match data — score, minute, events */
   LIVE: 30,
-  /** Today's fixture list — kick-off times, postponements */
-  FIXTURES_TODAY: 300,
-  /** Recent results list — refreshed every 5 minutes */
+  /**
+   * Today's fixture list — kick-off times, status changes, postponements.
+   *
+   * Reduced from 300 s → 60 s so that status transitions (NS → 1H → HT → FT)
+   * are visible within 1 minute.  The in-process Map cache in RealFootballProvider
+   * deduplicates concurrent requests within the same render cycle, so the
+   * actual API call rate stays low even on a busy server.
+   */
+  FIXTURES_TODAY: 60,
+  /** Recent results list */
   RESULTS: 300,
   /** League standings table */
   STANDINGS: 3_600,

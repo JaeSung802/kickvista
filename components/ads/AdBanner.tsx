@@ -1,10 +1,16 @@
 /**
  * AdBanner — full-width leaderboard banner (728 × 90 on desktop, responsive).
  *
- * Usage: replace <AdSlot size="leaderboard" /> with <AdBanner slot="..." />
+ * Env vars (set in Vercel Dashboard → Environment Variables):
+ *   NEXT_PUBLIC_ADSENSE_ID          → publisher ID  (ca-pub-XXXXXXXXXXXXXXXX)
+ *   NEXT_PUBLIC_ADSENSE_SLOT_BANNER → slot ID for this unit
+ *
+ * slot prop is optional — defaults to NEXT_PUBLIC_ADSENSE_SLOT_BANNER.
+ * When either env var is absent the component shows a dev placeholder instead
+ * of throwing, so local development and staging environments are unaffected.
  *
  * Policy compliance:
- *  - "Advertisement" label is always visible above the unit
+ *  - "Advertisement" label always visible above the unit
  *  - 16px vertical margin isolates the ad from surrounding content
  *  - Fixed min-height reserves space before load → zero layout shift
  *  - Never placed adjacent to navigation or clickable logo areas
@@ -14,14 +20,29 @@ import AdLabel from "./AdLabel";
 import GoogleAdUnit from "./GoogleAdUnit";
 
 interface AdBannerProps {
-  /** AdSense slot ID (from dashboard). Falls back to styled placeholder in dev. */
-  slot: string;
+  /**
+   * AdSense slot ID. Defaults to NEXT_PUBLIC_ADSENSE_SLOT_BANNER env var.
+   * Pass explicitly only when you need a different slot on the same page.
+   */
+  slot?: string;
   className?: string;
 }
 
-const isProd = Boolean(process.env.NEXT_PUBLIC_ADSENSE_ID);
+// Read env vars once at module level (evaluated at server render time).
+const CLIENT_ID    = process.env.NEXT_PUBLIC_ADSENSE_ID            ?? "";
+const DEFAULT_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_BANNER   ?? "";
 
-export default function AdBanner({ slot, className = "" }: AdBannerProps) {
+export default function AdBanner({ slot = DEFAULT_SLOT, className = "" }: AdBannerProps) {
+  // Both the publisher ID and the slot must be present to render a real ad.
+  const isConfigured = Boolean(CLIENT_ID) && Boolean(slot);
+
+  // Placeholder label helps developers diagnose which env var is missing.
+  const missingVar = !CLIENT_ID
+    ? "NEXT_PUBLIC_ADSENSE_ID"
+    : !slot
+    ? "NEXT_PUBLIC_ADSENSE_SLOT_BANNER"
+    : null;
+
   return (
     <div
       className={className}
@@ -30,7 +51,6 @@ export default function AdBanner({ slot, className = "" }: AdBannerProps) {
         flexDirection: "column",
         alignItems: "center",
         gap: 4,
-        /* 16px vertical breathing room from surrounding content */
         margin: "16px 0",
       }}
     >
@@ -47,16 +67,15 @@ export default function AdBanner({ slot, className = "" }: AdBannerProps) {
           position: "relative",
         }}
       >
-        {isProd ? (
+        {isConfigured ? (
           <GoogleAdUnit
             slot={slot}
             format="horizontal"
             style={{ minHeight: 90, width: "100%" }}
           />
         ) : (
-          /* Dev placeholder — identical visual to existing AdSlot leaderboard */
           <div
-            data-ad-slot={slot}
+            data-ad-slot={slot || "unset"}
             style={{
               width: "100%",
               height: 90,
@@ -73,9 +92,13 @@ export default function AdBanner({ slot, className = "" }: AdBannerProps) {
             }}
           >
             <span style={{ color: "#9ca3af", fontSize: 12, fontWeight: 500 }}>
-              Google AdSense
+              Google AdSense — 728 × 90 Banner
             </span>
-            <span style={{ color: "#d1d5db", fontSize: 11 }}>728 × 90 — Banner</span>
+            {missingVar && (
+              <span style={{ color: "#fca5a5", fontSize: 10, fontFamily: "monospace" }}>
+                env missing: {missingVar}
+              </span>
+            )}
           </div>
         )}
       </div>

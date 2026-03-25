@@ -25,6 +25,25 @@ const LIVE_SET = new Set(LIVE_STATUSES);
 const FINISHED_SET = new Set(["FT", "AET", "PEN"]);
 
 // ---------------------------------------------------------------------------
+// KST date utility
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns a YYYY-MM-DD date string in KST (Asia/Seoul, UTC+9).
+ *
+ * WHY: `new Date().toISOString()` always returns UTC. When the server runs in
+ * UTC, calling it at 09:30 KST on March 25 returns "2026-03-24T00:30:00Z" —
+ * the API receives yesterday's date and returns yesterday's fixtures.
+ *
+ * @param offsetDays Positive = future days, negative = past days.
+ */
+function kstDateString(offsetDays = 0): string {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000; // UTC+9
+  const ms = Date.now() + KST_OFFSET_MS + offsetDays * 24 * 60 * 60 * 1000;
+  return new Date(ms).toISOString().split("T")[0];
+}
+
+// ---------------------------------------------------------------------------
 // Fixture queries
 // ---------------------------------------------------------------------------
 
@@ -44,10 +63,15 @@ export async function queryHomeMatches(): Promise<Fixture[]> {
   const HOME_SLUGS: LeagueSlug[] = ["premier-league", "la-liga", "bundesliga", "serie-a"];
   const leagues = HOME_SLUGS.map((s) => LEAGUE_BY_SLUG[s]);
 
-  const now   = new Date();
-  const from  = now.toISOString().split("T")[0];
-  const toRaw = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-  const to    = toRaw.toISOString().split("T")[0];
+  // KST dates: using toISOString() would return UTC and show yesterday's date
+  // in Korean morning hours (UTC+9 is 9 h ahead of UTC).
+  const from = kstDateString(0);
+  const to   = kstDateString(2);
+
+  // ── 배포 확인용 서버 사이드 로그 ─────────────────────────────────────────
+  // Vercel → Functions 탭에서 실시간으로 확인 가능.
+  // "Fetching matches for date: 2026-03-25" 가 오늘 KST 날짜와 일치하는지 검증.
+  console.log(`[queryHomeMatches] Fetching matches for date: ${from} → ${to} (KST)`);
 
   const allFixtures = await Promise.all(
     leagues.map(async (league): Promise<Fixture[]> => {
@@ -101,7 +125,8 @@ export async function queryTodayFixtures(
   leagueSlug?: LeagueSlug
 ): Promise<Fixture[]> {
   const provider = getFootballProvider();
-  const today = new Date().toISOString().split("T")[0];
+  const today = kstDateString(0); // KST date — avoids UTC midnight off-by-one
+  console.log(`[queryTodayFixtures] Fetching matches for date: ${today} (KST)`);
 
   if (leagueSlug) {
     const league = LEAGUE_BY_SLUG[leagueSlug];
