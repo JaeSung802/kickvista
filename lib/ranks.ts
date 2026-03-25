@@ -21,7 +21,7 @@ export const RANKS: RankInfo[] = [
   {
     tier: "silver",
     badge: "🥈",
-    color: "#c0c0c0",
+    color: "#64748b", // slate-500 — visible on white (was #c0c0c0 which disappeared on light backgrounds)
     label: { en: "Silver", ko: "실버" },
     min: 100,
     max: 499,
@@ -45,7 +45,7 @@ export const RANKS: RankInfo[] = [
   {
     tier: "legend",
     badge: "👑",
-    color: "#a855f7",
+    color: "#34d399",
     label: { en: "Legend", ko: "레전드" },
     min: 5000,
     max: Infinity,

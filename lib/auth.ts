@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { User } from "@supabase/supabase-js";
 
 export interface Profile {
@@ -7,14 +8,20 @@ export interface Profile {
   total_points: number;
   current_streak: number;
   favorite_league: string | null;
+  avatar_border_color: string | null;
+  title_badge: string;
   role: string;
   is_banned: boolean;
   created_at: string;
   updated_at: string;
 }
 
-/** Returns the authenticated Supabase user, or null if not configured / not signed in. */
-export async function getServerUser(): Promise<User | null> {
+/**
+ * Returns the authenticated Supabase user, or null if not configured / not signed in.
+ * Wrapped with React cache() so multiple calls within the same server render pass
+ * (e.g. layout + page) share a single network round-trip.
+ */
+export const getServerUser = cache(async (): Promise<User | null> => {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -32,10 +39,14 @@ export async function getServerUser(): Promise<User | null> {
   } catch {
     return null;
   }
-}
+});
 
-/** Returns the user's profile row. */
-export async function getServerProfile(userId: string): Promise<Profile | null> {
+/**
+ * Returns the user's profile row.
+ * Wrapped with React cache() so repeated calls within the same render pass
+ * (e.g. layout + page) share a single DB query.
+ */
+export const getServerProfile = cache(async (userId: string): Promise<Profile | null> => {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -58,7 +69,7 @@ export async function getServerProfile(userId: string): Promise<Profile | null> 
   } catch {
     return null;
   }
-}
+});
 
 /**
  * Upserts a profile row for a new user.

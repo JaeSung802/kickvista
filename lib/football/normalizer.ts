@@ -9,6 +9,12 @@
 
 import type { Fixture, Team, StandingEntry, FixtureStatus } from "./types";
 import type { LeagueSlug } from "./types";
+import { TEAM_REGISTRY, getTeamNameKo } from "./teamRegistry";
+
+// Build a lookup map from numeric API team ID → registry entry (built once at module load)
+const TEAM_BY_ID = Object.fromEntries(
+  Object.values(TEAM_REGISTRY).map((entry) => [entry.id, entry])
+) as Record<number, (typeof TEAM_REGISTRY)[string]>;
 
 // Raw API types (api-football.com v3)
 interface RawTeam {
@@ -56,11 +62,16 @@ const LEAGUE_ID_TO_SLUG: Record<number, LeagueSlug> = {
 };
 
 export function normalizeTeam(raw: RawTeam): Team {
+  const registered = TEAM_BY_ID[raw.id];
+  // ID lookup first, name-based lookup as fallback (covers teams not in TEAM_REGISTRY by ID)
+  const nameKo = registered?.nameKo ?? getTeamNameKo(raw.name);
   return {
     id: raw.id,
-    name: raw.name,
+    name: registered?.nameEn ?? raw.name,
+    nameKo,
     shortName: raw.code ?? raw.name.slice(0, 3).toUpperCase(),
-    flag: "⚽", // Placeholder - real flag comes from team mapping
+    flag: registered?.flag ?? "⚽",
+    logo: raw.logo ?? undefined,
     country: raw.country,
   };
 }

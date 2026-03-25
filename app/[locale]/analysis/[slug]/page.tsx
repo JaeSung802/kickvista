@@ -423,6 +423,8 @@ const labels = {
   },
 };
 
+export const dynamicParams = true;
+
 export async function generateStaticParams() {
   const locales = ["ko", "en"];
   const slugs = [
@@ -444,9 +446,21 @@ export async function generateMetadata({
   const { locale, slug } = await params;
   if (!isValidLocale(locale)) return {};
   const loc = locale as Locale;
+
+  // Try DB first
+  const { getAnalysisBySlug } = await import("@/lib/analysis/db");
+  const dbAnalysis = await getAnalysisBySlug(slug, loc);
+  if (dbAnalysis) {
+    return buildMetadata({
+      locale: loc,
+      title: dbAnalysis.title,
+      description: dbAnalysis.summary,
+      path: `/analysis/${slug}`,
+    });
+  }
+
   const article = ARTICLES[slug];
   if (!article) return buildMetadata({ locale: loc });
-
   return buildMetadata({
     locale: loc,
     title: loc === "ko" ? article.titleKo : article.titleEn,
@@ -464,13 +478,206 @@ export default async function AnalysisDetailPage({
   if (!isValidLocale(locale)) notFound();
 
   const loc = locale as Locale;
-  const article = ARTICLES[slug];
-  if (!article) notFound();
-
-  const t = labels[loc];
   const isKo = loc === "ko";
-
+  const t = labels[loc];
   const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://kickvista.io";
+
+  // ── Try DB first ─────────────────────────────────────────────────────────
+  const { getAnalysisBySlug, listAnalyses } = await import("@/lib/analysis/db");
+  const dbAnalysis = await getAnalysisBySlug(slug, loc);
+
+  if (dbAnalysis) {
+    const related = await listAnalyses(loc, undefined, 4);
+    const relatedItems = related.filter((a) => a.slug !== slug).slice(0, 3);
+
+    const jsonLd = articleJsonLd({
+      title: dbAnalysis.title,
+      description: dbAnalysis.summary,
+      url: `${BASE_URL}/${loc}/analysis/${slug}`,
+      publishedAt: dbAnalysis.generatedAt,
+    });
+
+    const paragraphs = dbAnalysis.insight.split("\n\n").filter(Boolean);
+    const typeMeta =
+      dbAnalysis.type === "preview"
+        ? { label: isKo ? "프리뷰" : "Preview", color: "#059669", bg: "#ecfdf5", border: "#a7f3d0" }
+        : { label: isKo ? "리캡" : "Recap",     color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" };
+
+    const confidence = dbAnalysis.prediction?.confidence ?? 0;
+    const confidenceTier =
+      confidence >= 70 ? { label: isKo ? "높음" : "High",   color: "#059669" } :
+      confidence >= 50 ? { label: isKo ? "보통" : "Medium", color: "#d97706" } :
+                         { label: isKo ? "낮음" : "Low",    color: "#6b7280" };
+
+    return (
+      <>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+        <main className="bg-gray-50 min-h-screen">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-1.5 text-sm flex-wrap">
+              <a href={`/${loc}/analysis`} className="text-gray-500 hover:text-gray-700 no-underline">
+                {t.breadcrumbAnalysis}
+              </a>
+              <span className="text-gray-300">›</span>
+              <span className="text-gray-700 truncate max-w-xs">{dbAnalysis.title}</span>
+            </nav>
+
+            {/* Article */}
+            <article className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <div style={{ height: 3, backgroundColor: typeMeta.color }} />
+              <div className="p-7 flex flex-col gap-5">
+                {/* Badge row */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold rounded-full px-2.5 py-0.5 border"
+                    style={{ color: typeMeta.color, backgroundColor: typeMeta.bg, borderColor: typeMeta.border }}>
+                    {dbAnalysis.type === "preview" ? "🔮" : "📊"} {typeMeta.label}
+                  </span>
+                  <span className="text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-0.5">
+                    ✨ {dbAnalysis.aiModel}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {new Date(dbAnalysis.generatedAt).toLocaleDateString(isKo ? "ko-KR" : "en-GB", {
+                      year: "numeric", month: "short", day: "numeric",
+                    })}
+                  </span>
+                </div>
+
+                {/* Title */}
+                <h1 className="text-2xl font-extrabold text-gray-900 leading-tight">{dbAnalysis.title}</h1>
+
+                {/* Summary */}
+                <p className="text-base text-gray-600 leading-relaxed border-l-4 border-emerald-400 pl-4 bg-emerald-50 rounded-r-lg py-3">
+                  {dbAnalysis.summary}
+                </p>
+
+                {/* AI Disclaimer */}
+                <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+                  <span className="text-sm shrink-0">🤖</span>
+                  <p className="text-xs text-blue-600 leading-relaxed italic">{dbAnalysis.disclaimer}</p>
+                </div>
+
+                {/* Body */}
+                {paragraphs.length > 0 && (
+                  <div className="flex flex-col gap-4">
+                    {paragraphs.map((para, idx) => (
+                      <p key={idx} className="text-gray-700 text-sm leading-relaxed">{para}</p>
+                    ))}
+                  </div>
+                )}
+
+                {/* Key Factors */}
+                {dbAnalysis.keyFactors && dbAnalysis.keyFactors.length > 0 && (
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-5">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{t.keyFactors}</h2>
+                    <div className="flex flex-col gap-2">
+                      {dbAnalysis.keyFactors.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between text-sm bg-white rounded-lg px-4 py-2.5 border border-gray-100">
+                          <span className="text-gray-600 flex items-center gap-2">
+                            <span>{f.icon}</span>
+                            {isKo ? f.labelKo : f.label}
+                          </span>
+                          <span className="font-semibold text-gray-800">{isKo ? f.valueKo : f.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Prediction */}
+                {dbAnalysis.prediction && (
+                  <div className="bg-gray-50 border border-gray-100 rounded-xl p-5">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">{t.prediction}</h2>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-gray-800">{dbAnalysis.prediction.label}</span>
+                      <span className="text-lg font-black tabular-nums" style={{ color: confidenceTier.color }}>
+                        {confidence}%
+                      </span>
+                    </div>
+                    <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${confidence}%` }} />
+                    </div>
+                    <div className="flex justify-between mt-1.5">
+                      <span className="text-xs text-gray-400">0%</span>
+                      <span className="text-xs font-semibold" style={{ color: confidenceTier.color }}>{confidenceTier.label}</span>
+                      <span className="text-xs text-gray-400">100%</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tips */}
+                {dbAnalysis.tips.length > 0 && (
+                  <div>
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2.5">{t.keyTips}</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {dbAnalysis.tips.map((tip, i) => (
+                        <span key={i} className="text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full px-3 py-1">
+                          {isKo ? tip.labelKo : tip.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </article>
+
+            {/* Related analyses */}
+            {relatedItems.length > 0 && (
+              <section>
+                <h2 className="text-base font-extrabold text-gray-900 mb-3">{t.relatedAnalyses}</h2>
+                <div className="flex flex-col gap-3">
+                  {relatedItems.map((r) => (
+                    <a key={r.id} href={`/${loc}/analysis/${r.slug}`}
+                      className="bg-white border border-gray-200 rounded-xl p-4 hover:border-emerald-200 hover:bg-emerald-50 transition-colors no-underline block">
+                      <div className="text-sm font-bold text-gray-900 mb-1">{r.title}</div>
+                      <div className="text-xs text-gray-500 line-clamp-2">{r.summary}</div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <a href={`/${loc}/analysis`} className="text-sm text-gray-500 hover:text-gray-700 no-underline">
+              {t.backToAnalysis}
+            </a>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  // ── Fallback: hardcoded ARTICLES ─────────────────────────────────────────
+  const article = ARTICLES[slug];
+  if (!article) {
+    // New-format slug (e.g. team-vs-team-YYYY-MM-DD-preview) — analysis not yet generated
+    return (
+      <main className="bg-gray-50 min-h-screen">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
+          <a href={`/${loc}/analysis`} className="text-sm text-gray-500 hover:text-gray-700 no-underline">
+            {t.backToAnalysis}
+          </a>
+          <div className="bg-white border border-gray-200 rounded-xl p-10 flex flex-col items-center gap-4 text-center shadow-sm">
+            <span className="text-4xl">🔄</span>
+            <h1 className="text-xl font-extrabold text-gray-900">
+              {isKo ? "분석 준비 중입니다" : "Analysis Coming Soon"}
+            </h1>
+            <p className="text-sm text-gray-500 max-w-sm leading-relaxed">
+              {isKo
+                ? "이 경기의 AI 분석은 킥오프 24시간 전 자동으로 생성됩니다. 잠시 후 다시 확인해주세요."
+                : "AI analysis for this fixture is generated automatically 24 hours before kick-off. Please check back soon."}
+            </p>
+            <a
+              href={`/${loc}/analysis`}
+              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-colors no-underline"
+            >
+              {isKo ? "전체 분석 보기" : "Browse All Analyses"}
+            </a>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const jsonLd = articleJsonLd({
     title: isKo ? article.titleKo : article.titleEn,
@@ -506,7 +713,7 @@ export default async function AnalysisDetailPage({
       : isKo ? "불확실" : "Uncertain";
   const confidenceColor =
     article.prediction.confidence >= 70
-      ? "#22c55e"
+      ? "#059669"
       : article.prediction.confidence >= 50
       ? "#f59e0b"
       : "#ef4444";
@@ -525,15 +732,9 @@ export default async function AnalysisDetailPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+      <main className="bg-gray-50 min-h-screen">
         {/* ── Article header ──────────────────────────────────────────── */}
-        <div
-          style={{
-            background: "linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
-            borderBottom: "1px solid #21262d",
-          }}
-          className="py-10"
-        >
+        <div className="bg-white border-b border-gray-200 py-10">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Breadcrumb */}
             <nav
@@ -543,12 +744,12 @@ export default async function AnalysisDetailPage({
                 gap: 6,
                 marginBottom: 20,
                 fontSize: 12,
-                color: "#484f58",
+                color: "#9ca3af",
               }}
             >
               <a
                 href={`/${loc}/analysis`}
-                style={{ color: "#8b949e", textDecoration: "none" }}
+                style={{ color: "#6b7280", textDecoration: "none" }}
               >
                 {t.breadcrumbAnalysis}
               </a>
@@ -564,7 +765,7 @@ export default async function AnalysisDetailPage({
               <span>›</span>
               <span
                 style={{
-                  color: "#484f58",
+                  color: "#9ca3af",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap" as const,
@@ -597,9 +798,9 @@ export default async function AnalysisDetailPage({
               <span
                 style={{
                   fontSize: 11,
-                  color: "#8b949e",
-                  backgroundColor: "#161b22",
-                  border: "1px solid #30363d",
+                  color: "#6b7280",
+                  backgroundColor: "#f9fafb",
+                  border: "1px solid #e5e7eb",
                   borderRadius: 5,
                   padding: "3px 9px",
                 }}
@@ -624,7 +825,7 @@ export default async function AnalysisDetailPage({
             {/* Title h1 */}
             <h1
               style={{
-                color: "#e6edf3",
+                color: "#111827",
                 fontSize: 28,
                 fontWeight: 900,
                 margin: "0 0 20px",
@@ -637,8 +838,8 @@ export default async function AnalysisDetailPage({
             {/* Match info banner */}
             <div
               style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
                 borderRadius: 12,
                 padding: "16px 20px",
                 display: "flex",
@@ -651,18 +852,18 @@ export default async function AnalysisDetailPage({
               <div className="flex items-center gap-3">
                 <span style={{ fontSize: 24 }}>{article.homeFlag}</span>
                 <span
-                  style={{ color: "#e6edf3", fontSize: 15, fontWeight: 700 }}
+                  style={{ color: "#111827", fontSize: 15, fontWeight: 700 }}
                 >
                   {homeTeam}
                 </span>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <span style={{ color: "#8b949e", fontSize: 11 }}>
+                <span style={{ color: "#6b7280", fontSize: 11 }}>
                   {t.match}
                 </span>
                 <span
                   style={{
-                    color: "#22c55e",
+                    color: "#059669",
                     fontSize: 12,
                     fontWeight: 700,
                     backgroundColor: "rgba(34,197,94,0.1)",
@@ -676,7 +877,7 @@ export default async function AnalysisDetailPage({
               </div>
               <div className="flex items-center gap-3">
                 <span
-                  style={{ color: "#e6edf3", fontSize: 15, fontWeight: 700 }}
+                  style={{ color: "#111827", fontSize: 15, fontWeight: 700 }}
                 >
                   {awayTeam}
                 </span>
@@ -693,7 +894,7 @@ export default async function AnalysisDetailPage({
                 marginTop: 12,
               }}
             >
-              <p style={{ color: "#484f58", fontSize: 12, margin: 0 }}>
+              <p style={{ color: "#9ca3af", fontSize: 12, margin: 0 }}>
                 {t.published}:{" "}
                 {new Date(article.publishedAt).toLocaleDateString(
                   isKo ? "ko-KR" : "en-GB",
@@ -702,7 +903,7 @@ export default async function AnalysisDetailPage({
               </p>
               <span
                 style={{
-                  color: "#484f58",
+                  color: "#9ca3af",
                   fontSize: 12,
                   display: "flex",
                   alignItems: "center",
@@ -738,7 +939,7 @@ export default async function AnalysisDetailPage({
               <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
               <p
                 style={{
-                  color: "#e6a020",
+                  color: "#b45309",
                   fontSize: 12,
                   margin: 0,
                   lineHeight: 1.6,
@@ -750,10 +951,9 @@ export default async function AnalysisDetailPage({
 
             {/* ── Article body paragraphs 1-2 ───────────────────────── */}
             <article>
-              {/* Match context paragraph */}
               <p
                 style={{
-                  color: "#c9d1d9",
+                  color: "#374151",
                   fontSize: 15,
                   lineHeight: 1.8,
                   marginBottom: 20,
@@ -763,7 +963,7 @@ export default async function AnalysisDetailPage({
               </p>
               <p
                 style={{
-                  color: "#c9d1d9",
+                  color: "#374151",
                   fontSize: 15,
                   lineHeight: 1.8,
                   marginBottom: 20,
@@ -776,15 +976,15 @@ export default async function AnalysisDetailPage({
             {/* ── Key factors section ────────────────────────────────── */}
             <div
               style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
                 borderRadius: 12,
                 padding: "20px",
               }}
             >
               <h3
                 style={{
-                  color: "#e6edf3",
+                  color: "#111827",
                   fontSize: 14,
                   fontWeight: 700,
                   margin: "0 0 14px",
@@ -807,13 +1007,13 @@ export default async function AnalysisDetailPage({
                       padding: "8px 0",
                       borderBottom:
                         i < keyFactors.length - 1
-                          ? "1px solid #21262d"
+                          ? "1px solid #f3f4f6"
                           : "none",
                     }}
                   >
                     <span
                       style={{
-                        color: "#22c55e",
+                        color: "#059669",
                         fontSize: 11,
                         fontWeight: 800,
                         marginTop: 3,
@@ -822,7 +1022,7 @@ export default async function AnalysisDetailPage({
                     >
                       ✓
                     </span>
-                    <span style={{ color: "#8b949e", fontSize: 13, lineHeight: 1.5 }}>
+                    <span style={{ color: "#6b7280", fontSize: 13, lineHeight: 1.5 }}>
                       {factor}
                     </span>
                   </li>
@@ -833,8 +1033,8 @@ export default async function AnalysisDetailPage({
             {/* ── Prediction card (inline, prominent) ───────────────── */}
             <div
               style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
                 borderRadius: 12,
                 padding: "24px",
                 display: "flex",
@@ -847,7 +1047,7 @@ export default async function AnalysisDetailPage({
                 <div>
                   <p
                     style={{
-                      color: "#8b949e",
+                      color: "#6b7280",
                       fontSize: 11,
                       fontWeight: 700,
                       textTransform: "uppercase" as const,
@@ -859,7 +1059,7 @@ export default async function AnalysisDetailPage({
                   </p>
                   <span
                     style={{
-                      color: "#22c55e",
+                      color: "#059669",
                       fontSize: 20,
                       fontWeight: 800,
                       backgroundColor: "rgba(34,197,94,0.1)",
@@ -877,7 +1077,7 @@ export default async function AnalysisDetailPage({
                 <div style={{ textAlign: "right" as const }}>
                   <p
                     style={{
-                      color: "#8b949e",
+                      color: "#6b7280",
                       fontSize: 11,
                       fontWeight: 700,
                       textTransform: "uppercase" as const,
@@ -915,10 +1115,10 @@ export default async function AnalysisDetailPage({
                 <div
                   style={{
                     height: 10,
-                    backgroundColor: "#0d1117",
+                    backgroundColor: "#f3f4f6",
                     borderRadius: 999,
                     overflow: "hidden",
-                    border: "1px solid #21262d",
+                    border: "1px solid #e5e7eb",
                   }}
                 >
                   <div
@@ -938,9 +1138,9 @@ export default async function AnalysisDetailPage({
                     marginTop: 4,
                   }}
                 >
-                  <span style={{ color: "#484f58", fontSize: 10 }}>0%</span>
-                  <span style={{ color: "#484f58", fontSize: 10 }}>50%</span>
-                  <span style={{ color: "#484f58", fontSize: 10 }}>100%</span>
+                  <span style={{ color: "#9ca3af", fontSize: 10 }}>0%</span>
+                  <span style={{ color: "#9ca3af", fontSize: 10 }}>50%</span>
+                  <span style={{ color: "#9ca3af", fontSize: 10 }}>100%</span>
                 </div>
               </div>
 
@@ -948,7 +1148,7 @@ export default async function AnalysisDetailPage({
               <div>
                 <p
                   style={{
-                    color: "#8b949e",
+                    color: "#6b7280",
                     fontSize: 11,
                     fontWeight: 700,
                     textTransform: "uppercase" as const,
@@ -991,7 +1191,7 @@ export default async function AnalysisDetailPage({
                 <p
                   key={idx}
                   style={{
-                    color: "#c9d1d9",
+                    color: "#374151",
                     fontSize: 15,
                     lineHeight: 1.8,
                     marginBottom: 20,
@@ -1004,7 +1204,7 @@ export default async function AnalysisDetailPage({
               {/* Structured data note */}
               <p
                 style={{
-                  color: "#484f58",
+                  color: "#9ca3af",
                   fontSize: 12,
                   fontStyle: "italic",
                   display: "flex",
@@ -1024,7 +1224,7 @@ export default async function AnalysisDetailPage({
               <section>
                 <h2
                   style={{
-                    color: "#e6edf3",
+                    color: "#111827",
                     fontSize: 18,
                     fontWeight: 800,
                     margin: "0 0 16px",
@@ -1042,14 +1242,12 @@ export default async function AnalysisDetailPage({
                         related.prediction
                           ? {
                               outcome: related.prediction.outcome,
-                              label: isKo
-                                ? related.prediction.outcomeKo
-                                : related.prediction.outcome,
+                              label:   related.prediction.outcome,
+                              labelKo: related.prediction.outcomeKo ?? related.prediction.outcome,
                               confidence: related.prediction.confidence,
                             }
                           : undefined
                       }
-                      tips={related.tips}
                       aiModel={related.aiModel}
                       generatedAt={related.publishedAt.split("T")[0]}
                       disclaimer={
@@ -1074,11 +1272,11 @@ export default async function AnalysisDetailPage({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  color: "#8b949e",
+                  color: "#6b7280",
                   fontSize: 13,
                   textDecoration: "none",
-                  backgroundColor: "#161b22",
-                  border: "1px solid #30363d",
+                  backgroundColor: "#ffffff",
+                  border: "1px solid #e5e7eb",
                   borderRadius: 8,
                   padding: "8px 16px",
                   transition: "all 0.15s",

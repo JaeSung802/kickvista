@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import SettlementModal from "@/components/notifications/SettlementModal";
 import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
 import { getServerUser, getServerProfile } from "@/lib/auth";
 import { getRank } from "@/lib/ranks";
@@ -17,6 +18,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const isKo = locale === "ko";
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://kickvista.app";
   return {
     title: {
       default: isKo ? "킥비스타 – 축구 인텔리전스 허브" : "KickVista – Football Intelligence Hub",
@@ -25,6 +27,18 @@ export async function generateMetadata({
     description: isKo
       ? "라이브 스코어, 순위표, AI 경기 분석 — 모든 주요 리그를 한 곳에서"
       : "Live scores, standings & AI match analysis for Premier League, La Liga, Bundesliga, Serie A, and more.",
+    icons: {
+      icon: "/icon.svg",
+      apple: "/apple-touch-icon.png",
+    },
+    openGraph: {
+      siteName: "KickVista",
+      images: [{ url: `${baseUrl}/opengraph-image`, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      images: [`${baseUrl}/opengraph-image`],
+    },
   };
 }
 
@@ -38,15 +52,18 @@ export default async function LocaleLayout({
   const { locale } = await params;
   if (!isValidLocale(locale)) notFound();
 
-  await getDictionary(locale as Locale);
-
-  // Fetch authenticated user — returns null when Supabase is not configured
-  const supabaseUser = await getServerUser();
+  // Run getDictionary and getServerUser in parallel — neither depends on the other
+  const [, supabaseUser] = await Promise.all([
+    getDictionary(locale as Locale),
+    getServerUser(),
+  ]);
   let navUser: {
     nickname: string;
     points: number;
     rankBadge: string;
     avatarUrl?: string;
+    avatarBorderColor?: string;
+    titleBadge?: string;
   } | null = null;
 
   if (supabaseUser) {
@@ -58,6 +75,8 @@ export default async function LocaleLayout({
         points: profile.total_points,
         rankBadge: rank.badge,
         avatarUrl: profile.avatar_url ?? undefined,
+        avatarBorderColor: profile.avatar_border_color ?? undefined,
+        titleBadge: profile.title_badge ?? undefined,
       };
     }
   }
@@ -65,10 +84,12 @@ export default async function LocaleLayout({
   return (
     <>
       <Navbar locale={locale as Locale} user={navUser} />
-      <div style={{ background: "#0d1117", minHeight: "100vh" }}>
+      <div className="bg-gray-50 min-h-screen">
         {children}
       </div>
       <Footer locale={locale as Locale} />
+      {/* Settlement notification — renders null on server, checks for wins on client */}
+      {supabaseUser && <SettlementModal locale={locale as Locale} />}
     </>
   );
 }

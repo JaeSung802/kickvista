@@ -1,19 +1,18 @@
-import { MockFootballProvider } from "./mock";
 import { RealFootballProvider } from "./real";
+import { MockFootballProvider } from "./mock";
 import type { IFootballProvider } from "./types";
 
 export function createFootballProvider(): IFootballProvider {
-  const apiKey = process.env.FOOTBALL_API_KEY;
+  const apiKey = process.env.API_FOOTBALL_KEY;
   const host = process.env.FOOTBALL_API_HOST ?? "v3.football.api-sports.io";
-  const mockMode = process.env.FOOTBALL_MOCK_MODE === "true" || !apiKey;
 
-  if (mockMode) {
-    console.log("[football-provider] Using mock provider");
+  // FOOTBALL_MOCK_MODE=true → use in-memory mock data (instant, no API calls).
+  // Recommended for local development to avoid overseas API latency.
+  if (!apiKey || process.env.FOOTBALL_MOCK_MODE === "true") {
     return new MockFootballProvider();
   }
 
-  console.log("[football-provider] Using real API provider");
-  return new RealFootballProvider(apiKey!, host);
+  return new RealFootballProvider(apiKey, host);
 }
 
 // Singleton - created once per server context
@@ -27,5 +26,4 @@ export function getFootballProvider(): IFootballProvider {
 }
 
 export type { IFootballProvider } from "./types";
-export { MockFootballProvider } from "./mock";
 export { RealFootballProvider } from "./real";

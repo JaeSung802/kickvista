@@ -64,7 +64,7 @@ export default function Hero({ locale }: HeroProps) {
         className="absolute top-0 left-0 right-0 h-px"
         style={{
           background:
-            "linear-gradient(90deg, transparent 0%, #22c55e 30%, #22c55e 70%, transparent 100%)",
+            "linear-gradient(90deg, transparent 0%, #059669 30%, #059669 70%, transparent 100%)",
           opacity: 0.5,
         }}
       />
@@ -92,12 +92,12 @@ export default function Hero({ locale }: HeroProps) {
             style={{
               background: "rgba(34,197,94,0.08)",
               border: "1px solid rgba(34,197,94,0.22)",
-              color: "#4ade80",
+              color: "#34d399",
             }}
           >
             <span
               className="w-1.5 h-1.5 rounded-full inline-block live-dot"
-              style={{ background: "#22c55e" }}
+              style={{ background: "#059669" }}
             />
             {c.badge}
           </div>
@@ -113,7 +113,7 @@ export default function Hero({ locale }: HeroProps) {
             <span
               className="text-4xl sm:text-5xl lg:text-[3.6rem] font-black tracking-tight leading-none"
               style={{
-                background: "linear-gradient(90deg, #22c55e 0%, #4ade80 60%, #86efac 100%)",
+                background: "linear-gradient(90deg, #059669 0%, #34d399 60%, #6ee7b7 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}
@@ -136,16 +136,16 @@ export default function Hero({ locale }: HeroProps) {
               href={`/${locale}/#matches`}
               className="flex items-center gap-2 px-7 py-3 rounded-xl font-bold text-sm transition-all active:scale-95"
               style={{
-                background: "#22c55e",
+                background: "#059669",
                 color: "#052e0f",
                 boxShadow: "0 0 20px rgba(34,197,94,0.25)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#4ade80";
+                e.currentTarget.style.background = "#34d399";
                 e.currentTarget.style.boxShadow = "0 0 28px rgba(34,197,94,0.35)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#22c55e";
+                e.currentTarget.style.background = "#059669";
                 e.currentTarget.style.boxShadow = "0 0 20px rgba(34,197,94,0.25)";
               }}
             >
@@ -214,7 +214,7 @@ export default function Hero({ locale }: HeroProps) {
           <div
             className="shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs font-black tracking-widest z-10 self-stretch"
             style={{
-              background: "#22c55e",
+              background: "#059669",
               color: "#052e0f",
               letterSpacing: "0.08em",
             }}
@@ -240,7 +240,7 @@ export default function Hero({ locale }: HeroProps) {
                   <span
                     className="text-sm font-medium"
                     style={{ color: "#c9d1d9" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#4ade80")}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = "#34d399")}
                     onMouseLeave={(e) => (e.currentTarget.style.color = "#c9d1d9")}
                   >
                     {item.teams}
@@ -249,7 +249,7 @@ export default function Hero({ locale }: HeroProps) {
                     className="text-xs font-semibold px-1.5 py-0.5 rounded"
                     style={
                       item.isLive
-                        ? { background: "rgba(34,197,94,0.14)", color: "#22c55e" }
+                        ? { background: "rgba(34,197,94,0.14)", color: "#059669" }
                         : locale === "ko"
                           ? item.statusKo === "종료"
                             ? { background: "#0d1117", color: "#484f58" }

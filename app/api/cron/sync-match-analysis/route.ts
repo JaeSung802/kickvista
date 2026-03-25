@@ -1,40 +1,71 @@
 /**
  * Cron endpoint: Generate AI match analysis for upcoming/finished fixtures
- * Schedule: Every hour (prioritizes upcoming matches within 24h and recently finished)
+ * Schedule: Every hour
  *
- * Env vars: CRON_SECRET, ANTHROPIC_API_KEY, AI_MOCK_MODE
+ * Flow:
+ *  1. Fetch fixtures finishing within 24h (→ recaps) and starting within 24h (→ previews)
+ *  2. Skip fixtures that already have an analysis stored
+ *  3. Generate analysis via Claude API (both EN + KO)
+ *  4. Save to match_analyses table
+ *
+ * Env vars: CRON_SECRET, ANTHROPIC_API_KEY, API_FOOTBALL_KEY, AI_MOCK_MODE
  */
 import { NextRequest, NextResponse } from "next/server";
+import { getFootballProvider } from "@/lib/football/provider";
+import { SUPPORTED_LEAGUES, currentFootballSeason } from "@/lib/football/constants";
+import { generateMatchAnalysis, isAiMockMode, type AnalysisEnrichmentData } from "@/lib/ai-analysis";
+import { saveAnalysis, analysisExists } from "@/lib/analysis/db";
+import type { Fixture } from "@/lib/football/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Allow up to 5 minutes for AI generation across multiple fixtures
+export const maxDuration = 300;
 
-type AnalysisType = "preview" | "recap";
-type Locale = "ko" | "en";
+type Job = { fixture: Fixture; type: "preview" | "recap" };
 
-interface AnalysisJob {
-  fixtureId: number;
-  type: AnalysisType;
-  locale: Locale;
-}
+async function buildJobs(provider: ReturnType<typeof getFootballProvider>): Promise<Job[]> {
+  const season = currentFootballSeason();
+  const now = new Date();
+  const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  // Use 72h lookback so cron delays don't cause missed recaps
+  const ago72h = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+  const fromStr = ago72h.toISOString().split("T")[0];
+  const toStr = in24h.toISOString().split("T")[0];
 
-async function generateAnalysis(job: AnalysisJob): Promise<{ success: boolean; error?: string }> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const jobs: Job[] = [];
 
-  if (!apiKey || process.env.AI_MOCK_MODE === "true") {
-    // Mock mode: simulate generation delay
-    await new Promise((r) => setTimeout(r, 10));
-    return { success: true };
-  }
+  await Promise.all(
+    SUPPORTED_LEAGUES.map(async (league) => {
+      try {
+        const fixtures = await provider.fetchFixturesRange(
+          league.id,
+          fromStr,
+          toStr,
+          season
+        );
 
-  try {
-    // In production: call Claude API with structured match data
-    // const result = await generateMatchAnalysis({ fixture, type: job.type, locale: job.locale });
-    // await saveAnalysisToDb(result);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: String(error) };
-  }
+        for (const f of fixtures) {
+          const kickoff = new Date(f.date).getTime();
+          const finished = ["FT", "AET", "PEN"].includes(f.status);
+          const upcoming = ["NS", "PST"].includes(f.status);
+
+          // Recap: finished within last 72h
+          if (finished && kickoff >= ago72h.getTime()) {
+            jobs.push({ fixture: f, type: "recap" });
+          }
+          // Preview: kicks off within next 24h
+          if (upcoming && kickoff <= in24h.getTime()) {
+            jobs.push({ fixture: f, type: "preview" });
+          }
+        }
+      } catch {
+        // Skip this league silently — provider error handling already logs
+      }
+    })
+  );
+
+  return jobs;
 }
 
 export async function GET(request: NextRequest) {
@@ -45,40 +76,100 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const isMockMode = !process.env.ANTHROPIC_API_KEY || process.env.AI_MOCK_MODE === "true";
-
-  // Build jobs list: generate previews for upcoming matches, recaps for finished ones
-  // In production, these would be fetched from DB
-  const mockJobs: AnalysisJob[] = [
-    { fixtureId: 1001, type: "preview", locale: "en" },
-    { fixtureId: 1001, type: "preview", locale: "ko" },
-    { fixtureId: 1002, type: "recap", locale: "en" },
-    { fixtureId: 1002, type: "recap", locale: "ko" },
-  ];
-
-  if (isMockMode) {
+  if (isAiMockMode || !process.env.API_FOOTBALL_KEY) {
     return NextResponse.json({
       success: true,
       mode: "mock",
-      message: "Mock mode active. Set ANTHROPIC_API_KEY to enable real AI generation.",
-      jobsQueued: mockJobs.length,
+      message: "Mock mode active. Set ANTHROPIC_API_KEY and API_FOOTBALL_KEY to enable real generation.",
       syncedAt: new Date().toISOString(),
     });
   }
 
-  const results = await Promise.allSettled(
-    mockJobs.map((job) => generateAnalysis(job))
-  );
+  const provider = getFootballProvider();
 
-  const succeeded = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
-  const failed = results.length - succeeded;
+  let jobs: Job[];
+  try {
+    jobs = await buildJobs(provider);
+  } catch (err) {
+    console.error("[sync-match-analysis] Failed to build jobs:", err);
+    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  }
+
+  const results: { fixtureId: number; type: string; status: "ok" | "skipped" | "error"; error?: string }[] = [];
+
+  for (const job of jobs) {
+    const { fixture, type } = job;
+
+    // Skip if both locales already exist
+    const [enExists, koExists] = await Promise.all([
+      analysisExists(fixture.id, type, "en"),
+      analysisExists(fixture.id, type, "ko"),
+    ]);
+    if (enExists && koExists) {
+      results.push({ fixtureId: fixture.id, type: `${type}:en`, status: "skipped" });
+      results.push({ fixtureId: fixture.id, type: `${type}:ko`, status: "skipped" });
+      continue;
+    }
+
+    // Fetch enrichment data once per fixture (shared across both locales)
+    let enrichment: AnalysisEnrichmentData = {};
+    try {
+      const league = SUPPORTED_LEAGUES.find((l) => l.id === fixture.leagueId);
+      const season = league?.season ?? currentFootballSeason();
+
+      if (type === "preview") {
+        const [h2h, homeStats, awayStats] = await Promise.all([
+          provider.fetchHeadToHead(fixture.homeTeam.id, fixture.awayTeam.id),
+          provider.fetchTeamStatistics(fixture.leagueId, season, fixture.homeTeam.id),
+          provider.fetchTeamStatistics(fixture.leagueId, season, fixture.awayTeam.id),
+        ]);
+        enrichment = { h2h, homeStats, awayStats };
+      } else {
+        // For recaps: fetch player stats (wait 30min buffer already handled by cron scheduling)
+        const fixturePlayers = await provider.fetchFixturePlayers(fixture.id);
+        enrichment = { fixturePlayers };
+      }
+    } catch (err) {
+      console.warn(`[sync-match-analysis] Enrichment failed for fixture=${fixture.id}:`, err);
+      // Proceed with empty enrichment — Claude will still generate from basic data
+    }
+
+    // Generate for both locales
+    for (const locale of ["en", "ko"] as const) {
+      const already = locale === "en" ? enExists : koExists;
+      if (already) {
+        results.push({ fixtureId: fixture.id, type: `${type}:${locale}`, status: "skipped" });
+        continue;
+      }
+
+      try {
+        const analysis = await generateMatchAnalysis({ fixture, type, locale, enrichment });
+        await saveAnalysis(analysis, {
+          leagueId:   fixture.leagueId,
+          leagueSlug: fixture.leagueSlug,
+          homeTeam:   fixture.homeTeam.name,
+          awayTeam:   fixture.awayTeam.name,
+          matchDate:  fixture.date,
+        });
+        results.push({ fixtureId: fixture.id, type: `${type}:${locale}`, status: "ok" });
+      } catch (err) {
+        console.error(`[sync-match-analysis] fixture=${fixture.id} type=${type} locale=${locale}`, err);
+        results.push({ fixtureId: fixture.id, type: `${type}:${locale}`, status: "error", error: String(err) });
+      }
+    }
+  }
+
+  const ok = results.filter((r) => r.status === "ok").length;
+  const skipped = results.filter((r) => r.status === "skipped").length;
+  const errors = results.filter((r) => r.status === "error");
 
   return NextResponse.json({
-    success: failed === 0,
+    success: errors.length === 0,
     mode: "live",
-    jobsProcessed: results.length,
-    succeeded,
-    failed,
+    jobsFound: jobs.length,
+    generated: ok,
+    skipped,
+    errors: errors.length > 0 ? errors : undefined,
     syncedAt: new Date().toISOString(),
   });
 }

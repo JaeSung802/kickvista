@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
@@ -16,12 +17,13 @@ const CATEGORY_META: Record<
   PostCategory,
   { labelEn: string; labelKo: string; color: string; bg: string }
 > = {
-  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",  color: "#22c55e", bg: "rgba(34,197,94,0.1)"   },
+  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",  color: "#059669", bg: "rgba(34,197,94,0.1)"   },
   "transfer-news":    { labelEn: "Transfer News",    labelKo: "이적 뉴스",  color: "#f59e0b", bg: "rgba(245,158,11,0.1)"  },
   "tactics":          { labelEn: "Tactics",          labelKo: "전술 분석",  color: "#8b5cf6", bg: "rgba(139,92,246,0.1)"  },
   "highlights":       { labelEn: "Highlights",       labelKo: "하이라이트", color: "#ef4444", bg: "rgba(239,68,68,0.1)"   },
   "predictions":      { labelEn: "Predictions",      labelKo: "예측",       color: "#06b6d4", bg: "rgba(6,182,212,0.1)"   },
   "general":          { labelEn: "General",          labelKo: "일반",       color: "#8b949e", bg: "rgba(139,148,158,0.1)" },
+  "notice":           { labelEn: "Notice",           labelKo: "공지사항",   color: "#059669", bg: "rgba(22,163,74,0.08)"  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -65,15 +67,18 @@ export default async function CommunityPostPage({
   const loc  = locale as Locale;
   const isKo = loc === "ko";
 
-  const [user, post] = await Promise.all([getServerUser(), getPost(id)]);
+  const [userR, postR] = await Promise.allSettled([getServerUser(), getPost(id)]);
+  const user = userR.status === "fulfilled" ? userR.value : null;
+  const post = postR.status === "fulfilled" ? postR.value : null;
   if (!post) notFound();
   const isLoggedIn = !!user;
 
-  const [initialComments, relatedResult] = await Promise.all([
+  const [commentsR, relatedR] = await Promise.allSettled([
     listComments(id),
     listPosts({ category: post.category, limit: 3, excludeId: id }),
   ]);
-  const relatedPosts = relatedResult.posts;
+  const initialComments = commentsR.status === "fulfilled" ? commentsR.value : [];
+  const relatedPosts    = relatedR.status  === "fulfilled" ? relatedR.value.posts : [];
 
   const catMeta  = CATEGORY_META[post.category];
   const catLabel = isKo ? catMeta.labelKo : catMeta.labelEn;
@@ -81,26 +86,26 @@ export default async function CommunityPostPage({
 
   return (
     <>
-    <style>{`.kv-related-post:hover { border-color: rgba(34,197,94,0.2) !important; background-color: #1c2128 !important; }`}</style>
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <style>{`.kv-related-post:hover { border-color: rgba(34,197,94,0.2) !important; background-color: #ecfdf5 !important; }`}</style>
+    <main className="min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
 
         {/* Breadcrumb */}
         <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, flexWrap: "wrap" }}>
-          <a href={`/${loc}/community`} style={{ color: "#8b949e", textDecoration: "none" }}>
+          <a href={`/${loc}/community`} style={{ color: "#6b7280", textDecoration: "none" }}>
             {isKo ? "커뮤니티" : "Community"}
           </a>
-          <span style={{ color: "#30363d" }}>›</span>
+          <span style={{ color: "#d1d5db" }}>›</span>
           <a
             href={`/${loc}/community?category=${post.category}`}
             style={{ color: catMeta.color, textDecoration: "none" }}
           >
             {catLabel}
           </a>
-          <span style={{ color: "#30363d" }}>›</span>
+          <span style={{ color: "#d1d5db" }}>›</span>
           <span
             style={{
-              color: "#c9d1d9", overflow: "hidden",
+              color: "#374151", overflow: "hidden",
               textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240,
             }}
           >
@@ -111,8 +116,8 @@ export default async function CommunityPostPage({
         {/* Post article */}
         <article
           style={{
-            backgroundColor: "#161b22",
-            border: "1px solid #30363d",
+            backgroundColor: "#ffffff",
+            border: "1px solid #e5e7eb",
             borderRadius: 12,
             overflow: "hidden",
           }}
@@ -149,7 +154,7 @@ export default async function CommunityPostPage({
             </div>
 
             {/* Title */}
-            <h1 style={{ color: "#e6edf3", fontSize: 22, fontWeight: 800, margin: "0 0 20px", lineHeight: 1.4 }}>
+            <h1 style={{ color: "#111827", fontSize: 22, fontWeight: 800, margin: "0 0 20px", lineHeight: 1.4 }}>
               {post.title}
             </h1>
 
@@ -158,14 +163,14 @@ export default async function CommunityPostPage({
               style={{
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 flexWrap: "wrap", gap: 12,
-                paddingTop: 16, borderTop: "1px solid #21262d",
+                paddingTop: 16, borderTop: "1px solid #f3f4f6",
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div
                   style={{
                     width: 40, height: 40, borderRadius: "50%",
-                    backgroundColor: "#0d1117",
+                    backgroundColor: "#f9fafb",
                     border: `2px solid ${post.rankColor}`,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: 20, flexShrink: 0,
@@ -174,7 +179,7 @@ export default async function CommunityPostPage({
                   {post.authorBadge}
                 </div>
                 <div>
-                  <div style={{ color: "#e6edf3", fontSize: 13, fontWeight: 700 }}>{post.authorName}</div>
+                  <div style={{ color: "#111827", fontSize: 13, fontWeight: 700 }}>{post.authorName}</div>
                   <div
                     style={{
                       fontSize: 10, fontWeight: 700, color: post.rankColor,
@@ -186,36 +191,34 @@ export default async function CommunityPostPage({
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-                <span style={{ color: "#8b949e", fontSize: 12 }}>{formatDate(post.createdAt, loc)}</span>
-                <span style={{ color: "#8b949e", fontSize: 12 }}>👁 {post.viewCount.toLocaleString()}</span>
-                <span style={{ color: "#8b949e", fontSize: 12 }}>💬 {post.commentCount}</span>
+                <span style={{ color: "#6b7280", fontSize: 12 }}>{formatDate(post.createdAt, loc)}</span>
+                <span style={{ color: "#6b7280", fontSize: 12 }}>👁 {post.viewCount.toLocaleString()}</span>
+                <span style={{ color: "#6b7280", fontSize: 12 }}>💬 {post.commentCount}</span>
               </div>
             </div>
           </div>
 
           {/* Post body */}
-          <div style={{ padding: "0 28px 28px", borderTop: "1px solid #21262d" }}>
+          <div style={{ padding: "0 28px 28px", borderTop: "1px solid #f3f4f6" }}>
             <div style={{ paddingTop: 24, display: "flex", flexDirection: "column", gap: 20 }}>
               {paragraphs.map((para, idx) => (
-                <>
-                  <p key={idx} style={{ color: "#c9d1d9", fontSize: 15, lineHeight: 1.85, margin: 0 }}>
+                <Fragment key={idx}>
+                  <p style={{ color: "#374151", fontSize: 15, lineHeight: 1.85, margin: 0 }}>
                     {para}
                   </p>
                   {/* In-content ad after paragraph 1 — only if article is long enough */}
                   {idx === 0 && paragraphs.length > 2 && (
                     <AdInContent
-                      key="ad-after-p1"
                       slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT ?? "2222222222"}
                     />
                   )}
                   {/* In-content ad after paragraph 3 */}
                   {idx === 2 && paragraphs.length > 4 && (
                     <AdInContent
-                      key="ad-after-p3"
                       slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT ?? "2222222222"}
                     />
                   )}
-                </>
+                </Fragment>
               ))}
             </div>
           </div>
@@ -224,19 +227,19 @@ export default async function CommunityPostPage({
           {post.tags.length > 0 && (
             <div
               style={{
-                padding: "14px 28px", borderTop: "1px solid #21262d",
+                padding: "14px 28px", borderTop: "1px solid #f3f4f6",
                 display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center",
               }}
             >
-              <span style={{ color: "#8b949e", fontSize: 12, marginRight: 4 }}>
+              <span style={{ color: "#6b7280", fontSize: 12, marginRight: 4 }}>
                 {isKo ? "태그:" : "Tags:"}
               </span>
               {post.tags.map((tag) => (
                 <span
                   key={tag}
                   style={{
-                    fontSize: 11, fontWeight: 600, color: "#8b949e",
-                    backgroundColor: "#0d1117", border: "1px solid #30363d",
+                    fontSize: 11, fontWeight: 600, color: "#6b7280",
+                    backgroundColor: "#f9fafb", border: "1px solid #e5e7eb",
                     borderRadius: 5, padding: "3px 10px",
                   }}
                 >
@@ -264,7 +267,7 @@ export default async function CommunityPostPage({
         {/* Related posts */}
         {relatedPosts.length > 0 && (
           <section>
-            <h2 style={{ color: "#e6edf3", fontSize: 15, fontWeight: 800, margin: "0 0 12px" }}>
+            <h2 style={{ color: "#111827", fontSize: 15, fontWeight: 800, margin: "0 0 12px" }}>
               {isKo ? "관련 게시글" : "Related Posts"}
             </h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -276,8 +279,8 @@ export default async function CommunityPostPage({
                     href={`/${loc}/community/post/${rp.id}`}
                     className="kv-related-post"
                     style={{
-                      display: "block", backgroundColor: "#161b22",
-                      border: "1px solid #30363d", borderRadius: 10,
+                      display: "block", backgroundColor: "#ffffff",
+                      border: "1px solid #e5e7eb", borderRadius: 10,
                       padding: "14px 18px", textDecoration: "none",
                       transition: "border-color 0.15s, background-color 0.15s",
                     }}
@@ -292,15 +295,15 @@ export default async function CommunityPostPage({
                       >
                         {isKo ? rpCat.labelKo : rpCat.labelEn}
                       </span>
-                      <span style={{ color: "#8b949e", fontSize: 11 }}>👁 {rp.viewCount.toLocaleString()}</span>
-                      <span style={{ color: "#8b949e", fontSize: 11 }}>💬 {rp.commentCount}</span>
+                      <span style={{ color: "#6b7280", fontSize: 11 }}>👁 {rp.viewCount.toLocaleString()}</span>
+                      <span style={{ color: "#6b7280", fontSize: 11 }}>💬 {rp.commentCount}</span>
                     </div>
-                    <div style={{ color: "#e6edf3", fontSize: 14, fontWeight: 700, marginBottom: 4, lineHeight: 1.4 }}>
+                    <div style={{ color: "#111827", fontSize: 14, fontWeight: 700, marginBottom: 4, lineHeight: 1.4 }}>
                       {rp.title}
                     </div>
                     <div
                       style={{
-                        color: "#8b949e", fontSize: 12, lineHeight: 1.5,
+                        color: "#6b7280", fontSize: 12, lineHeight: 1.5,
                         overflow: "hidden", display: "-webkit-box",
                         WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
                       }}
@@ -329,7 +332,7 @@ export default async function CommunityPostPage({
           href={`/${loc}/community`}
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
-            color: "#8b949e", fontSize: 13, textDecoration: "none",
+            color: "#6b7280", fontSize: 13, textDecoration: "none",
           }}
         >
           ← {isKo ? "커뮤니티로 돌아가기" : "Back to Community"}

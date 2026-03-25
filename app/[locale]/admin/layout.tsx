@@ -54,7 +54,7 @@ export default async function AdminLayout({
   ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0d1117" }}>
+    <div className="min-h-screen bg-gray-50">
       <AdminNav items={navItems} role={role ?? "user"} isKo={isKo} />
       {children}
     </div>

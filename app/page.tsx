@@ -1,12 +1,18 @@
-// import { redirect } from "next/navigation";
+/**
+ * app/page.tsx — Root page redirect
+ *
+ * `/` redirects to `/ko` (default locale) so there is exactly one URL
+ * serving the home experience. Both routes render identical content through
+ * the [locale] layout + page, eliminating the prior dual-UI problem.
+ *
+ * Method A chosen over a shared HomePageContent render because:
+ *  - Keeps the routing model clean — a single canonical URL
+ *  - Avoids duplicating the full page render (no duplicate fetches / hydration)
+ *  - SEO: canonical tag on /ko prevents any index duplication
+ */
 
-// The middleware handles locale detection and redirects.
-// This fallback ensures any un-intercepted request still resolves.
+import { redirect } from "next/navigation";
+
 export default function RootPage() {
-  // redirect("/ko");
-  return (
-    <main>
-      <h1>KickVista</h1>
-    </main>
-  )
+  redirect("/ko");
 }

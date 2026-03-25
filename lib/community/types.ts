@@ -4,7 +4,8 @@ export type PostCategory =
   | "tactics"
   | "highlights"
   | "predictions"
-  | "general";
+  | "general"
+  | "notice";
 
 export interface PostAuthor {
   id: string;

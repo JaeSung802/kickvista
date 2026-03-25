@@ -65,9 +65,9 @@ const mockPosts: Post[] = [
 
 // Two-color system: football content gets green accent, news/transfer gets blue
 const categoryStyle: Record<string, { color: string; bg: string; border: string }> = {
-  "Match Discussion": { color: "#22c55e", bg: "rgba(34,197,94,0.08)",  border: "rgba(34,197,94,0.2)"  },
+  "Match Discussion": { color: "#059669", bg: "rgba(34,197,94,0.08)",  border: "rgba(34,197,94,0.2)"  },
   "Transfer News":    { color: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)" },
-  "Tactics":          { color: "#22c55e", bg: "rgba(34,197,94,0.08)",  border: "rgba(34,197,94,0.2)"  },
+  "Tactics":          { color: "#059669", bg: "rgba(34,197,94,0.08)",  border: "rgba(34,197,94,0.2)"  },
   "Champions League": { color: "#3b82f6", bg: "rgba(59,130,246,0.08)", border: "rgba(59,130,246,0.2)" },
 };
 
@@ -95,7 +95,7 @@ export default function CommunityHighlights({ locale }: CommunityHighlightsProps
           <a
             href={`/${locale}/community`}
             className="text-sm font-medium transition-opacity"
-            style={{ color: "#22c55e" }}
+            style={{ color: "#059669" }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           >

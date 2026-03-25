@@ -1,4 +1,4 @@
-import type { Fixture, Standings, MatchDetail, Team } from "../types";
+import type { Fixture, Standings, MatchDetail, Team, H2HData, TeamStatistics, FixturePlayerStats } from "../types";
 import type { IFootballProvider } from "./types";
 import { MOCK_FIXTURES, MOCK_STANDINGS } from "../mock-data";
 import { LEAGUE_BY_SLUG, SUPPORTED_LEAGUES, FINISHED_STATUSES } from "../constants";
@@ -48,7 +48,7 @@ export class MockFootballProvider implements IFootballProvider {
 
     // Also scan MOCK_STANDINGS
     for (const slug of Object.keys(MOCK_STANDINGS) as Array<keyof typeof MOCK_STANDINGS>) {
-      for (const entry of MOCK_STANDINGS[slug]) {
+      for (const entry of (MOCK_STANDINGS[slug] ?? [])) {
         if (entry.team.id === teamId) return { ...entry.team };
       }
     }
@@ -70,6 +70,42 @@ export class MockFootballProvider implements IFootballProvider {
       results = results.slice(0, limit);
     }
     return results;
+  }
+
+  async fetchFixturesRange(leagueId: number, _from: string, _to: string, _season?: number): Promise<Fixture[]> {
+    return this.fetchFixtures(leagueId);
+  }
+
+  async fetchFixturesLast(leagueId: number, _season: number, n: number): Promise<Fixture[]> {
+    return (await this.fetchFixtures(leagueId)).slice(0, n);
+  }
+
+  async fetchFixturesNext(leagueId: number, _season: number, n: number): Promise<Fixture[]> {
+    return (await this.fetchFixtures(leagueId)).slice(0, n);
+  }
+
+  async fetchTeamResults(teamId: number, leagueId: number, _season: number, n: number): Promise<Fixture[]> {
+    return MOCK_FIXTURES.filter(
+      (f) => f.leagueId === leagueId && (f.homeTeam.id === teamId || f.awayTeam.id === teamId) && FINISHED_SET.has(f.status)
+    ).slice(0, n);
+  }
+
+  async fetchTeamFixturesNext(teamId: number, leagueId: number, _season: number, n: number): Promise<Fixture[]> {
+    return MOCK_FIXTURES.filter(
+      (f) => f.leagueId === leagueId && (f.homeTeam.id === teamId || f.awayTeam.id === teamId) && f.status === "NS"
+    ).slice(0, n);
+  }
+
+  async fetchHeadToHead(_team1Id: number, _team2Id: number): Promise<H2HData> {
+    return { team1Id: _team1Id, team2Id: _team2Id, matches: [], summary: { team1Wins: 0, team2Wins: 0, draws: 0 } };
+  }
+
+  async fetchTeamStatistics(_leagueId: number, _season: number, _teamId: number): Promise<TeamStatistics | null> {
+    return null;
+  }
+
+  async fetchFixturePlayers(_fixtureId: number): Promise<FixturePlayerStats[]> {
+    return [];
   }
 }
 

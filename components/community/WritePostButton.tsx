@@ -14,7 +14,7 @@ export default function WritePostButton({ locale }: WritePostButtonProps) {
         display: "inline-flex",
         alignItems: "center",
         gap: "7px",
-        backgroundColor: "#22c55e",
+        backgroundColor: "#059669",
         color: "#0d1117",
         fontWeight: 700,
         fontSize: "14px",
@@ -22,20 +22,20 @@ export default function WritePostButton({ locale }: WritePostButtonProps) {
         borderRadius: "8px",
         textDecoration: "none",
         transition: "background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease",
-        boxShadow: "0 2px 8px #22c55e44",
+        boxShadow: "0 2px 8px #05966944",
         whiteSpace: "nowrap",
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLAnchorElement;
-        el.style.backgroundColor = "#16a34a";
+        el.style.backgroundColor = "#059669";
         el.style.transform = "translateY(-1px)";
-        el.style.boxShadow = "0 4px 14px #22c55e55";
+        el.style.boxShadow = "0 4px 14px #05966955";
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLAnchorElement;
-        el.style.backgroundColor = "#22c55e";
+        el.style.backgroundColor = "#059669";
         el.style.transform = "translateY(0)";
-        el.style.boxShadow = "0 2px 8px #22c55e44";
+        el.style.boxShadow = "0 2px 8px #05966944";
       }}
       onMouseDown={(e) => {
         (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";

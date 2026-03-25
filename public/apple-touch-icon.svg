@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#022C22"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="180" height="180" rx="40" fill="url(#bg)"/>
+  <!-- Pentagon (scaled to 180×180) -->
+  <polygon points="90,50 127,76.5 113,115 67,115 53,76.5"
+           fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="6"/>
+  <!-- Radiating lines -->
+  <line x1="90"  y1="50"  x2="90"  y2="10"  stroke="rgba(255,255,255,0.35)" stroke-width="4"/>
+  <line x1="127" y1="76.5" x2="167" y2="63"  stroke="rgba(255,255,255,0.35)" stroke-width="4"/>
+  <line x1="113" y1="115" x2="138" y2="158" stroke="rgba(255,255,255,0.35)" stroke-width="4"/>
+  <line x1="67"  y1="115" x2="42"  y2="158" stroke="rgba(255,255,255,0.35)" stroke-width="4"/>
+  <line x1="53"  y1="76.5" x2="13"  y2="63"  stroke="rgba(255,255,255,0.35)" stroke-width="4"/>
+  <!-- Gold nodes -->
+  <circle cx="90"  cy="50"   r="8" fill="#F59E0B"/>
+  <circle cx="127" cy="76.5" r="8" fill="#F59E0B"/>
+  <circle cx="113" cy="115"  r="8" fill="#F59E0B"/>
+  <circle cx="67"  cy="115"  r="8" fill="#F59E0B"/>
+  <circle cx="53"  cy="76.5" r="8" fill="#F59E0B"/>
+</svg>

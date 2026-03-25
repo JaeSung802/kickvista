@@ -16,7 +16,7 @@ export default function Footer() {
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">⚽</span>
               <span className="text-xl font-bold text-white">
-                Kick<span style={{ color: "#22c55e" }}>Vista</span>
+                Kick<span style={{ color: "#059669" }}>Vista</span>
               </span>
             </div>
             <p style={{ color: "#8b949e" }} className="text-sm leading-relaxed mb-4">
@@ -31,7 +31,7 @@ export default function Footer() {
                   className="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-all"
                   style={{ background: "#161b22", border: "1px solid #30363d" }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget).style.borderColor = "#22c55e44";
+                    (e.currentTarget).style.borderColor = "#05966944";
                     (e.currentTarget).style.background = "#1c2128";
                   }}
                   onMouseLeave={(e) => {

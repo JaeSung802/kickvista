@@ -7,6 +7,7 @@ import { queryRecentResults } from "@/lib/football/query";
 import { fixturesToMatches } from "@/lib/football/adapters";
 import LeagueHeader from "@/components/league/LeagueHeader";
 import AdSlot from "@/components/ads/AdSlot";
+import { TeamLogo } from "@/components/ui/TeamLogo";
 import type { Metadata } from "next";
 import {
   ALL_VALID_LEAGUE_URL_SLUGS,
@@ -53,32 +54,19 @@ export async function generateMetadata({
   });
 }
 
-// ─── Labels ───────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const labels = {
-  en: {
-    pageTitle:    "Results",
-    pageSubtitle: "Latest finished matches",
-    date:         "Date",
-    home:         "Home",
-    score:        "Score",
-    away:         "Away",
-    view:         "View",
-    ft:           "FT",
-    noResults:    "No results yet for this league.",
-  },
-  ko: {
-    pageTitle:    "경기 결과",
-    pageSubtitle: "최근 완료된 경기",
-    date:         "날짜",
-    home:         "홈팀",
-    score:        "스코어",
-    away:         "원정팀",
-    view:         "보기",
-    ft:           "종료",
-    noResults:    "이 리그의 결과가 아직 없습니다.",
-  },
-};
+function formatDateLabel(dateStr: string, locale: Locale): string {
+  const d = new Date(dateStr + "T12:00:00Z");
+  if (locale === "ko") {
+    return d.toLocaleDateString("ko-KR", {
+      month: "long", day: "numeric", weekday: "short",
+    });
+  }
+  return d.toLocaleDateString("en-GB", {
+    weekday: "short", day: "numeric", month: "long",
+  });
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -97,190 +85,149 @@ export default async function LeagueResultsPage({
   const loc          = locale as Locale;
   const internalSlug = resolveLeagueUrlSlug(slug) as LeagueSlug;
   const isKo         = loc === "ko";
-  const t            = labels[loc];
   const league       = LEAGUE_BY_SLUG[internalSlug];
 
-  // Fetch finished results via provider
   const fixtures = await queryRecentResults(internalSlug, 20);
   const matches  = fixturesToMatches(fixtures, loc);
 
+  // Group by date (most recent first)
+  const grouped = matches.reduce<Record<string, typeof matches>>((acc, m) => {
+    const key = m.date ?? "unknown";
+    (acc[key] ??= []).push(m);
+    return acc;
+  }, {});
+  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+  const noResults = isKo ? "이 리그의 결과가 아직 없습니다." : "No results yet for this league.";
+  const viewLabel  = isKo ? "보기" : "View";
+
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="min-h-screen">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
 
-        {/* League header */}
-        <LeagueHeader slug={internalSlug} locale={loc} />
+        <LeagueHeader slug={internalSlug} locale={loc} activeTab={2} />
 
-        {/* Top ad */}
         <AdSlot slotId="results-top" size="leaderboard" />
 
         {/* Page title */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 style={{ color: "#e6edf3", fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>
-              {isKo ? league?.nameKo : league?.name} — {t.pageTitle}
-            </h1>
-            <p style={{ color: "#8b949e", fontSize: 13, margin: 0 }}>{t.pageSubtitle}</p>
-          </div>
+        <div>
+          <h1 className="text-xl font-extrabold text-gray-900">
+            {isKo ? league?.nameKo : league?.name} — {isKo ? "경기 결과" : "Results"}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {isKo ? "최근 완료된 경기" : "Latest finished matches"}
+          </p>
         </div>
 
-        {/* Results table */}
+        {/* Results grouped by date */}
         {matches.length === 0 ? (
-          <div
-            className="flex flex-col items-center justify-center py-16 rounded-xl"
-            style={{ background: "#161b22", border: "1px solid #30363d" }}
-          >
-            <span style={{ fontSize: 36, marginBottom: 12 }}>📋</span>
-            <p style={{ color: "#484f58", fontSize: 14 }}>{t.noResults}</p>
+          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-gray-200">
+            <span className="text-4xl mb-3">📋</span>
+            <p className="text-sm text-gray-400">{noResults}</p>
           </div>
         ) : (
-          <div
-            style={{
-              background: "#161b22",
-              border: "1px solid #30363d",
-              borderRadius: 12,
-              overflow: "hidden",
-            }}
-          >
-            {/* Column headers */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "90px 1fr auto 1fr 72px",
-                gap: 8,
-                padding: "8px 20px",
-                background: "#0d1117",
-                borderBottom: "1px solid #21262d",
-              }}
-            >
-              <span style={{ color: "#484f58", fontSize: 11, fontWeight: 600 }}>{t.date}</span>
-              <span style={{ color: "#484f58", fontSize: 11, fontWeight: 600, textAlign: "right" as const }}>{t.home}</span>
-              <span style={{ color: "#484f58", fontSize: 11, fontWeight: 600, textAlign: "center" as const }}>{t.score}</span>
-              <span style={{ color: "#484f58", fontSize: 11, fontWeight: 600 }}>{t.away}</span>
-              <span style={{ color: "#484f58", fontSize: 11, fontWeight: 600, textAlign: "center" as const }}>{t.view}</span>
-            </div>
-
-            {/* Result rows */}
-            {matches.map((m, idx) => {
-              const homeWin  = (m.homeScore ?? 0) > (m.awayScore ?? 0);
-              const awayWin  = (m.awayScore ?? 0) > (m.homeScore ?? 0);
-              const isDraw   = m.homeScore !== undefined && m.homeScore === m.awayScore;
-
-              return (
-                <div
-                  key={m.id}
-                  className="hover-row"
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "90px 1fr auto 1fr 72px",
-                    gap: 8,
-                    padding: "13px 20px",
-                    borderBottom: idx < matches.length - 1 ? "1px solid #21262d" : "none",
-                    alignItems: "center",
-                    transition: "background 0.15s",
-                  }}
-                >
-                  {/* Date */}
-                  <span style={{ color: "#8b949e", fontSize: 12 }}>
-                    {m.league}
+          <div className="flex flex-col gap-4">
+            {sortedDates.map((dateKey) => (
+              <div key={dateKey}>
+                {/* Date header */}
+                <div className="flex items-center gap-3 mb-2 px-1">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    {dateKey !== "unknown" ? formatDateLabel(dateKey, loc) : (isKo ? "날짜 미정" : "Date unknown")}
                   </span>
-
-                  {/* Home team */}
-                  <div className="flex items-center gap-2 justify-end min-w-0">
-                    <span
-                      className="truncate"
-                      style={{
-                        color: homeWin ? "#e6edf3" : isDraw ? "#8b949e" : "#484f58",
-                        fontSize: 14,
-                        fontWeight: homeWin ? 700 : 500,
-                        textAlign: "right" as const,
-                      }}
-                    >
-                      {m.homeTeam}
-                    </span>
-                    <span style={{ fontSize: 16, flexShrink: 0 }}>{m.homeFlag}</span>
-                  </div>
-
-                  {/* Score */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      background: "#0d1117",
-                      border: "1px solid #21262d",
-                      borderRadius: 6,
-                      overflow: "hidden",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <span
-                      style={{
-                        padding: "4px 10px",
-                        fontSize: 14,
-                        fontWeight: 800,
-                        color: homeWin ? "#22c55e" : "#e6edf3",
-                        minWidth: 28,
-                        textAlign: "center" as const,
-                      }}
-                    >
-                      {m.homeScore}
-                    </span>
-                    <span style={{ padding: "4px 2px", fontSize: 12, color: "#484f58" }}>–</span>
-                    <span
-                      style={{
-                        padding: "4px 10px",
-                        fontSize: 14,
-                        fontWeight: 800,
-                        color: awayWin ? "#22c55e" : "#e6edf3",
-                        minWidth: 28,
-                        textAlign: "center" as const,
-                      }}
-                    >
-                      {m.awayScore}
-                    </span>
-                  </div>
-
-                  {/* Away team */}
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span style={{ fontSize: 16, flexShrink: 0 }}>{m.awayFlag}</span>
-                    <span
-                      className="truncate"
-                      style={{
-                        color: awayWin ? "#e6edf3" : isDraw ? "#8b949e" : "#484f58",
-                        fontSize: 14,
-                        fontWeight: awayWin ? 700 : 500,
-                      }}
-                    >
-                      {m.awayTeam}
-                    </span>
-                  </div>
-
-                  {/* Match detail link */}
-                  <a
-                    href={`/${loc}/match/${m.id}`}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "5px 10px",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textDecoration: "none",
-                      color: "#8b949e",
-                      border: "1px solid #30363d",
-                      transition: "color 0.15s, border-color 0.15s",
-                    }}
-                  >
-                    {t.view}
-                  </a>
+                  <div className="flex-1 h-px bg-gray-200" />
                 </div>
-              );
-            })}
+
+                {/* Match cards for this date */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  {grouped[dateKey].map((m, idx) => {
+                    const homeWin = (m.homeScore ?? 0) > (m.awayScore ?? 0);
+                    const awayWin = (m.awayScore ?? 0) > (m.homeScore ?? 0);
+
+                    return (
+                      <a
+                        key={m.id}
+                        href={`/${loc}/match/${m.id}`}
+                        className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${
+                          idx < grouped[dateKey].length - 1 ? "border-b border-gray-100" : ""
+                        }`}
+                      >
+                        {/* Home team */}
+                        <div className="flex items-center gap-2 justify-end flex-1 min-w-0">
+                          <span
+                            className="truncate text-sm"
+                            style={{
+                              fontWeight: homeWin ? 700 : 500,
+                              color: homeWin ? "#111827" : "#6b7280",
+                              textAlign: "right",
+                            }}
+                          >
+                            {m.homeTeam}
+                          </span>
+                          <TeamLogo
+                            logo={m.homeLogo}
+                            name={m.homeTeam}
+                            size={24}
+                          />
+                        </div>
+
+                        {/* Score */}
+                        <div className="flex items-center shrink-0">
+                          <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
+                            <span
+                              className="tabular-nums text-sm font-black px-3 py-1.5 min-w-[2rem] text-center"
+                              style={{ color: homeWin ? "#059669" : "#111827" }}
+                            >
+                              {m.homeScore ?? "–"}
+                            </span>
+                            <span className="text-gray-300 text-xs">:</span>
+                            <span
+                              className="tabular-nums text-sm font-black px-3 py-1.5 min-w-[2rem] text-center"
+                              style={{ color: awayWin ? "#059669" : "#111827" }}
+                            >
+                              {m.awayScore ?? "–"}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-gray-400 font-semibold ml-1.5 shrink-0">
+                            {isKo ? "종료" : "FT"}
+                          </span>
+                        </div>
+
+                        {/* Away team */}
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <TeamLogo
+                            logo={m.awayLogo}
+                            name={m.awayTeam}
+                            size={24}
+                          />
+                          <span
+                            className="truncate text-sm"
+                            style={{
+                              fontWeight: awayWin ? 700 : 500,
+                              color: awayWin ? "#111827" : "#6b7280",
+                            }}
+                          >
+                            {m.awayTeam}
+                          </span>
+                        </div>
+
+                        {/* View chevron */}
+                        <svg
+                          width="14" height="14" viewBox="0 0 24 24"
+                          fill="none" stroke="#d1d5db" strokeWidth="2.5"
+                          strokeLinecap="round" strokeLinejoin="round"
+                          className="shrink-0 hidden sm:block"
+                        >
+                          <path d="M9 18l6-6-6-6" />
+                        </svg>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* Bottom ad */}
         <AdSlot slotId="results-bottom" size="leaderboard" />
       </div>
     </main>

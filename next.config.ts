@@ -4,6 +4,18 @@ const nextConfig: NextConfig = {
   // Internationalization handled via middleware + app/[locale] routing
   // No next/i18n config needed with App Router
 
+  // Allow next/image to optimise team/league logos from API-Football CDN
+  images: {
+    formats: ["image/webp", "image/avif"],
+    remotePatterns: [
+      { protocol: "https", hostname: "media.api-sports.io" },
+      { protocol: "https", hostname: "media-1.api-sports.io" },
+      { protocol: "https", hostname: "media-2.api-sports.io" },
+      { protocol: "https", hostname: "media-3.api-sports.io" },
+      { protocol: "https", hostname: "v3.football.api-sports.io" },
+    ],
+  },
+
   // Security headers
   async headers() {
     return [

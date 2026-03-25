@@ -12,8 +12,10 @@
 import type { Fixture, Standings, StandingEntry, LeagueSlug } from "./types";
 import { LEAGUE_BY_SLUG, LIVE_STATUSES, FINISHED_STATUSES } from "./constants";
 
-const LIVE_SET     = new Set(LIVE_STATUSES);
-const FINISHED_SET = new Set(FINISHED_STATUSES);
+const LIVE_SET       = new Set(LIVE_STATUSES);
+const FINISHED_SET   = new Set(FINISHED_STATUSES);
+const POSTPONED_SET  = new Set(["PST"]);
+const CANCELLED_SET  = new Set(["CANC", "ABD"]);
 
 // ---------------------------------------------------------------------------
 // Match view-model (mirrors MatchCard's Match interface)
@@ -25,14 +27,18 @@ export interface MatchViewModel {
   awayTeam: string;
   homeFlag: string;
   awayFlag: string;
+  homeLogo?: string;   // API logo URL for home team
+  awayLogo?: string;   // API logo URL for away team
   homeScore?: number;
   awayScore?: number;
-  status: "live" | "upcoming" | "finished";
+  status: "live" | "upcoming" | "finished" | "postponed" | "cancelled";
   time?: string;       // "HH:MM" local kick-off time for upcoming matches
   minute?: number;     // elapsed minute for live matches
   league: string;      // display name
+  leagueSlug: string;  // e.g. "premier-league" — for routing and grouping
   leagueFlag: string;  // flag emoji
   venue?: string;
+  date?: string;       // ISO date string (YYYY-MM-DD) for grouping by date
 }
 
 /**
@@ -49,6 +55,10 @@ export function fixtureToMatch(
     ? "live"
     : FINISHED_SET.has(fixture.status)
     ? "finished"
+    : POSTPONED_SET.has(fixture.status)
+    ? "postponed"
+    : CANCELLED_SET.has(fixture.status)
+    ? "cancelled"
     : "upcoming";
 
   // Extract local time string from the ISO date ("HH:MM")
@@ -65,14 +75,18 @@ export function fixtureToMatch(
     awayTeam: locale === "ko" ? (fixture.awayTeam.nameKo ?? fixture.awayTeam.name) : fixture.awayTeam.name,
     homeFlag: fixture.homeTeam.flag,
     awayFlag: fixture.awayTeam.flag,
+    homeLogo: fixture.homeTeam.logo,
+    awayLogo: fixture.awayTeam.logo,
     homeScore: fixture.homeScore,
     awayScore: fixture.awayScore,
     status,
     time: status === "upcoming" ? kickOffTime : undefined,
     minute: fixture.minute,
     league: locale === "ko" ? league.nameKo : league.name,
+    leagueSlug: fixture.leagueSlug,
     leagueFlag: league.flag,
     venue: fixture.venue,
+    date: fixture.date ? fixture.date.slice(0, 10) : undefined,
   };
 }
 
@@ -92,9 +106,12 @@ export function fixturesToMatches(
 
 export interface StandingRowViewModel {
   pos: number;
+  teamId: number;      // API team ID (for CDN logo URL and slug lookup)
   team: string;
   teamKo?: string;
+  displayName: string;  // pre-resolved: teamKo ?? team (Korean-first, English fallback)
   flag: string;
+  logo?: string;       // API logo URL
   played: number;
   won: number;
   drawn: number;
@@ -121,9 +138,12 @@ export function standingEntryToRow(
 ): StandingRowViewModel {
   return {
     pos: entry.rank,
+    teamId: entry.team.id,
     team: entry.team.name,
     teamKo: entry.team.nameKo,
+    displayName: entry.team.nameKo ?? entry.team.name,
     flag: entry.team.flag,
+    logo: entry.team.logo,
     played: entry.played,
     won: entry.won,
     drawn: entry.drawn,

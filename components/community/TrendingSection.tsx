@@ -46,7 +46,7 @@ interface TrendingSectionProps {
 }
 
 const CATEGORY_LABELS: Record<PostCategory, { en: string; ko: string; color: string }> = {
-  "match-discussion": { en: "Match",     ko: "경기",   color: "#22c55e" },
+  "match-discussion": { en: "Match",     ko: "경기",   color: "#059669" },
   "transfer-news":    { en: "Transfer",  ko: "이적",   color: "#60a5fa" },
   "tactics":          { en: "Tactics",   ko: "전술",   color: "#a78bfa" },
   "highlights":       { en: "Highlights",ko: "하이라이트", color: "#fb923c" },

@@ -43,14 +43,12 @@ function formatDay(dateStr: string): string {
 export default function AttendanceHistory({ history, locale }: AttendanceHistoryProps) {
   const tx = t[locale];
 
-  // Sort by date ascending, take last 30
   const sorted = [...history]
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-30);
 
   const totalPoints = sorted.reduce((s, d) => s + d.pointsEarned, 0);
 
-  // Compute current streak from the end
   let currentStreak = 0;
   for (let i = sorted.length - 1; i >= 0; i--) {
     if (sorted[i].checkedIn) currentStreak++;
@@ -58,89 +56,44 @@ export default function AttendanceHistory({ history, locale }: AttendanceHistory
   }
 
   return (
-    <div
-      style={{
-        backgroundColor: "#161b22",
-        border: "1px solid #30363d",
-        borderRadius: 12,
-        padding: "20px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
-    >
+    <div className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 style={{ color: "#e6edf3", fontSize: 15, fontWeight: 700, margin: "0 0 2px" }}>
-            {tx.title}
-          </h3>
-          <p style={{ color: "#8b949e", fontSize: 12, margin: 0 }}>{tx.subtitle}</p>
+          <h3 className="text-sm font-bold text-gray-900 mb-0.5">{tx.title}</h3>
+          <p className="text-xs text-gray-400">{tx.subtitle}</p>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="flex gap-4">
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "#0d1117",
-            border: "1px solid #30363d",
-            borderRadius: 8,
-            padding: "10px 14px",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ color: "#22c55e", fontSize: 18, fontWeight: 800 }}>
+      <div className="flex gap-3">
+        <div className="flex-1 bg-gray-50 border border-gray-100 rounded-lg px-3.5 py-2.5 text-center">
+          <div className="text-lg font-black text-emerald-600 tabular-nums">
             🔥 {currentStreak}
-            <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 2 }}>{tx.days}</span>
+            <span className="text-xs font-medium ml-0.5">{tx.days}</span>
           </div>
-          <div style={{ color: "#8b949e", fontSize: 11, marginTop: 2 }}>{tx.currentStreak}</div>
+          <div className="text-xs text-gray-400 mt-0.5">{tx.currentStreak}</div>
         </div>
-        <div
-          style={{
-            flex: 1,
-            backgroundColor: "#0d1117",
-            border: "1px solid #30363d",
-            borderRadius: 8,
-            padding: "10px 14px",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ color: "#e6edf3", fontSize: 18, fontWeight: 800 }}>
+        <div className="flex-1 bg-gray-50 border border-gray-100 rounded-lg px-3.5 py-2.5 text-center">
+          <div className="text-lg font-black text-gray-800 tabular-nums">
             {totalPoints.toLocaleString()}
-            <span style={{ fontSize: 12, fontWeight: 500, marginLeft: 2 }}>{tx.pts}</span>
+            <span className="text-xs font-medium ml-0.5">{tx.pts}</span>
           </div>
-          <div style={{ color: "#8b949e", fontSize: 11, marginTop: 2 }}>{tx.totalPoints}</div>
+          <div className="text-xs text-gray-400 mt-0.5">{tx.totalPoints}</div>
         </div>
       </div>
 
       {/* Calendar grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(10, 1fr)",
-          gap: 6,
-        }}
-      >
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(10, 1fr)" }}>
         {sorted.map((entry) => (
           <div
             key={entry.date}
             title={`${entry.date}${entry.checkedIn ? ` · +${entry.pointsEarned}pts` : ""}`}
-            style={{
-              aspectRatio: "1",
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 10,
-              fontWeight: 600,
-              cursor: "default",
-              backgroundColor: entry.checkedIn ? "#22c55e" : "#21262d",
-              color: entry.checkedIn ? "#0d1117" : "#484f58",
-              border: entry.checkedIn ? "none" : "1px solid #30363d",
-              transition: "transform 0.1s",
-            }}
+            className={`aspect-square rounded-full flex items-center justify-center text-xs font-semibold cursor-default transition-transform ${
+              entry.checkedIn
+                ? "bg-emerald-500 text-white"
+                : "bg-gray-100 text-gray-400 border border-gray-200"
+            }`}
           >
             {formatDay(entry.date)}
           </div>
@@ -150,27 +103,12 @@ export default function AttendanceHistory({ history, locale }: AttendanceHistory
       {/* Legend */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
-          <div
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              backgroundColor: "#22c55e",
-            }}
-          />
-          <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.checked}</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          <span className="text-xs text-gray-500">{tx.checked}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: "50%",
-              backgroundColor: "#21262d",
-              border: "1px solid #30363d",
-            }}
-          />
-          <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.missed}</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-gray-100 border border-gray-200" />
+          <span className="text-xs text-gray-500">{tx.missed}</span>
         </div>
       </div>
     </div>

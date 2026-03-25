@@ -49,7 +49,7 @@ const AI_PICKS = [
 ];
 
 function ConfidenceBar({ value }: { value: number }) {
-  const color = value >= 70 ? "#22c55e" : value >= 50 ? "#f59e0b" : "#ef4444";
+  const color = value >= 70 ? "#059669" : value >= 50 ? "#f59e0b" : "#ef4444";
   return (
     <div className="flex items-center gap-2">
       <div
@@ -75,16 +75,16 @@ export default function AIAnalysis() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <span className="w-1 h-6 rounded-full inline-block" style={{ background: "#22c55e" }} />
+            <span className="w-1 h-6 rounded-full inline-block" style={{ background: "#059669" }} />
             <h2 className="text-xl font-bold text-white">AI Match Predictions</h2>
             <span
               className="text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "#9333ea22", color: "#a855f7" }}
+              style={{ background: "#9333ea22", color: "#34d399" }}
             >
               ✨ Powered by AI
             </span>
           </div>
-          <a href="#" style={{ color: "#22c55e" }} className="text-sm font-medium hover:underline">
+          <a href="#" style={{ color: "#059669" }} className="text-sm font-medium hover:underline">
             All predictions →
           </a>
         </div>
@@ -138,10 +138,10 @@ export default function AIAnalysis() {
               {/* Prediction badge */}
               <div
                 className="flex items-center justify-between px-3 py-2.5 rounded-lg"
-                style={{ background: "#0d1117", border: "1px solid #22c55e33" }}
+                style={{ background: "#0d1117", border: "1px solid #05966933" }}
               >
                 <div className="flex items-center gap-2">
-                  <span style={{ color: "#a855f7" }}>🤖</span>
+                  <span style={{ color: "#34d399" }}>🤖</span>
                   <span className="text-xs font-medium" style={{ color: "#8b949e" }}>Prediction</span>
                 </div>
                 <span className="text-sm font-bold text-white">{pick.prediction}</span>
@@ -166,7 +166,7 @@ export default function AIAnalysis() {
                   <span
                     key={tip}
                     className="text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{ background: "#9333ea22", color: "#a855f7" }}
+                    style={{ background: "#9333ea22", color: "#34d399" }}
                   >
                     {tip}
                   </span>
@@ -176,7 +176,7 @@ export default function AIAnalysis() {
               {/* Footer */}
               <div className="flex items-center justify-between pt-1 border-t" style={{ borderColor: "#21262d" }}>
                 <span style={{ color: "#484f58" }} className="text-xs">{pick.aiModel}</span>
-                <a href="#" style={{ color: "#22c55e" }} className="text-xs font-medium hover:underline">
+                <a href="#" style={{ color: "#059669" }} className="text-xs font-medium hover:underline">
                   Full analysis →
                 </a>
               </div>

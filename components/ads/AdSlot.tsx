@@ -79,8 +79,8 @@ export default function AdSlot({ slotId, size, className = "" }: AdSlotProps) {
             style={{
               width: "100%",
               height,
-              backgroundColor: "#161b22",
-              border: "1.5px dashed #30363d",
+              backgroundColor: "#f9fafb",
+              border: "1.5px dashed #d1d5db",
               borderRadius: 6,
               position: "relative",
               overflow: "hidden",
@@ -91,11 +91,10 @@ export default function AdSlot({ slotId, size, className = "" }: AdSlotProps) {
               gap: 4,
             }}
           >
-            <div className="ad-shimmer-sweep" />
-            <span style={{ color: "#8b949e", fontSize: 12, fontWeight: 500, zIndex: 1 }}>
+            <span style={{ color: "#9ca3af", fontSize: 12, fontWeight: 500 }}>
               Google AdSense
             </span>
-            <span style={{ color: "#30363d", fontSize: 11, zIndex: 1 }}>{label}</span>
+            <span style={{ color: "#d1d5db", fontSize: 11 }}>{label}</span>
           </div>
         )}
       </div>

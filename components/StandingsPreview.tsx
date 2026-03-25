@@ -10,7 +10,7 @@ const STANDINGS = [
 ];
 
 const FORM_COLORS: Record<string, { background: string; color: string }> = {
-  W: { background: "#22c55e22", color: "#22c55e" },
+  W: { background: "#05966922", color: "#059669" },
   D: { background: "#f59e0b22", color: "#f59e0b" },
   L: { background: "#ef444422", color: "#ef4444" },
 };
@@ -24,10 +24,10 @@ export default function StandingsPreview() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <span className="w-1 h-6 rounded-full inline-block" style={{ background: "#22c55e" }} />
+            <span className="w-1 h-6 rounded-full inline-block" style={{ background: "#059669" }} />
             <h2 className="text-xl font-bold text-white">Standings</h2>
           </div>
-          <a href="#" style={{ color: "#22c55e" }} className="text-sm font-medium hover:underline">
+          <a href="#" style={{ color: "#059669" }} className="text-sm font-medium hover:underline">
             Full table →
           </a>
         </div>
@@ -44,7 +44,7 @@ export default function StandingsPreview() {
                 className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition-all"
                 style={
                   i === 0
-                    ? { background: "#22c55e22", color: "#22c55e" }
+                    ? { background: "#05966922", color: "#059669" }
                     : { color: "#8b949e" }
                 }
                 onMouseEnter={(e) => {
@@ -111,7 +111,7 @@ export default function StandingsPreview() {
                 <span
                   className="font-bold text-sm"
                   style={{
-                    color: row.pos <= 4 ? "#22c55e" : row.pos === 5 ? "#f59e0b" : "#8b949e",
+                    color: row.pos <= 4 ? "#059669" : row.pos === 5 ? "#f59e0b" : "#8b949e",
                   }}
                 >
                   {row.pos}
@@ -129,7 +129,7 @@ export default function StandingsPreview() {
                 <span style={{ color: "#8b949e" }} className="text-center tabular-nums">{row.lost}</span>
                 <span
                   className="text-center tabular-nums font-medium"
-                  style={{ color: row.gd.startsWith("+") ? "#22c55e" : "#ef4444" }}
+                  style={{ color: row.gd.startsWith("+") ? "#059669" : "#ef4444" }}
                 >
                   {row.gd}
                 </span>
@@ -156,7 +156,7 @@ export default function StandingsPreview() {
               style={{ borderTop: "1px solid #30363d", color: "#8b949e" }}
             >
               <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
                 <span>Champions League</span>
               </div>
               <div className="flex items-center gap-1.5">

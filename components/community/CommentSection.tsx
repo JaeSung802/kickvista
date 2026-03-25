@@ -21,7 +21,7 @@ const RANK_COLORS: Record<string, string> = {
   silver:  "#c0c0c0",
   gold:    "#ffd700",
   diamond: "#a8d8f0",
-  legend:  "#22c55e",
+  legend:  "#059669",
 };
 
 // ─── ReplyItem ────────────────────────────────────────────────────────────────
@@ -37,34 +37,22 @@ function ReplyItem({
   isLoggedIn: boolean;
   loginHref: string;
 }) {
-  const rankColor = reply.author.rankColor ?? RANK_COLORS[reply.author.rankTier] ?? "#8b949e";
+  const rankColor = reply.author.rankColor ?? RANK_COLORS[reply.author.rankTier] ?? "#9ca3af";
 
   return (
-    <div
-      style={{
-        display: "flex", gap: 10,
-        padding: "12px 0", borderBottom: "1px solid #21262d",
-        marginLeft: 44,
-      }}
-    >
+    <div className="flex gap-2.5 py-3 border-b border-gray-100 ml-11">
       <div
-        style={{
-          width: 28, height: 28, borderRadius: "50%",
-          backgroundColor: "#0d1117", border: `2px solid ${rankColor}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 13, flexShrink: 0,
-        }}
+        className="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-sm shrink-0"
+        style={{ border: `2px solid ${rankColor}` }}
       >
         {reply.author.rankBadge}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-          <span style={{ color: "#e6edf3", fontSize: 12, fontWeight: 600 }}>{reply.author.nickname}</span>
-          <span style={{ color: "#484f58", fontSize: 11 }}>{reply.timeAgo}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-xs font-semibold text-gray-900">{reply.author.nickname}</span>
+          <span className="text-[11px] text-gray-400">{reply.timeAgo}</span>
         </div>
-        <p style={{ color: "#c9d1d9", fontSize: 13, lineHeight: 1.55, margin: "0 0 8px" }}>
-          {reply.content}
-        </p>
+        <p className="text-sm text-gray-700 leading-snug mb-2">{reply.content}</p>
         <LikeButton
           initialCount={reply.likeCount}
           postId={reply.id}
@@ -102,7 +90,7 @@ function CommentItem({
   const [submitting, setSubmitting]     = useState(false);
   const [replyError, setReplyError]     = useState<string | null>(null);
 
-  const rankColor = comment.author.rankColor ?? RANK_COLORS[comment.author.rankTier] ?? "#8b949e";
+  const rankColor = comment.author.rankColor ?? RANK_COLORS[comment.author.rankTier] ?? "#9ca3af";
   const replies   = comment.replies ?? [];
 
   async function handleReplySubmit() {
@@ -126,47 +114,39 @@ function CommentItem({
   }
 
   return (
-    <div style={{ borderBottom: "1px solid #21262d" }}>
+    <div className="border-b border-gray-100">
       {/* Main comment */}
-      <div style={{ display: "flex", gap: 12, padding: "16px 0" }}>
+      <div className="flex gap-3 py-4">
         {/* Avatar */}
         <div
-          style={{
-            width: 36, height: 36, borderRadius: "50%",
-            backgroundColor: "#0d1117", border: `2px solid ${rankColor}`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, flexShrink: 0,
-          }}
+          className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center text-base shrink-0"
+          style={{ border: `2px solid ${rankColor}` }}
         >
           {comment.author.rankBadge}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex-1 min-w-0">
           {/* Author row */}
-          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
-            <span style={{ color: "#e6edf3", fontSize: 13, fontWeight: 700 }}>
-              {comment.author.nickname}
-            </span>
+          <div className="flex items-center flex-wrap gap-1.5 mb-1.5">
+            <span className="text-sm font-bold text-gray-900">{comment.author.nickname}</span>
             <span
+              className="text-[10px] font-bold rounded px-1.5 py-0.5 uppercase tracking-wide"
               style={{
-                fontSize: 10, fontWeight: 700, color: rankColor,
-                backgroundColor: `${rankColor}1a`, border: `1px solid ${rankColor}40`,
-                borderRadius: 4, padding: "1px 6px",
-                textTransform: "uppercase", letterSpacing: "0.04em",
+                color: rankColor,
+                backgroundColor: `${rankColor}1a`,
+                border: `1px solid ${rankColor}40`,
               }}
             >
               {comment.author.rankTier}
             </span>
-            <span style={{ color: "#484f58", fontSize: 11 }}>{comment.timeAgo}</span>
+            <span className="text-xs text-gray-400">{comment.timeAgo}</span>
           </div>
 
           {/* Content */}
-          <p style={{ color: "#c9d1d9", fontSize: 14, lineHeight: 1.65, margin: "0 0 10px" }}>
-            {comment.content}
-          </p>
+          <p className="text-sm text-gray-700 leading-relaxed mb-2.5">{comment.content}</p>
 
           {/* Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div className="flex items-center gap-3.5">
             <LikeButton
               initialCount={comment.likeCount}
               postId={comment.id}
@@ -181,13 +161,9 @@ function CommentItem({
                 if (!isLoggedIn) { window.location.href = loginHref; return; }
                 setShowReplyBox((p) => !p);
               }}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: showReplyBox ? "#22c55e" : "#8b949e",
-                fontSize: 12, padding: 0,
-                display: "flex", alignItems: "center", gap: 4,
-                transition: "color 0.15s",
-              }}
+              className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                showReplyBox ? "text-emerald-600" : "text-gray-400 hover:text-gray-600"
+              }`}
             >
               💬 {locale === "ko" ? "답글" : "Reply"}
             </button>
@@ -201,11 +177,7 @@ function CommentItem({
             {replies.length > 0 && (
               <button
                 onClick={() => setShowReplies((p) => !p)}
-                style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  color: "#8b949e", fontSize: 12, padding: 0,
-                  display: "flex", alignItems: "center", gap: 4,
-                }}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {showReplies
                   ? (locale === "ko" ? `▲ 답글 숨기기` : `▲ Hide replies`)
@@ -216,13 +188,7 @@ function CommentItem({
 
           {/* Inline reply box */}
           {showReplyBox && (
-            <div
-              style={{
-                marginTop: 12, padding: "12px 14px",
-                backgroundColor: "#0d1117",
-                border: "1px solid #30363d", borderRadius: 8,
-              }}
-            >
+            <div className="mt-3 p-3.5 bg-gray-50 border border-gray-200 rounded-lg">
               <textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
@@ -232,37 +198,26 @@ function CommentItem({
                     : `Reply to @${comment.author.nickname}...`
                 }
                 rows={2}
-                style={{
-                  width: "100%", background: "transparent", border: "none",
-                  color: "#e6edf3", fontSize: 13, resize: "vertical",
-                  outline: "none", fontFamily: "inherit", lineHeight: 1.5,
-                  boxSizing: "border-box",
-                }}
+                className="w-full bg-transparent border-none text-sm text-gray-900 placeholder-gray-400 resize-vertical outline-none leading-relaxed"
               />
               {replyError && (
-                <p style={{ color: "#ef4444", fontSize: 11, margin: "4px 0 0" }}>{replyError}</p>
+                <p className="text-xs text-red-500 mt-1">{replyError}</p>
               )}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 8 }}>
+              <div className="flex justify-end gap-2 mt-2">
                 <button
                   onClick={() => { setShowReplyBox(false); setReplyText(""); setReplyError(null); }}
-                  style={{
-                    background: "transparent", border: "1px solid #30363d",
-                    borderRadius: 6, color: "#8b949e", fontSize: 12,
-                    fontWeight: 600, padding: "5px 14px", cursor: "pointer",
-                  }}
+                  className="text-xs font-semibold text-gray-500 border border-gray-200 rounded-md px-3.5 py-1.5 hover:bg-gray-100 transition-colors"
                 >
                   {locale === "ko" ? "취소" : "Cancel"}
                 </button>
                 <button
                   onClick={handleReplySubmit}
                   disabled={!replyText.trim() || submitting}
-                  style={{
-                    backgroundColor: replyText.trim() && !submitting ? "#22c55e" : "#21262d",
-                    color: replyText.trim() && !submitting ? "#0d1117" : "#8b949e",
-                    border: "none", borderRadius: 6, fontSize: 12,
-                    fontWeight: 700, padding: "5px 14px",
-                    cursor: replyText.trim() && !submitting ? "pointer" : "default",
-                  }}
+                  className={`text-xs font-bold rounded-md px-3.5 py-1.5 transition-colors ${
+                    replyText.trim() && !submitting
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  }`}
                 >
                   {submitting
                     ? (locale === "ko" ? "작성 중..." : "Posting...")
@@ -349,44 +304,23 @@ export default function CommentSection({
   }[locale];
 
   return (
-    <section
-      style={{
-        backgroundColor: "#161b22",
-        border: "1px solid #30363d",
-        borderRadius: 12,
-        overflow: "hidden",
-      }}
-    >
+    <section className="bg-white border border-gray-200 rounded-xl overflow-hidden">
       {/* Header */}
-      <div
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "16px 24px",
-          borderBottom: "1px solid #21262d",
-          backgroundColor: "#0d1117",
-        }}
-      >
-        <h2 style={{ color: "#e6edf3", fontSize: 16, fontWeight: 800, margin: 0 }}>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+        <h2 className="text-base font-extrabold text-gray-900">
           {locale === "ko" ? `댓글 ${localCount}` : `Comments (${localCount})`}
         </h2>
         {/* Sort tabs */}
-        <div
-          style={{
-            display: "flex", gap: 4, padding: "3px 4px",
-            backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: 8,
-          }}
-        >
+        <div className="flex gap-1 p-0.5 bg-white border border-gray-200 rounded-lg">
           {(["top", "newest"] as SortKey[]).map((key) => (
             <button
               key={key}
               onClick={() => setSortBy(key)}
-              style={{
-                padding: "4px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700,
-                border: "none", cursor: "pointer",
-                backgroundColor: sortBy === key ? "#22c55e" : "transparent",
-                color: sortBy === key ? "#0d1117" : "#8b949e",
-                transition: "all 0.15s",
-              }}
+              className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                sortBy === key
+                  ? "bg-emerald-600 text-white"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               {sortLabel[key]}
             </button>
@@ -394,54 +328,34 @@ export default function CommentSection({
         </div>
       </div>
 
-      <div style={{ padding: "0 24px" }}>
+      <div className="px-6">
         {/* Comment input */}
-        <div style={{ padding: "20px 0", borderBottom: "1px solid #21262d" }}>
+        <div className="py-5 border-b border-gray-100">
           {isLoggedIn ? (
-            <div style={{ display: "flex", gap: 12 }}>
-              <div
-                style={{
-                  width: 36, height: 36, borderRadius: "50%",
-                  backgroundColor: "#0d1117", border: "2px solid #22c55e",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 16, flexShrink: 0,
-                }}
-              >
+            <div className="flex gap-3">
+              <div className="w-9 h-9 rounded-full bg-gray-50 border-2 border-emerald-500 flex items-center justify-center text-base shrink-0">
                 {userBadge}
               </div>
-              <div style={{ flex: 1 }}>
+              <div className="flex-1">
                 <textarea
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder={locale === "ko" ? "댓글을 작성하세요..." : "Write a comment..."}
                   rows={3}
-                  style={{
-                    width: "100%", backgroundColor: "#0d1117",
-                    border: "1px solid #30363d", borderRadius: 8,
-                    color: "#e6edf3", fontSize: 14,
-                    resize: "vertical", outline: "none",
-                    fontFamily: "inherit", lineHeight: 1.55,
-                    padding: "10px 14px", boxSizing: "border-box",
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(34,197,94,0.4)"; }}
-                  onBlur={(e)  => { e.currentTarget.style.borderColor = "#30363d"; }}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-vertical px-3.5 py-2.5 leading-relaxed transition-colors"
                 />
                 {submitError && (
-                  <p style={{ color: "#ef4444", fontSize: 12, margin: "4px 0 0" }}>{submitError}</p>
+                  <p className="text-xs text-red-500 mt-1">{submitError}</p>
                 )}
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                <div className="flex justify-end mt-2">
                   <button
                     onClick={handleCommentSubmit}
                     disabled={!commentText.trim() || submitting}
-                    style={{
-                      backgroundColor: commentText.trim() && !submitting ? "#22c55e" : "#21262d",
-                      color: commentText.trim() && !submitting ? "#0d1117" : "#8b949e",
-                      border: "none", borderRadius: 8, fontSize: 13,
-                      fontWeight: 700, padding: "8px 20px",
-                      cursor: commentText.trim() && !submitting ? "pointer" : "default",
-                      transition: "all 0.15s",
-                    }}
+                    className={`text-sm font-bold rounded-lg px-5 py-2 transition-all ${
+                      commentText.trim() && !submitting
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
                   >
                     {submitting
                       ? (locale === "ko" ? "작성 중..." : "Posting...")
@@ -451,16 +365,10 @@ export default function CommentSection({
               </div>
             </div>
           ) : (
-            <div
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                backgroundColor: "#0d1117", border: "1px solid #30363d",
-                borderRadius: 10, padding: "14px 18px", gap: 12, flexWrap: "wrap",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 24 }}>💬</span>
-                <p style={{ color: "#8b949e", fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+            <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">💬</span>
+                <p className="text-sm text-gray-500 leading-snug">
                   {locale === "ko"
                     ? "로그인하면 댓글을 작성하고 대화에 참여할 수 있습니다"
                     : "Sign in to join the conversation and leave your thoughts"}
@@ -468,12 +376,7 @@ export default function CommentSection({
               </div>
               <a
                 href={loginHref}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "8px 18px", backgroundColor: "#22c55e",
-                  color: "#0d1117", fontSize: 13, fontWeight: 700,
-                  borderRadius: 8, textDecoration: "none", flexShrink: 0,
-                }}
+                className="inline-flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg no-underline transition-colors shrink-0"
               >
                 {locale === "ko" ? "로그인" : "Sign In"}
               </a>
@@ -484,8 +387,8 @@ export default function CommentSection({
         {/* Comment list */}
         <div>
           {sortedComments.length === 0 ? (
-            <div style={{ padding: "32px 0", textAlign: "center" }}>
-              <p style={{ color: "#484f58", fontSize: 14, margin: 0 }}>
+            <div className="py-8 text-center">
+              <p className="text-sm text-gray-400">
                 {locale === "ko" ? "첫 댓글을 남겨보세요!" : "Be the first to comment!"}
               </p>
             </div>

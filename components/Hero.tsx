@@ -22,15 +22,15 @@ export default function Hero() {
         style={{
           backgroundImage: `repeating-linear-gradient(
             90deg,
-            #22c55e 0px,
-            #22c55e 1px,
+            #059669 0px,
+            #059669 1px,
             transparent 1px,
             transparent 80px
           ),
           repeating-linear-gradient(
             0deg,
-            #22c55e 0px,
-            #22c55e 1px,
+            #059669 0px,
+            #059669 1px,
             transparent 1px,
             transparent 80px
           )`,
@@ -40,7 +40,7 @@ export default function Hero() {
       {/* Glow effects */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full opacity-10 pointer-events-none"
-        style={{ background: "radial-gradient(circle, #22c55e 0%, transparent 70%)" }}
+        style={{ background: "radial-gradient(circle, #059669 0%, transparent 70%)" }}
       />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -48,9 +48,9 @@ export default function Hero() {
           {/* Badge */}
           <div
             className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold"
-            style={{ background: "#22c55e22", border: "1px solid #22c55e44", color: "#22c55e" }}
+            style={{ background: "#05966922", border: "1px solid #05966944", color: "#059669" }}
           >
-            <span className="live-dot w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+            <span className="live-dot w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
             2 LIVE MATCHES NOW
           </div>
 
@@ -60,7 +60,7 @@ export default function Hero() {
             <span
               className="block"
               style={{
-                background: "linear-gradient(90deg, #22c55e, #4ade80)",
+                background: "linear-gradient(90deg, #059669, #34d399)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}
@@ -80,7 +80,7 @@ export default function Hero() {
             <a
               href="#matches"
               className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all hover:opacity-90 active:scale-95"
-              style={{ background: "#22c55e", color: "#0d1117" }}
+              style={{ background: "#059669", color: "#0d1117" }}
             >
               ⚽ Live Scores
             </a>
@@ -93,7 +93,7 @@ export default function Hero() {
                 color: "#e6edf3",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget).style.borderColor = "#22c55e44";
+                (e.currentTarget).style.borderColor = "#05966944";
                 (e.currentTarget).style.background = "#161b22";
               }}
               onMouseLeave={(e) => {
@@ -136,23 +136,23 @@ export default function Hero() {
         >
           <div
             className="shrink-0 flex items-center gap-2 px-4 py-2.5 text-xs font-bold z-10"
-            style={{ background: "#22c55e", color: "#0d1117" }}
+            style={{ background: "#059669", color: "#0d1117" }}
           >
-            <span className="live-dot w-1.5 h-1.5 rounded-full bg-green-900 inline-block" />
+            <span className="live-dot w-1.5 h-1.5 rounded-full bg-emerald-900 inline-block" />
             LIVE
           </div>
           <div className="flex items-center gap-8 px-6 py-2.5 overflow-x-auto whitespace-nowrap">
             {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
               <a key={i} href="#" className="flex items-center gap-2 shrink-0 group">
                 <span className="text-sm">{item.league}</span>
-                <span className="text-sm font-medium text-white group-hover:text-green-400 transition-colors">
+                <span className="text-sm font-medium text-white group-hover:text-amber-400 transition-colors">
                   {item.teams}
                 </span>
                 <span
                   className="text-xs font-semibold px-1.5 py-0.5 rounded"
                   style={
                     item.status.includes("LIVE")
-                      ? { background: "#22c55e22", color: "#22c55e" }
+                      ? { background: "#05966922", color: "#059669" }
                       : { background: "#21262d", color: "#8b949e" }
                   }
                 >

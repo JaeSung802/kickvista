@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 const labels = {
   en: {
     title: "Create your account",
@@ -46,34 +48,78 @@ const LEAGUES = [
   { value: "champions-league", en: "Champions League ⭐",  ko: "UEFA 챔피언스리그 ⭐" },
 ];
 
-const input: React.CSSProperties = {
-  width: "100%", padding: "11px 14px", backgroundColor: "#0d1117",
-  border: "1px solid #30363d", borderRadius: 8, color: "#e6edf3",
-  fontSize: 14, outline: "none", boxSizing: "border-box",
+function getPasswordStrength(pw: string): 0 | 1 | 2 | 3 {
+  if (pw.length === 0) return 0;
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return 1;
+  if (score === 2) return 2;
+  return 3;
+}
+
+const STRENGTH_META = {
+  1: { bars: 1, color: "bg-red-400",   textColor: "text-red-500",   labelKey: "weak"   as const },
+  2: { bars: 2, color: "bg-amber-400", textColor: "text-amber-500", labelKey: "fair"   as const },
+  3: { bars: 4, color: "bg-emerald-500", textColor: "text-emerald-600", labelKey: "strong" as const },
 };
 
 export default function SignupForm({ locale }: { locale: "ko" | "en" }) {
   const t = labels[locale];
   const isKo = locale === "ko";
+  const [password, setPassword] = useState("");
+
+  const strength = getPasswordStrength(password);
+  const meta = strength > 0 ? STRENGTH_META[strength as 1 | 2 | 3] : null;
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 16px" }}>
-      <div style={{ width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", gap: 24 }}>
+    <main className="bg-gray-50 min-h-dvh flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-120 flex flex-col gap-6">
+
         {/* Logo */}
-        <div style={{ textAlign: "center" }}>
-          <a href={`/${locale}`} style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 28 }}>⚽</span>
-            <span style={{ fontSize: 22, fontWeight: 900, color: "#e6edf3" }}>Kick<span style={{ color: "#22c55e" }}>Vista</span></span>
+        <div className="text-center">
+          <a href={`/${locale}`} className="inline-flex items-center gap-2 mb-2 no-underline">
+            <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden>
+              <defs>
+                <linearGradient id="sf-sym" x1="0" y1="1" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#022C22"/>
+                  <stop offset="100%" stopColor="#10B981"/>
+                </linearGradient>
+              </defs>
+              <circle cx="16" cy="16" r="15.5" fill="url(#sf-sym)"/>
+              <polygon points="16,9 22.66,13.84 20.11,21.66 11.89,21.66 9.34,13.84"
+                       fill="none" stroke="rgba(255,255,255,0.9)" strokeWidth="1.2"/>
+              <line x1="16"    y1="9"     x2="16"   y2="1.5"  stroke="rgba(255,255,255,0.35)" strokeWidth="0.8"/>
+              <line x1="22.66" y1="13.84" x2="30"   y2="11.5" stroke="rgba(255,255,255,0.35)" strokeWidth="0.8"/>
+              <line x1="20.11" y1="21.66" x2="24.5" y2="28"   stroke="rgba(255,255,255,0.35)" strokeWidth="0.8"/>
+              <line x1="11.89" y1="21.66" x2="7.5"  y2="28"   stroke="rgba(255,255,255,0.35)" strokeWidth="0.8"/>
+              <line x1="9.34"  y1="13.84" x2="2"    y2="11.5" stroke="rgba(255,255,255,0.35)" strokeWidth="0.8"/>
+              <circle cx="16"    cy="9"     r="1.4" fill="#F59E0B"/>
+              <circle cx="22.66" cy="13.84" r="1.4" fill="#F59E0B"/>
+              <circle cx="20.11" cy="21.66" r="1.4" fill="#F59E0B"/>
+              <circle cx="11.89" cy="21.66" r="1.4" fill="#F59E0B"/>
+              <circle cx="9.34"  cy="13.84" r="1.4" fill="#F59E0B"/>
+            </svg>
+            <span className="text-[22px] font-black" style={{ letterSpacing: "-0.025em" }}>
+              <span style={{ color: "#022C22" }}>Kick</span><span style={{ color: "#10B981" }}>Vista</span>
+            </span>
           </a>
-          <h1 style={{ color: "#e6edf3", fontSize: 24, fontWeight: 800, margin: "8px 0 4px" }}>{t.title}</h1>
-          <p style={{ color: "#8b949e", fontSize: 14, margin: 0 }}>{t.subtitle}</p>
+          <h1 className="text-2xl font-extrabold text-gray-900 mt-2 mb-1">{t.title}</h1>
+          <p className="text-sm text-gray-500">{t.subtitle}</p>
         </div>
 
         {/* Card */}
-        <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: 16, padding: "32px", display: "flex", flexDirection: "column", gap: 20 }}>
+        <div className="bg-white border border-gray-100 rounded-3xl p-8 flex flex-col gap-5 shadow-xl">
+
           {/* Social */}
           <div className="flex flex-col gap-3">
-            <button type="button" onClick={() => alert("Coming soon")} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", backgroundColor: "#ffffff", color: "#1a1a1a", fontSize: 14, fontWeight: 600, borderRadius: 10, border: "none", cursor: "pointer" }}>
+            <button
+              type="button"
+              onClick={() => alert("Coming soon")}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+            >
               <svg width="18" height="18" viewBox="0 0 48 48">
                 <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.8 13.3l7.9 6.1C12.6 13 17.9 9.5 24 9.5z"/>
                 <path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8C43.8 37.3 46.6 31.4 46.6 24.5z"/>
@@ -82,72 +128,154 @@ export default function SignupForm({ locale }: { locale: "ko" | "en" }) {
               </svg>
               {t.googleSignUp}
             </button>
-            <button type="button" onClick={() => alert("Coming soon")} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", backgroundColor: "#FEE500", color: "#3c1e1e", fontSize: 14, fontWeight: 600, borderRadius: 10, border: "none", cursor: "pointer" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#3c1e1e"><path d="M12 3C6.48 3 2 6.69 2 11.23c0 2.94 1.79 5.53 4.5 7.07l-1.14 4.2c-.1.37.3.67.64.47L11 20.15c.33.04.66.06 1 .06 5.52 0 10-3.69 10-8.23C22 6.69 17.52 3 12 3z"/></svg>
+            <button
+              type="button"
+              onClick={() => alert("Coming soon")}
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
+              style={{ backgroundColor: "#FEE500", color: "#3c1e1e" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#3c1e1e">
+                <path d="M12 3C6.48 3 2 6.69 2 11.23c0 2.94 1.79 5.53 4.5 7.07l-1.14 4.2c-.1.37.3.67.64.47L11 20.15c.33.04.66.06 1 .06 5.52 0 10-3.69 10-8.23C22 6.69 17.52 3 12 3z"/>
+              </svg>
               {t.kakaoSignUp}
             </button>
           </div>
 
+          {/* Divider */}
           <div className="flex items-center gap-3">
-            <div style={{ flex: 1, height: 1, backgroundColor: "#30363d" }} />
-            <span style={{ color: "#484f58", fontSize: 12 }}>{t.orSignUpWith}</span>
-            <div style={{ flex: 1, height: 1, backgroundColor: "#30363d" }} />
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs text-gray-400">{t.orSignUpWith}</span>
+            <div className="flex-1 h-px bg-gray-200" />
           </div>
 
-          <form style={{ display: "flex", flexDirection: "column", gap: 16 }} onSubmit={(e) => e.preventDefault()}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600 }}>{t.nicknameLabel}</label>
-              <input type="text" placeholder={t.nicknamePlaceholder} style={input} />
-              <span style={{ color: "#484f58", fontSize: 11 }}>{t.nicknameHint}</span>
+          {/* Form */}
+          <form className="flex flex-col gap-4" onSubmit={(e) => e.preventDefault()}>
+
+            {/* Nickname */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-700">{t.nicknameLabel}</label>
+              <input
+                type="text"
+                placeholder={t.nicknamePlaceholder}
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors"
+              />
+              <span className="text-[11px] text-gray-400">{t.nicknameHint}</span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600 }}>{t.emailLabel}</label>
-              <input type="email" placeholder={t.emailPlaceholder} style={input} />
+
+            {/* Email */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-700">{t.emailLabel}</label>
+              <input
+                type="email"
+                placeholder={t.emailPlaceholder}
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors"
+              />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600 }}>{t.passwordLabel}</label>
-              <input type="password" placeholder={t.passwordPlaceholder} style={input} />
-              <div>
-                <div className="flex items-center justify-between" style={{ marginBottom: 4 }}>
-                  <span style={{ color: "#484f58", fontSize: 11 }}>{t.passwordStrength}</span>
-                  <span style={{ color: "#f59e0b", fontSize: 11, fontWeight: 600 }}>{t.fair}</span>
+
+            {/* Password + strength meter */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-700">{t.passwordLabel}</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={t.passwordPlaceholder}
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors"
+              />
+              {password.length > 0 && meta && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[11px] text-gray-400">{t.passwordStrength}</span>
+                    <span className={`text-[11px] font-semibold ${meta.textColor}`}>{t[meta.labelKey as "weak" | "fair" | "strong"]}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4].map((b) => (
+                      <div
+                        key={b}
+                        className={`flex-1 h-1 rounded-full transition-colors ${b <= meta.bars ? meta.color : "bg-gray-200"}`}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 3 }}>
-                  {[1,2,3,4].map(b => <div key={b} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: b <= 2 ? "#f59e0b" : "#21262d" }} />)}
-                </div>
-              </div>
+              )}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600 }}>{t.confirmPasswordLabel}</label>
-              <input type="password" placeholder={t.confirmPasswordPlaceholder} style={input} />
+
+            {/* Confirm password */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-700">{t.confirmPasswordLabel}</label>
+              <input
+                type="password"
+                placeholder={t.confirmPasswordPlaceholder}
+                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors"
+              />
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <label style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600 }}>{t.favoriteLeagueLabel}</label>
-              <select style={{ ...input, cursor: "pointer" }}>
+
+            {/* Favourite league */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-semibold text-gray-700">{t.favoriteLeagueLabel}</label>
+              <select className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors cursor-pointer">
                 <option value="">{t.leaguePlaceholder}</option>
-                {LEAGUES.map(l => <option key={l.value} value={l.value}>{isKo ? l.ko : l.en}</option>)}
+                {LEAGUES.map((l) => (
+                  <option key={l.value} value={l.value}>{isKo ? l.ko : l.en}</option>
+                ))}
               </select>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+            {/* Checkboxes */}
+            <div className="flex flex-col gap-3">
               <div className="flex items-start gap-2">
-                <input type="checkbox" id="terms" required style={{ accentColor: "#22c55e", width: 16, height: 16, marginTop: 2, cursor: "pointer", flexShrink: 0 }} />
-                <label htmlFor="terms" style={{ color: "#8b949e", fontSize: 13, cursor: "pointer", lineHeight: 1.5 }}>
-                  {isKo ? <><a href={`/${locale}/terms`} style={{ color: "#22c55e" }}>{t.termsLink}</a> {t.and} <a href={`/${locale}/privacy`} style={{ color: "#22c55e" }}>{t.privacyLink}</a>{t.agreeTerms}</> : <>{t.agreeTerms} <a href={`/${locale}/terms`} style={{ color: "#22c55e" }}>{t.termsLink}</a> {t.and} <a href={`/${locale}/privacy`} style={{ color: "#22c55e" }}>{t.privacyLink}</a></>}
+                <input
+                  type="checkbox"
+                  id="terms"
+                  required
+                  className="mt-0.5 shrink-0 w-4 h-4 accent-emerald-600 cursor-pointer"
+                />
+                <label htmlFor="terms" className="text-sm text-gray-500 cursor-pointer leading-relaxed">
+                  {isKo ? (
+                    <>
+                      <a href={`/${locale}/terms`} className="text-emerald-600 hover:underline">{t.termsLink}</a>
+                      {" "}{t.and}{" "}
+                      <a href={`/${locale}/privacy`} className="text-emerald-600 hover:underline">{t.privacyLink}</a>
+                      {t.agreeTerms}
+                    </>
+                  ) : (
+                    <>
+                      {t.agreeTerms}{" "}
+                      <a href={`/${locale}/terms`} className="text-emerald-600 hover:underline">{t.termsLink}</a>
+                      {" "}{t.and}{" "}
+                      <a href={`/${locale}/privacy`} className="text-emerald-600 hover:underline">{t.privacyLink}</a>
+                    </>
+                  )}
                 </label>
               </div>
               <div className="flex items-start gap-2">
-                <input type="checkbox" id="marketing" style={{ accentColor: "#22c55e", width: 16, height: 16, marginTop: 2, cursor: "pointer", flexShrink: 0 }} />
-                <label htmlFor="marketing" style={{ color: "#8b949e", fontSize: 13, cursor: "pointer", lineHeight: 1.5 }}>{t.agreeMarketing}</label>
+                <input
+                  type="checkbox"
+                  id="marketing"
+                  className="mt-0.5 shrink-0 w-4 h-4 accent-emerald-600 cursor-pointer"
+                />
+                <label htmlFor="marketing" className="text-sm text-gray-500 cursor-pointer leading-relaxed">
+                  {t.agreeMarketing}
+                </label>
               </div>
             </div>
-            <button type="submit" style={{ width: "100%", padding: "12px", backgroundColor: "#22c55e", color: "#0d1117", fontSize: 15, fontWeight: 700, borderRadius: 10, border: "none", cursor: "pointer" }}>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors"
+            >
               {t.createAccount}
             </button>
           </form>
 
-          <p style={{ color: "#8b949e", fontSize: 13, textAlign: "center", margin: 0 }}>
+          <p className="text-sm text-gray-500 text-center">
             {t.alreadyAccount}{" "}
-            <a href={`/${locale}/auth/login`} style={{ color: "#22c55e", fontWeight: 600, textDecoration: "none" }}>{t.signInLink}</a>
+            <a
+              href={`/${locale}/auth/login`}
+              className="text-emerald-600 font-semibold hover:text-emerald-700 no-underline"
+            >
+              {t.signInLink}
+            </a>
           </p>
         </div>
       </div>

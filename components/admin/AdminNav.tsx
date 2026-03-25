@@ -17,61 +17,31 @@ export default function AdminNav({ items, role, isKo }: AdminNavProps) {
   const pathname = usePathname();
 
   return (
-    <div
-      style={{
-        background: "#161b22",
-        borderBottom: "1px solid #30363d",
-        padding: "0",
-      }}
-    >
+    <div className="bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            flexWrap: "wrap",
-            paddingTop: 10,
-            paddingBottom: 10,
-          }}
-        >
+        <div className="flex items-center gap-4 flex-wrap py-2.5">
           {/* Badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🛡️</span>
-            <span
-              style={{ fontSize: 14, fontWeight: 700, color: "#e6edf3" }}
-            >
+          <div className="flex items-center gap-2">
+            <span className="text-base">🛡️</span>
+            <span className="text-sm font-bold text-gray-800">
               {isKo ? "관리자 패널" : "Admin Panel"}
             </span>
             <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                padding: "2px 8px",
-                borderRadius: 20,
-                backgroundColor:
-                  role === "admin"
-                    ? "rgba(34,197,94,0.15)"
-                    : "rgba(59,130,246,0.15)",
-                color: role === "admin" ? "#22c55e" : "#3b82f6",
-                border: `1px solid ${role === "admin" ? "rgba(34,197,94,0.3)" : "rgba(59,130,246,0.3)"}`,
-                letterSpacing: "0.05em",
-              }}
+              className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+                role === "admin"
+                  ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                  : "text-blue-700 bg-blue-50 border-blue-200"
+              }`}
             >
               {role === "admin"
-                ? isKo
-                  ? "관리자"
-                  : "ADMIN"
-                : isKo
-                ? "모더레이터"
-                : "MOD"}
+                ? isKo ? "관리자" : "ADMIN"
+                : isKo ? "모더레이터" : "MOD"}
             </span>
           </div>
 
           {/* Nav items */}
-          <nav style={{ display: "flex", gap: 2 }}>
+          <nav className="flex gap-1">
             {items.map((item) => {
-              // Exact match for dashboard, prefix match for sub-pages
               const active =
                 item.href === pathname ||
                 (pathname.startsWith(item.href + "/") &&
@@ -80,21 +50,11 @@ export default function AdminNav({ items, role, isKo }: AdminNavProps) {
                 <a
                   key={item.href}
                   href={item.href}
-                  style={{
-                    color: active ? "#e6edf3" : "#8b949e",
-                    textDecoration: "none",
-                    fontSize: 13,
-                    fontWeight: active ? 700 : 500,
-                    padding: "6px 12px",
-                    borderRadius: 6,
-                    backgroundColor: active
-                      ? "rgba(255,255,255,0.06)"
-                      : "transparent",
-                    borderBottom: active
-                      ? "2px solid #22c55e"
-                      : "2px solid transparent",
-                    transition: "background 0.15s, color 0.15s",
-                  }}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors border-b-2 ${
+                    active
+                      ? "text-gray-900 bg-gray-100 border-emerald-600"
+                      : "text-gray-500 hover:text-gray-800 hover:bg-gray-50 border-transparent"
+                  }`}
                 >
                   {item.label}
                 </a>

@@ -9,7 +9,7 @@ create table if not exists public.community_posts (
   id            uuid        primary key default gen_random_uuid(),
   author_id     uuid        not null references public.profiles (id) on delete cascade,
   category      text        not null check (category in (
-    'match-discussion','transfer-news','tactics','highlights','predictions','general'
+    'match-discussion','transfer-news','tactics','highlights','predictions','general','notice'
   )),
   title         text        not null check (char_length(title) between 5 and 120),
   content       text        not null check (char_length(content) >= 20),

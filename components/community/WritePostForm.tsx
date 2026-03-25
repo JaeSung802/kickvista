@@ -11,21 +11,24 @@ interface WritePostFormProps {
   teamSlug?: string | null;
   leagueSlug?: string | null;
   backHref?: string;
+  isAdmin?: boolean;
+  initialCategory?: string | null;
 }
 
 const CATEGORY_META: Record<
   PostCategory,
   { labelEn: string; labelKo: string; color: string; bg: string; border: string }
 > = {
-  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",   color: "#22c55e", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.3)"   },
-  "transfer-news":    { labelEn: "Transfer News",    labelKo: "이적 뉴스",   color: "#f59e0b", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.3)"  },
-  "tactics":          { labelEn: "Tactics",          labelKo: "전술 분석",   color: "#8b5cf6", bg: "rgba(139,92,246,0.1)",  border: "rgba(139,92,246,0.3)"  },
-  "highlights":       { labelEn: "Highlights",       labelKo: "하이라이트",  color: "#ef4444", bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.3)"   },
-  "predictions":      { labelEn: "Predictions",      labelKo: "예측",        color: "#06b6d4", bg: "rgba(6,182,212,0.1)",   border: "rgba(6,182,212,0.3)"   },
-  "general":          { labelEn: "General",          labelKo: "일반",        color: "#8b949e", bg: "rgba(139,148,158,0.1)", border: "rgba(139,148,158,0.3)" },
+  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",   color: "#059669", bg: "#ecfdf5", border: "#a7f3d0" },
+  "transfer-news":    { labelEn: "Transfer News",    labelKo: "이적 뉴스",   color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
+  "tactics":          { labelEn: "Tactics",          labelKo: "전술 분석",   color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+  "highlights":       { labelEn: "Highlights",       labelKo: "하이라이트",  color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+  "predictions":      { labelEn: "Predictions",      labelKo: "예측",        color: "#0891b2", bg: "#ecfeff", border: "#a5f3fc" },
+  "general":          { labelEn: "General",          labelKo: "일반",        color: "#6b7280", bg: "#f9fafb", border: "#e5e7eb" },
+  "notice":           { labelEn: "Notice",           labelKo: "공지사항",    color: "#b45309", bg: "#fefce8", border: "#fde68a" },
 };
 
-const ALL_CATEGORIES: PostCategory[] = [
+const BASE_CATEGORIES: PostCategory[] = [
   "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
 ];
 
@@ -84,10 +87,22 @@ const labels = {
   },
 };
 
-export default function WritePostForm({ locale, userNickname, userBadge, teamSlug, leagueSlug, backHref }: WritePostFormProps) {
-  const tx = labels[locale];
+const inputCls = "w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors";
+const labelCls = "text-xs font-bold uppercase tracking-wider text-gray-500";
 
-  const [category, setCategory]   = useState<PostCategory | null>(null);
+export default function WritePostForm({ locale, userNickname, userBadge, teamSlug, leagueSlug, backHref, isAdmin, initialCategory }: WritePostFormProps) {
+  const tx = labels[locale];
+  const ALL_CATEGORIES: PostCategory[] = isAdmin
+    ? [...BASE_CATEGORIES, "notice"]
+    : BASE_CATEGORIES;
+
+  const resolvedInitial = (
+    initialCategory && Object.keys(CATEGORY_META).includes(initialCategory)
+      ? initialCategory as PostCategory
+      : null
+  );
+
+  const [category, setCategory]   = useState<PostCategory | null>(resolvedInitial);
   const [titleText, setTitle]     = useState("");
   const [content, setContent]     = useState("");
   const [tags, setTags]           = useState("");
@@ -137,39 +152,20 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
   // ─── Success screen ───────────────────────────────────────────────────────
   if (newPostId) {
     return (
-      <div
-        style={{
-          backgroundColor: "#161b22", border: "1px solid rgba(34,197,94,0.3)",
-          borderRadius: 12, padding: "48px 28px", textAlign: "center",
-          maxWidth: 540, margin: "0 auto",
-        }}
-      >
-        <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-        <h2 style={{ color: "#22c55e", fontSize: 20, fontWeight: 800, margin: "0 0 10px" }}>
-          {tx.successTitle}
-        </h2>
-        <p style={{ color: "#8b949e", fontSize: 14, margin: "0 0 24px", lineHeight: 1.6 }}>
-          {tx.successBody}
-        </p>
-        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+      <div className="bg-white border border-emerald-200 rounded-2xl p-12 text-center max-w-xl mx-auto">
+        <div className="text-5xl mb-4">✅</div>
+        <h2 className="text-xl font-extrabold text-emerald-600 mb-2">{tx.successTitle}</h2>
+        <p className="text-sm text-gray-500 mb-6 leading-relaxed">{tx.successBody}</p>
+        <div className="flex gap-3 justify-center flex-wrap">
           <a
             href={`/${locale}/community/post/${newPostId}`}
-            style={{
-              display: "inline-block", padding: "10px 24px",
-              backgroundColor: "#22c55e", color: "#0d1117",
-              fontSize: 14, fontWeight: 700, borderRadius: 8, textDecoration: "none",
-            }}
+            className="inline-block px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg no-underline transition-colors"
           >
             {tx.viewPost}
           </a>
           <a
             href={`/${locale}/community`}
-            style={{
-              display: "inline-block", padding: "10px 24px",
-              backgroundColor: "transparent", color: "#8b949e",
-              border: "1px solid #30363d",
-              fontSize: 14, fontWeight: 600, borderRadius: 8, textDecoration: "none",
-            }}
+            className="inline-block px-6 py-2.5 bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 text-sm font-semibold rounded-lg no-underline transition-colors"
           >
             {tx.backToCommunity}
           </a>
@@ -186,52 +182,31 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
       <div className="lg:col-span-2 flex flex-col gap-6">
 
         {/* Author info */}
-        <div
-          style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "14px 18px", backgroundColor: "#161b22",
-            border: "1px solid #30363d", borderRadius: 10,
-          }}
-        >
-          <div
-            style={{
-              width: 36, height: 36, borderRadius: "50%",
-              backgroundColor: "#0d1117", border: "2px solid #22c55e",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, flexShrink: 0,
-            }}
-          >
+        <div className="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl">
+          <div className="w-9 h-9 rounded-full bg-gray-50 border-2 border-emerald-500 flex items-center justify-center text-lg shrink-0">
             {userBadge}
           </div>
           <div>
-            <div style={{ color: "#e6edf3", fontSize: 13, fontWeight: 700 }}>{userNickname}</div>
-            <div style={{ color: "#8b949e", fontSize: 11 }}>
+            <div className="text-sm font-bold text-gray-900">{userNickname}</div>
+            <div className="text-xs text-gray-400">
               {locale === "ko" ? "게시글 작성 중" : "Writing a post"}
             </div>
           </div>
         </div>
 
         {/* Form card */}
-        <div
-          style={{
-            backgroundColor: "#161b22", border: "1px solid #30363d",
-            borderRadius: 12, overflow: "hidden",
-          }}
-        >
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           {/* Edit / Preview tabs */}
-          <div style={{ display: "flex", borderBottom: "1px solid #21262d", backgroundColor: "#0d1117" }}>
+          <div className="flex border-b border-gray-200 bg-gray-50">
             {(["edit", "preview"] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
-                style={{
-                  padding: "12px 20px", fontSize: 13, fontWeight: 600,
-                  border: "none", cursor: "pointer",
-                  backgroundColor: mode === m ? "#161b22" : "transparent",
-                  color: mode === m ? "#e6edf3" : "#8b949e",
-                  borderBottom: mode === m ? "2px solid #22c55e" : "2px solid transparent",
-                  transition: "color 0.15s",
-                }}
+                className={`px-5 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                  mode === m
+                    ? "bg-white text-gray-900 border-emerald-600"
+                    : "text-gray-500 border-transparent hover:text-gray-700"
+                }`}
               >
                 {m === "edit"
                   ? (locale === "ko" ? "작성" : "Write")
@@ -240,45 +215,32 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
             ))}
           </div>
 
-          <div style={{ padding: "24px" }}>
+          <div className="p-6">
             {mode === "preview" ? (
               /* Preview mode */
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div className="flex flex-col gap-4">
                 {selectedMeta && (
                   <span
-                    style={{
-                      display: "inline-block", fontSize: 11, fontWeight: 600,
-                      color: selectedMeta.color, backgroundColor: selectedMeta.bg,
-                      border: `1px solid ${selectedMeta.border}`,
-                      borderRadius: 5, padding: "3px 10px",
-                    }}
+                    className="inline-block text-xs font-semibold rounded-md px-2.5 py-1"
+                    style={{ color: selectedMeta.color, backgroundColor: selectedMeta.bg, border: `1px solid ${selectedMeta.border}` }}
                   >
-                    {locale === "ko"
-                      ? CATEGORY_META[category!].labelKo
-                      : CATEGORY_META[category!].labelEn}
+                    {locale === "ko" ? CATEGORY_META[category!].labelKo : CATEGORY_META[category!].labelEn}
                   </span>
                 )}
-                <h1 style={{ color: "#e6edf3", fontSize: 20, fontWeight: 800, margin: 0, lineHeight: 1.4 }}>
+                <h1 className="text-xl font-extrabold text-gray-900 leading-snug">
                   {titleText || (locale === "ko" ? "(제목 없음)" : "(No title)")}
                 </h1>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="flex flex-col gap-4">
                   {(content || "").split("\n\n").filter(Boolean).map((para, idx) => (
-                    <p key={idx} style={{ color: "#c9d1d9", fontSize: 15, lineHeight: 1.85, margin: 0 }}>
+                    <p key={idx} className="text-sm text-gray-700 leading-relaxed">
                       {para}
                     </p>
                   ))}
                 </div>
                 {tags && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
                     {tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
-                      <span
-                        key={tag}
-                        style={{
-                          fontSize: 11, color: "#8b949e",
-                          backgroundColor: "#0d1117", border: "1px solid #30363d",
-                          borderRadius: 5, padding: "3px 10px",
-                        }}
-                      >
+                      <span key={tag} className="text-xs text-gray-500 bg-gray-100 border border-gray-200 rounded px-2.5 py-0.5">
                         #{tag}
                       </span>
                     ))}
@@ -287,15 +249,14 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
               </div>
             ) : (
               /* Edit mode */
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <div className="flex flex-col gap-5">
 
                 {/* Category */}
                 <div>
-                  <label style={{ color: "#8b949e", fontSize: 12, fontWeight: 600,
-                    textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 10 }}>
-                    {tx.categoryLabel} <span style={{ color: "#ef4444" }}>*</span>
+                  <label className={`${labelCls} block mb-2.5`}>
+                    {tx.categoryLabel} <span className="text-red-500">*</span>
                   </label>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                  <div className="flex flex-wrap gap-2">
                     {ALL_CATEGORIES.map((cat) => {
                       const m        = CATEGORY_META[cat];
                       const selected = category === cat;
@@ -303,13 +264,11 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
                         <button
                           key={cat}
                           onClick={() => { setCategory(cat); setErrors((e) => ({ ...e, category: false })); }}
+                          className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all border"
                           style={{
-                            padding: "7px 14px", borderRadius: 8, fontSize: 12,
-                            fontWeight: 600, cursor: "pointer",
                             backgroundColor: selected ? m.bg : "transparent",
-                            color: selected ? m.color : "#8b949e",
-                            border: selected ? `1px solid ${m.border}` : "1px solid #30363d",
-                            transition: "all 0.15s",
+                            color: selected ? m.color : "#6b7280",
+                            borderColor: selected ? m.border : "#e5e7eb",
                           }}
                         >
                           {locale === "ko" ? m.labelKo : m.labelEn}
@@ -317,19 +276,16 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
                       );
                     })}
                   </div>
-                  {errors.category && (
-                    <p style={{ color: "#ef4444", fontSize: 11, marginTop: 6 }}>{tx.required}</p>
-                  )}
+                  {errors.category && <p className="text-xs text-red-500 mt-1.5">{tx.required}</p>}
                 </div>
 
                 {/* Title */}
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <label style={{ color: "#8b949e", fontSize: 12, fontWeight: 600,
-                      textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      {tx.titleLabel} <span style={{ color: "#ef4444" }}>*</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className={labelCls}>
+                      {tx.titleLabel} <span className="text-red-500">*</span>
                     </label>
-                    <span style={{ color: titleLen > 100 ? "#ef4444" : "#484f58", fontSize: 11 }}>
+                    <span className={`text-xs ${titleLen > 100 ? "text-red-500" : "text-gray-400"}`}>
                       {titleLen}/120 {tx.charCount}
                     </span>
                   </div>
@@ -338,29 +294,18 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
                     value={titleText}
                     onChange={(e) => { setTitle(e.target.value.slice(0, 120)); setErrors((er) => ({ ...er, title: false })); }}
                     placeholder={tx.titlePlaceholder}
-                    style={{
-                      width: "100%", padding: "11px 14px",
-                      backgroundColor: "#0d1117",
-                      border: `1px solid ${errors.title ? "#ef4444" : "#30363d"}`,
-                      borderRadius: 8, color: "#e6edf3", fontSize: 14,
-                      outline: "none", boxSizing: "border-box", transition: "border-color 0.15s",
-                    }}
-                    onFocus={(e) => { if (!errors.title) e.currentTarget.style.borderColor = "rgba(34,197,94,0.4)"; }}
-                    onBlur={(e)  => { if (!errors.title) e.currentTarget.style.borderColor = "#30363d"; }}
+                    className={`${inputCls} ${errors.title ? "border-red-400 focus:border-red-400 focus:ring-red-100" : ""}`}
                   />
-                  {errors.title && (
-                    <p style={{ color: "#ef4444", fontSize: 11, marginTop: 6 }}>{tx.required}</p>
-                  )}
+                  {errors.title && <p className="text-xs text-red-500 mt-1.5">{tx.required}</p>}
                 </div>
 
                 {/* Content */}
                 <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <label style={{ color: "#8b949e", fontSize: 12, fontWeight: 600,
-                      textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      {tx.contentLabel} <span style={{ color: "#ef4444" }}>*</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className={labelCls}>
+                      {tx.contentLabel} <span className="text-red-500">*</span>
                     </label>
-                    <span style={{ color: contentLen > 4500 ? "#f59e0b" : "#484f58", fontSize: 11 }}>
+                    <span className={`text-xs ${contentLen > 4500 ? "text-amber-500" : "text-gray-400"}`}>
                       {contentLen} {tx.charCount}
                     </span>
                   </div>
@@ -369,74 +314,44 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
                     onChange={(e) => { setContent(e.target.value); setErrors((er) => ({ ...er, content: false })); }}
                     placeholder={tx.contentPlaceholder}
                     rows={12}
-                    style={{
-                      width: "100%", padding: "12px 14px",
-                      backgroundColor: "#0d1117",
-                      border: `1px solid ${errors.content ? "#ef4444" : "#30363d"}`,
-                      borderRadius: 8, color: "#e6edf3", fontSize: 14,
-                      resize: "vertical", outline: "none", fontFamily: "inherit",
-                      lineHeight: 1.65, boxSizing: "border-box", transition: "border-color 0.15s",
-                    }}
-                    onFocus={(e) => { if (!errors.content) e.currentTarget.style.borderColor = "rgba(34,197,94,0.4)"; }}
-                    onBlur={(e)  => { if (!errors.content) e.currentTarget.style.borderColor = "#30363d"; }}
+                    className={`${inputCls} resize-vertical leading-relaxed ${errors.content ? "border-red-400 focus:border-red-400 focus:ring-red-100" : ""}`}
                   />
-                  {errors.content && (
-                    <p style={{ color: "#ef4444", fontSize: 11, marginTop: 6 }}>{tx.required}</p>
-                  )}
+                  {errors.content && <p className="text-xs text-red-500 mt-1.5">{tx.required}</p>}
                 </div>
 
                 {/* Tags */}
                 <div>
-                  <label style={{ color: "#8b949e", fontSize: 12, fontWeight: 600,
-                    textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 8 }}>
-                    {tx.tagsLabel}
-                  </label>
+                  <label className={`${labelCls} block mb-2`}>{tx.tagsLabel}</label>
                   <input
                     type="text"
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
                     placeholder={tx.tagsPlaceholder}
-                    style={{
-                      width: "100%", padding: "11px 14px",
-                      backgroundColor: "#0d1117",
-                      border: "1px solid #30363d",
-                      borderRadius: 8, color: "#e6edf3", fontSize: 14,
-                      outline: "none", boxSizing: "border-box", transition: "border-color 0.15s",
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(34,197,94,0.4)"; }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = "#30363d"; }}
+                    className={inputCls}
                   />
                 </div>
 
                 {/* Server error */}
                 {serverError && (
-                  <p style={{ color: "#ef4444", fontSize: 13, margin: 0 }}>⚠ {serverError}</p>
+                  <p className="text-sm text-red-500">⚠ {serverError}</p>
                 )}
 
                 {/* Actions */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, paddingTop: 4 }}>
+                <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
                   <a
                     href={backHref ?? `/${locale}/community`}
-                    style={{
-                      color: "#8b949e", fontSize: 13, fontWeight: 600,
-                      textDecoration: "none", padding: "9px 18px",
-                      border: "1px solid #30363d", borderRadius: 8,
-                      display: "inline-flex", alignItems: "center", gap: 6,
-                    }}
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 border border-gray-200 rounded-lg px-4 py-2.5 hover:bg-gray-50 transition-colors no-underline"
                   >
                     ← {tx.cancel}
                   </a>
                   <button
                     onClick={handleSubmit}
                     disabled={!canSubmit}
-                    style={{
-                      padding: "10px 24px", borderRadius: 8, fontSize: 14, fontWeight: 700,
-                      border: "none", cursor: canSubmit ? "pointer" : "not-allowed",
-                      backgroundColor: canSubmit ? "#22c55e" : "#21262d",
-                      color: canSubmit ? "#0d1117" : "#484f58",
-                      boxShadow: canSubmit ? "0 0 16px rgba(34,197,94,0.2)" : "none",
-                      transition: "all 0.15s",
-                    }}
+                    className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${
+                      canSubmit
+                        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
                   >
                     {loading
                       ? (locale === "ko" ? "발행 중..." : "Publishing...")
@@ -450,24 +365,18 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
       </div>
 
       {/* Sidebar — 1/3 */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="flex flex-col gap-4">
         {/* Guidelines */}
-        <div
-          style={{
-            backgroundColor: "#161b22", border: "1px solid #30363d",
-            borderRadius: 12, overflow: "hidden",
-          }}
-        >
-          <div style={{ padding: "11px 16px", borderBottom: "1px solid #21262d", backgroundColor: "#0d1117" }}>
-            <h3 style={{ color: "#e6edf3", fontSize: 12, fontWeight: 700, margin: 0,
-              textTransform: "uppercase", letterSpacing: "0.03em" }}>
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+            <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide">
               📋 {tx.guidelines}
             </h3>
           </div>
-          <div style={{ padding: "14px 16px" }}>
-            <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="px-4 py-3.5">
+            <ol className="flex flex-col gap-2 pl-4 list-decimal">
               {tx.guidelineItems.map((item, idx) => (
-                <li key={idx} style={{ color: "#8b949e", fontSize: 12, lineHeight: 1.5 }}>{item}</li>
+                <li key={idx} className="text-xs text-gray-500 leading-relaxed">{item}</li>
               ))}
             </ol>
           </div>
@@ -475,25 +384,15 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
 
         {/* Tag preview */}
         {tags && (
-          <div
-            style={{
-              backgroundColor: "#161b22", border: "1px solid #30363d",
-              borderRadius: 12, padding: "14px 16px",
-            }}
-          >
-            <p style={{ color: "#8b949e", fontSize: 11, fontWeight: 700,
-              textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px" }}>
+          <div className="bg-white border border-gray-200 rounded-xl px-4 py-3.5">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2.5">
               {locale === "ko" ? "태그 미리보기" : "Tag Preview"}
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            <div className="flex flex-wrap gap-1.5">
               {tags.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
                 <span
                   key={tag}
-                  style={{
-                    fontSize: 11, color: "#8b949e",
-                    backgroundColor: "#0d1117", border: "1px solid #30363d",
-                    borderRadius: 5, padding: "3px 10px",
-                  }}
+                  className="text-xs text-gray-500 bg-gray-100 border border-gray-200 rounded px-2.5 py-0.5"
                 >
                   #{tag}
                 </span>
@@ -503,16 +402,9 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
         )}
 
         {/* Moderation notice */}
-        <div
-          style={{
-            backgroundColor: "rgba(245,158,11,0.05)",
-            border: "1px solid rgba(245,158,11,0.2)",
-            borderRadius: 10, padding: "14px 16px",
-            display: "flex", gap: 10, alignItems: "flex-start",
-          }}
-        >
-          <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-          <p style={{ color: "#8b949e", fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3.5 flex gap-2.5 items-start">
+          <span className="text-base shrink-0">⚠️</span>
+          <p className="text-xs text-amber-700 leading-relaxed">
             {locale === "ko"
               ? "게시글은 커뮤니티 가이드라인 준수 여부를 검토한 후 게시됩니다."
               : "Posts are reviewed for compliance with community guidelines before publishing."}

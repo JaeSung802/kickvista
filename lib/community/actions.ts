@@ -3,13 +3,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { getServerRole, isAdmin } from "@/lib/admin/roles";
 import type { PostCategory } from "./types";
 
 // ─── Rank helpers ─────────────────────────────────────────────────
 
 const RANK_COLORS: Record<string, string> = {
   bronze: "#cd7f32", silver: "#c0c0c0", gold: "#ffd700",
-  diamond: "#a8d8f0", legend: "#22c55e",
+  diamond: "#a8d8f0", legend: "#059669",
 };
 
 function getRankTier(totalPoints: number): string {
@@ -59,6 +60,7 @@ export interface ListPostsParams {
   excludeId?: string;
   teamSlug?: string | null;
   leagueSlug?: string | null;
+  excludeNotice?: boolean;
 }
 
 export interface PostListItem {
@@ -99,6 +101,7 @@ export async function listPosts({
   excludeId,
   teamSlug,
   leagueSlug,
+  excludeNotice = false,
 }: ListPostsParams = {}): Promise<ListPostsResult> {
   const supabase = await createClient();
   const offset = (page - 1) * limit;
@@ -114,10 +117,11 @@ export async function listPosts({
       { count: "exact" }
     );
 
-  if (category)   query = query.eq("category", category);
-  if (excludeId)  query = query.neq("id", excludeId);
-  if (teamSlug)   query = query.eq("team_slug", teamSlug);
-  if (leagueSlug) query = query.eq("league_slug", leagueSlug);
+  if (category)                  query = query.eq("category", category);
+  else if (excludeNotice)        query = query.neq("category", "notice");
+  if (excludeId)                 query = query.neq("id", excludeId);
+  if (teamSlug)                  query = query.eq("team_slug", teamSlug);
+  if (leagueSlug)                query = query.eq("league_slug", leagueSlug);
 
   switch (sort) {
     case "latest":
@@ -174,6 +178,48 @@ export async function listPosts({
     pageSize: limit,
     hasMore:  (count ?? 0) > offset + limit,
   };
+}
+
+// ─── listNotices ──────────────────────────────────────────────────
+// Fetches notice-category posts ordered by pinned-first, then newest.
+// No auth required — SELECT is open to all via public read RLS policy.
+
+export interface NoticeItem {
+  id: string;
+  title: string;
+  createdAt: string;
+  isPinned: boolean;
+  viewCount: number;
+  likeCount: number;
+}
+
+export async function listNotices(limit = 50): Promise<NoticeItem[]> {
+  const supabase = await createClient();
+
+  // Use ilike for case-insensitive match in case of capitalisation drift
+  const { data, error } = await supabase
+    .from("community_posts")
+    .select("id, title, created_at, is_pinned, view_count, like_count")
+    .ilike("category", "notice")
+    .order("is_pinned", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error("[listNotices] Supabase error:", error.message, error.code);
+    return [];
+  }
+  if (!data) return [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((row) => ({
+    id:        row.id as string,
+    title:     row.title as string,
+    createdAt: row.created_at as string,
+    isPinned:  (row.is_pinned as boolean) ?? false,
+    viewCount: (row.view_count as number) ?? 0,
+    likeCount: (row.like_count as number) ?? 0,
+  }));
 }
 
 // ─── getPost ──────────────────────────────────────────────────────
@@ -277,6 +323,11 @@ export type CreatePostResult =
 export async function createPost(input: CreatePostInput): Promise<CreatePostResult> {
   const user = await getServerUser();
   if (!user) return { error: "unauthenticated" };
+
+  if (input.category === "notice") {
+    const role = await getServerRole();
+    if (!isAdmin(role)) return { error: "unauthorized" };
+  }
 
   const supabase = await createClient();
 

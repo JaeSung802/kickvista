@@ -29,6 +29,71 @@ const FINISHED_SET = new Set(["FT", "AET", "PEN"]);
 // ---------------------------------------------------------------------------
 
 /**
+ * Fetch home-page matches for the 4 main leagues (PL, La Liga, Bundesliga, Serie A).
+ *
+ * Fallback chain per league:
+ *   1. Range query: today → +2 days (timezone Asia/Seoul) — catches today + tomorrow
+ *   2. Last 10 finished results       — shown when there's a mid-week break
+ *   3. Next 10 upcoming fixtures      — shown during pre-season / international breaks
+ *
+ * Returns deduplicated, sorted, max-20 fixtures — always non-empty when the API
+ * is healthy and the season is active.
+ */
+export async function queryHomeMatches(): Promise<Fixture[]> {
+  const provider = getFootballProvider();
+  const HOME_SLUGS: LeagueSlug[] = ["premier-league", "la-liga", "bundesliga", "serie-a"];
+  const leagues = HOME_SLUGS.map((s) => LEAGUE_BY_SLUG[s]);
+
+  const now   = new Date();
+  const from  = now.toISOString().split("T")[0];
+  const toRaw = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const to    = toRaw.toISOString().split("T")[0];
+
+  const allFixtures = await Promise.all(
+    leagues.map(async (league): Promise<Fixture[]> => {
+      // 1st: date range (today → +2 days, KST)
+      try {
+        const primary = await provider.fetchFixturesRange(league.id, from, to, league.season);
+        if (primary.length > 0) return primary;
+      } catch (err) {
+        console.error(`[matches] league=${league.id} primary failed:`, err);
+      }
+
+      // 2nd: last 10 finished
+      try {
+        const last = await provider.fetchFixturesLast(league.id, league.season, 10);
+        if (last.length > 0) return last;
+      } catch (err) {
+        console.error(`[matches] league=${league.id} fallback last failed:`, err);
+      }
+
+      // 3rd: next 10 upcoming
+      try {
+        const next = await provider.fetchFixturesNext(league.id, league.season, 10);
+        return next;
+      } catch (err) {
+        console.error(`[matches] league=${league.id} fallback next failed:`, err);
+        return [];
+      }
+    })
+  );
+
+  // Dedupe by fixture.id, sort by kickoff time, cap at 20
+  const seen = new Set<number>();
+  const merged: Fixture[] = [];
+  for (const fixtures of allFixtures) {
+    for (const f of fixtures) {
+      if (!seen.has(f.id)) {
+        seen.add(f.id);
+        merged.push(f);
+      }
+    }
+  }
+  merged.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return merged.slice(0, 20);
+}
+
+/**
  * Fetch today's fixtures for one league or all supported leagues.
  * Deduplicates and sorts by kick-off time.
  */
@@ -44,28 +109,56 @@ export async function queryTodayFixtures(
   }
 
   const all = await Promise.all(
-    SUPPORTED_LEAGUES.map((l) =>
-      provider.fetchFixtures(l.id, today, l.season)
-    )
+    SUPPORTED_LEAGUES.map(async (l) => {
+      try {
+        return await provider.fetchFixtures(l.id, today, l.season);
+      } catch (err) {
+        console.error(`[query] fetchFixtures failed for ${l.slug}:`, err);
+        return [] as Fixture[];
+      }
+    })
   );
 
-  return all
-    .flat()
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return all.flat().sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 /**
  * Fetch all fixtures for a league (all statuses).
- * In mock mode the date is ignored, returning the complete mock set.
- * In real mode this fetches by date — wire to a date-range endpoint when available.
+ * Combines last 10 finished results + next 10 upcoming fixtures so the page
+ * always has data regardless of whether there are games today.
  */
 export async function queryLeagueFixtures(
   leagueSlug: LeagueSlug
 ): Promise<Fixture[]> {
   const provider = getFootballProvider();
   const league = LEAGUE_BY_SLUG[leagueSlug];
-  const all = await provider.fetchFixtures(league.id, undefined, league.season);
-  return all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  // Try a wide date range first (today -30 days to +60 days)
+  const now   = new Date();
+  const from  = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const to    = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  try {
+    const rangeFixtures = await provider.fetchFixturesRange(league.id, from, to, league.season);
+    if (rangeFixtures.length > 0) {
+      return rangeFixtures.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
+  } catch (err) {
+    console.error(`[queryLeagueFixtures] range failed for ${leagueSlug}:`, err);
+  }
+
+  // Fallback: merge last 10 finished + next 10 upcoming
+  const [last, next] = await Promise.all([
+    provider.fetchFixturesLast(league.id, league.season, 10).catch(() => [] as Fixture[]),
+    provider.fetchFixturesNext(league.id, league.season, 10).catch(() => [] as Fixture[]),
+  ]);
+
+  const seen = new Set<number>();
+  const merged: Fixture[] = [];
+  for (const f of [...last, ...next]) {
+    if (!seen.has(f.id)) { seen.add(f.id); merged.push(f); }
+  }
+  return merged.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 /**
@@ -110,7 +203,13 @@ export async function queryStandings(
 ): Promise<Standings | null> {
   const provider = getFootballProvider();
   const league = LEAGUE_BY_SLUG[leagueSlug];
-  return provider.fetchStandings(league.id, league.season);
+  try {
+    const result = await provider.fetchStandings(league.id, league.season);
+    return result;
+  } catch (err) {
+    console.error(`[query] fetchStandings failed for ${leagueSlug}:`, err);
+    return null;
+  }
 }
 
 /**
@@ -145,6 +244,18 @@ export async function queryMatchDetail(
   fixtureId: number
 ): Promise<MatchDetail | null> {
   return getFootballProvider().fetchMatchDetail(fixtureId);
+}
+
+/**
+ * Fetch per-player statistics for a finished fixture (ratings, goals, assists).
+ * Used for Man of the Match selection. Returns [] on error.
+ */
+export async function queryFixturePlayers(fixtureId: number) {
+  try {
+    return await getFootballProvider().fetchFixturePlayers(fixtureId);
+  } catch {
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------

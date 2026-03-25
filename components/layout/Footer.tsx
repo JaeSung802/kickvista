@@ -4,113 +4,137 @@ interface FooterProps {
   locale: "ko" | "en";
 }
 
-const content = {
+interface FooterLink {
+  label: string;
+  href: string;
+}
+
+const buildContent = (locale: string) => ({
   en: {
     tagline:
       "Your daily football dashboard. Live scores, AI-powered analysis, and fan discussion for every major league.",
     sections: {
       Leagues: [
-        "Premier League",
-        "La Liga",
-        "Bundesliga",
-        "Serie A",
-        "Ligue 1",
-        "Champions League",
-      ],
+        { label: "Premier League",     href: `/${locale}/league/premier-league` },
+        { label: "La Liga",            href: `/${locale}/league/la-liga` },
+        { label: "Bundesliga",         href: `/${locale}/league/bundesliga` },
+        { label: "Serie A",            href: `/${locale}/league/serie-a` },
+        { label: "Ligue 1",            href: `/${locale}/league/ligue-1` },
+        { label: "Champions League",   href: `/${locale}/league/champions-league` },
+      ] as FooterLink[],
       Features: [
-        "Live Scores",
-        "AI Match Analysis",
-        "Standings",
-        "Community",
-        "Attendance",
-      ],
+        { label: "Live Scores",        href: `/${locale}/#matches` },
+        { label: "AI Match Analysis",  href: `/${locale}/analysis` },
+        { label: "Standings",          href: `/${locale}/#standings` },
+        { label: "Community",          href: `/${locale}/community` },
+        { label: "Attendance",         href: `/${locale}/attendance` },
+      ] as FooterLink[],
       Company: [
-        "About KickVista",
-        "Contact",
-        "Privacy Policy",
-        "Terms of Service",
-        "Advertise",
-      ],
+        { label: "About KickVista",    href: "#" },
+        { label: "Contact",            href: "mailto:support@kickvista.io" },
+        { label: "Privacy Policy",     href: `/${locale}/privacy` },
+        { label: "Terms of Service",   href: `/${locale}/terms` },
+        { label: "Advertise",          href: "mailto:ads@kickvista.io" },
+      ] as FooterLink[],
     },
     copyright:
       "© 2026 KickVista. All rights reserved. Football data is provided for entertainment purposes only.",
-    policy: ["Privacy", "Terms", "Cookies"],
+    policy: [
+      { label: "Privacy", href: `/${locale}/privacy` },
+      { label: "Terms",   href: `/${locale}/terms` },
+      { label: "Cookies", href: `/${locale}/privacy#cookies` },
+    ] as FooterLink[],
   },
   ko: {
     tagline:
       "매일 완성되는 축구 허브. 라이브 스코어, AI 분석, 주요 리그 팬 커뮤니티를 한 곳에서.",
     sections: {
       리그: [
-        "프리미어리그",
-        "라리가",
-        "분데스리가",
-        "세리에 A",
-        "리그 1",
-        "UEFA 챔피언스리그",
-      ],
+        { label: "프리미어리그",         href: `/${locale}/league/premier-league` },
+        { label: "라리가",               href: `/${locale}/league/la-liga` },
+        { label: "분데스리가",            href: `/${locale}/league/bundesliga` },
+        { label: "세리에 A",             href: `/${locale}/league/serie-a` },
+        { label: "리그 1",               href: `/${locale}/league/ligue-1` },
+        { label: "UEFA 챔피언스리그",     href: `/${locale}/league/champions-league` },
+      ] as FooterLink[],
       기능: [
-        "라이브 스코어",
-        "AI 경기 분석",
-        "순위표",
-        "커뮤니티",
-        "출석 체크",
-      ],
+        { label: "라이브 스코어",         href: `/${locale}/#matches` },
+        { label: "AI 경기 분석",          href: `/${locale}/analysis` },
+        { label: "순위표",               href: `/${locale}/#standings` },
+        { label: "커뮤니티",             href: `/${locale}/community` },
+        { label: "출석 체크",             href: `/${locale}/attendance` },
+      ] as FooterLink[],
       회사: [
-        "KickVista 소개",
-        "문의하기",
-        "개인정보처리방침",
-        "이용약관",
-        "광고 문의",
-      ],
+        { label: "KickVista 소개",       href: "#" },
+        { label: "문의하기",             href: "mailto:support@kickvista.io" },
+        { label: "개인정보처리방침",       href: `/${locale}/privacy` },
+        { label: "이용약관",             href: `/${locale}/terms` },
+        { label: "광고 문의",             href: "mailto:ads@kickvista.io" },
+      ] as FooterLink[],
     },
     copyright:
       "© 2026 KickVista. All rights reserved. 축구 데이터는 오락 목적으로 제공됩니다.",
-    policy: ["개인정보", "이용약관", "쿠키"],
+    policy: [
+      { label: "개인정보",  href: `/${locale}/privacy` },
+      { label: "이용약관",  href: `/${locale}/terms` },
+      { label: "쿠키",      href: `/${locale}/privacy#cookies` },
+    ] as FooterLink[],
   },
-};
+});
 
 const SOCIAL_LINKS = [
-  { icon: "𝕏", label: "X / Twitter" },
-  { icon: "📘", label: "Facebook" },
-  { icon: "📸", label: "Instagram" },
-  { icon: "▶️", label: "YouTube" },
+  { icon: "𝕏", label: "X / Twitter",  href: "#" },
+  { icon: "📘", label: "Facebook",     href: "#" },
+  { icon: "📸", label: "Instagram",    href: "#" },
+  { icon: "▶️", label: "YouTube",      href: "#" },
 ];
 
 export default function Footer({ locale }: FooterProps) {
-  const c = content[locale];
+  const all = buildContent(locale);
+  const c = all[locale];
 
   return (
-    <footer style={{ background: "#0d1117", borderTop: "1px solid #21262d" }}>
+    <footer className="bg-white border-t border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
 
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
-            <a href={`/${locale}`} className="flex items-center gap-2 mb-4" style={{ textDecoration: "none" }}>
-              <span className="text-xl" aria-hidden>⚽</span>
-              <span className="text-lg font-black tracking-tight text-white">
-                Kick<span style={{ color: "#22c55e" }}>Vista</span>
+            <a href={`/${locale}`} className="flex items-center gap-2 mb-4 no-underline">
+              {/* Data Prism symbol — muted monochrome for footer */}
+              <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden>
+                <defs>
+                  <linearGradient id="ft-sym" x1="0" y1="1" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#022C22" stopOpacity="0.7"/>
+                    <stop offset="100%" stopColor="#10B981" stopOpacity="0.7"/>
+                  </linearGradient>
+                </defs>
+                <circle cx="16" cy="16" r="15.5" fill="url(#ft-sym)"/>
+                <polygon points="16,9 22.66,13.84 20.11,21.66 11.89,21.66 9.34,13.84"
+                         fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="1.2"/>
+                <line x1="16"    y1="9"     x2="16"   y2="1.5"  stroke="rgba(255,255,255,0.25)" strokeWidth="0.8"/>
+                <line x1="22.66" y1="13.84" x2="30"   y2="11.5" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8"/>
+                <line x1="20.11" y1="21.66" x2="24.5" y2="28"   stroke="rgba(255,255,255,0.25)" strokeWidth="0.8"/>
+                <line x1="11.89" y1="21.66" x2="7.5"  y2="28"   stroke="rgba(255,255,255,0.25)" strokeWidth="0.8"/>
+                <line x1="9.34"  y1="13.84" x2="2"    y2="11.5" stroke="rgba(255,255,255,0.25)" strokeWidth="0.8"/>
+                <circle cx="16"    cy="9"     r="1.3" fill="#F59E0B" opacity="0.7"/>
+                <circle cx="22.66" cy="13.84" r="1.3" fill="#F59E0B" opacity="0.7"/>
+                <circle cx="20.11" cy="21.66" r="1.3" fill="#F59E0B" opacity="0.7"/>
+                <circle cx="11.89" cy="21.66" r="1.3" fill="#F59E0B" opacity="0.7"/>
+                <circle cx="9.34"  cy="13.84" r="1.3" fill="#F59E0B" opacity="0.7"/>
+              </svg>
+              <span className="text-lg font-black" style={{ letterSpacing: "-0.025em" }}>
+                <span style={{ color: "#022C22" }}>Kick</span><span style={{ color: "#10B981" }}>Vista</span>
               </span>
             </a>
-            <p style={{ color: "#484f58" }} className="text-xs leading-relaxed mb-5">
-              {c.tagline}
-            </p>
+            <p className="text-xs text-gray-400 leading-relaxed mb-5">{c.tagline}</p>
             <div className="flex items-center gap-2">
               {SOCIAL_LINKS.map((s) => (
                 <a
                   key={s.label}
-                  href="#"
+                  href={s.href}
                   aria-label={s.label}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-sm transition-colors"
-                  style={{ background: "#161b22", border: "1px solid #30363d", color: "#484f58" }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget).style.borderColor = "rgba(34,197,94,0.25)";
-                    (e.currentTarget).style.color = "#8b949e";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget).style.borderColor = "#30363d";
-                    (e.currentTarget).style.color = "#484f58";
-                  }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-sm text-gray-400 bg-gray-50 border border-gray-200 hover:border-emerald-300 hover:text-emerald-600 transition-colors no-underline"
                 >
                   {s.icon}
                 </a>
@@ -121,18 +145,17 @@ export default function Footer({ locale }: FooterProps) {
           {/* Link columns */}
           {Object.entries(c.sections).map(([category, links]) => (
             <div key={category}>
-              <h4 className="text-white font-semibold text-xs uppercase tracking-wider mb-4" style={{ letterSpacing: "0.07em" }}>
+              <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-4">
                 {category}
               </h4>
               <ul className="flex flex-col gap-2.5">
-                {links.map((link) => (
-                  <li key={link}>
+                {(links as FooterLink[]).map((link) => (
+                  <li key={link.label}>
                     <a
-                      href="#"
-                      style={{ color: "#484f58" }}
-                      className="text-sm transition-colors hover:text-white"
+                      href={link.href}
+                      className="text-sm text-gray-400 hover:text-gray-700 transition-colors no-underline"
                     >
-                      {link}
+                      {link.label}
                     </a>
                   </li>
                 ))}
@@ -142,22 +165,16 @@ export default function Footer({ locale }: FooterProps) {
         </div>
 
         {/* Bottom bar */}
-        <div
-          className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6"
-          style={{ borderTop: "1px solid #21262d" }}
-        >
-          <p style={{ color: "#30363d" }} className="text-xs">
-            {c.copyright}
-          </p>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-gray-100">
+          <p className="text-xs text-gray-400">{c.copyright}</p>
           <div className="flex items-center gap-4">
-            {c.policy.map((item) => (
+            {(c.policy as FooterLink[]).map((item) => (
               <a
-                key={item}
-                href="#"
-                style={{ color: "#30363d" }}
-                className="text-xs transition-colors hover:text-white"
+                key={item.label}
+                href={item.href}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors no-underline"
               >
-                {item}
+                {item.label}
               </a>
             ))}
           </div>

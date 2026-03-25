@@ -164,8 +164,8 @@ export default async function AdminReportsPage({
     const cfg: Record<string, { bg: string; color: string; border: string; label: string }> = {
       open:      { bg: "rgba(239,68,68,0.12)",   color: "#ef4444", border: "rgba(239,68,68,0.25)",   label: isKo ? "미검토" : "Open" },
       reviewed:  { bg: "rgba(59,130,246,0.12)",   color: "#3b82f6", border: "rgba(59,130,246,0.25)",  label: isKo ? "검토됨" : "Reviewed" },
-      dismissed: { bg: "rgba(139,148,158,0.12)", color: "#8b949e", border: "rgba(139,148,158,0.2)",  label: isKo ? "기각" : "Dismissed" },
-      actioned:  { bg: "rgba(34,197,94,0.12)",   color: "#22c55e", border: "rgba(34,197,94,0.25)",   label: isKo ? "조치됨" : "Actioned" },
+      dismissed: { bg: "rgba(139,148,158,0.12)", color: "#6b7280", border: "rgba(139,148,158,0.2)",  label: isKo ? "기각" : "Dismissed" },
+      actioned:  { bg: "rgba(34,197,94,0.12)",   color: "#059669", border: "rgba(34,197,94,0.25)",   label: isKo ? "조치됨" : "Actioned" },
     };
     const c = cfg[s] ?? cfg.open;
     return (
@@ -213,22 +213,22 @@ export default async function AdminReportsPage({
   ];
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="min-h-screen">
       {/* Header */}
       <div
         style={{
-          borderBottom: "1px solid #21262d",
-          background: "linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
+          borderBottom: "1px solid #f3f4f6",
+          backgroundColor: "#ffffff",
           padding: "28px 0",
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <span style={{ width: 3, height: 22, borderRadius: 2, backgroundColor: "#ef4444", flexShrink: 0 }} />
-            <h1 style={{ color: "#e6edf3", fontSize: 20, fontWeight: 900, margin: 0 }}>
+            <h1 style={{ color: "#111827", fontSize: 20, fontWeight: 900, margin: 0 }}>
               {isKo ? "신고 관리" : "Report Review"}
             </h1>
-            <span style={{ color: "#8b949e", fontSize: 13, marginLeft: 4 }}>
+            <span style={{ color: "#6b7280", fontSize: 13, marginLeft: 4 }}>
               ({total.toLocaleString()})
             </span>
             {openCount > 0 && (
@@ -244,7 +244,7 @@ export default async function AdminReportsPage({
               </span>
             )}
           </div>
-          <p style={{ color: "#8b949e", fontSize: 13, margin: "0 0 16px 13px" }}>
+          <p style={{ color: "#6b7280", fontSize: 13, margin: "0 0 16px 13px" }}>
             {isKo ? "커뮤니티 신고 내역을 검토하고 조치하세요" : "Review and action community reports"}
           </p>
 
@@ -258,8 +258,8 @@ export default async function AdminReportsPage({
               name="status"
               defaultValue={statusFilter}
               style={{
-                background: "#161b22", border: "1px solid #30363d",
-                borderRadius: 7, color: "#e6edf3", fontSize: 13,
+                background: "#ffffff", border: "1px solid #e5e7eb",
+                borderRadius: 7, color: "#111827", fontSize: 13,
                 padding: "7px 12px", cursor: "pointer",
               }}
             >
@@ -271,8 +271,8 @@ export default async function AdminReportsPage({
               name="type"
               defaultValue={typeFilter}
               style={{
-                background: "#161b22", border: "1px solid #30363d",
-                borderRadius: 7, color: "#e6edf3", fontSize: 13,
+                background: "#ffffff", border: "1px solid #e5e7eb",
+                borderRadius: 7, color: "#111827", fontSize: 13,
                 padding: "7px 12px", cursor: "pointer",
               }}
             >
@@ -283,7 +283,7 @@ export default async function AdminReportsPage({
             <button
               type="submit"
               style={{
-                background: "#22c55e", color: "#0d1117", border: "none",
+                background: "#059669", color: "#ffffff", border: "none",
                 borderRadius: 7, padding: "7px 16px",
                 fontSize: 13, fontWeight: 700, cursor: "pointer",
               }}
@@ -291,7 +291,7 @@ export default async function AdminReportsPage({
               {isKo ? "필터" : "Filter"}
             </button>
             {(statusFilter !== "all" || typeFilter !== "all") && (
-              <a href={baseUrl} style={{ color: "#8b949e", fontSize: 13, textDecoration: "none" }}>
+              <a href={baseUrl} style={{ color: "#6b7280", fontSize: 13, textDecoration: "none" }}>
                 {isKo ? "초기화" : "Reset"}
               </a>
             )}
@@ -301,13 +301,13 @@ export default async function AdminReportsPage({
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {reports.length === 0 ? (
-          <div style={{ textAlign: "center", color: "#8b949e", padding: "60px 0", fontSize: 14 }}>
+          <div style={{ textAlign: "center", color: "#6b7280", padding: "60px 0", fontSize: 14 }}>
             {isKo ? "신고 내역이 없습니다." : "No reports found."}
           </div>
         ) : (
           <div
             style={{
-              backgroundColor: "#161b22", border: "1px solid #30363d",
+              backgroundColor: "#ffffff", border: "1px solid #e5e7eb",
               borderRadius: 10, overflow: "hidden",
             }}
           >
@@ -317,8 +317,8 @@ export default async function AdminReportsPage({
                 display: "grid",
                 gridTemplateColumns: "80px 70px 2fr 90px 90px 80px 220px",
                 gap: 8, padding: "10px 16px",
-                borderBottom: "1px solid #21262d",
-                fontSize: 11, fontWeight: 700, color: "#484f58",
+                borderBottom: "1px solid #f3f4f6",
+                fontSize: 11, fontWeight: 700, color: "#6b7280",
                 letterSpacing: "0.06em", textTransform: "uppercase",
               }}
             >
@@ -348,7 +348,7 @@ export default async function AdminReportsPage({
                     display: "grid",
                     gridTemplateColumns: "80px 70px 2fr 90px 90px 80px 220px",
                     gap: 8, padding: "12px 16px",
-                    borderBottom: "1px solid #21262d",
+                    borderBottom: "1px solid #f3f4f6",
                     alignItems: "start",
                     backgroundColor: r.status === "open" ? "rgba(239,68,68,0.02)" : "transparent",
                   }}
@@ -357,7 +357,7 @@ export default async function AdminReportsPage({
                   <div style={{ paddingTop: 2 }}>{typeBadge(r.type)}</div>
 
                   {/* Reason */}
-                  <div style={{ color: "#c9d1d9", fontSize: 12, paddingTop: 3 }}>
+                  <div style={{ color: "#374151", fontSize: 12, paddingTop: 3 }}>
                     {reasonLabel}
                   </div>
 
@@ -377,12 +377,12 @@ export default async function AdminReportsPage({
                         {r.targetPreview || "—"}
                       </a>
                     ) : (
-                      <span style={{ color: "#8b949e", fontSize: 12 }}>{r.targetPreview || "—"}</span>
+                      <span style={{ color: "#6b7280", fontSize: 12 }}>{r.targetPreview || "—"}</span>
                     )}
                     {r.details && (
                       <p
                         style={{
-                          color: "#8b949e", fontSize: 11, margin: "3px 0 0",
+                          color: "#6b7280", fontSize: 11, margin: "3px 0 0",
                           fontStyle: "italic",
                           display: "-webkit-box",
                           WebkitLineClamp: 2,
@@ -396,7 +396,7 @@ export default async function AdminReportsPage({
                   </div>
 
                   {/* Reporter */}
-                  <div style={{ color: "#8b949e", fontSize: 12, paddingTop: 3 }}>
+                  <div style={{ color: "#6b7280", fontSize: 12, paddingTop: 3 }}>
                     {r.reporterName}
                   </div>
 
@@ -404,7 +404,7 @@ export default async function AdminReportsPage({
                   <div style={{ paddingTop: 2 }}>{statusBadge(r.status)}</div>
 
                   {/* Date */}
-                  <div style={{ color: "#484f58", fontSize: 11, paddingTop: 3 }}>
+                  <div style={{ color: "#6b7280", fontSize: 11, paddingTop: 3 }}>
                     {new Date(r.createdAt).toLocaleDateString()}
                     {r.reviewedAt && (
                       <div style={{ marginTop: 2 }}>
@@ -435,7 +435,7 @@ export default async function AdminReportsPage({
                         <button
                           type="submit"
                           style={{
-                            background: "rgba(34,197,94,0.1)", color: "#22c55e",
+                            background: "rgba(34,197,94,0.1)", color: "#059669",
                             border: "1px solid rgba(34,197,94,0.25)", borderRadius: 5,
                             padding: "4px 8px", fontSize: 11, fontWeight: 600,
                             cursor: "pointer", whiteSpace: "nowrap",
@@ -450,7 +450,7 @@ export default async function AdminReportsPage({
                         <button
                           type="submit"
                           style={{
-                            background: "rgba(139,148,158,0.08)", color: "#8b949e",
+                            background: "rgba(139,148,158,0.08)", color: "#6b7280",
                             border: "1px solid rgba(139,148,158,0.2)", borderRadius: 5,
                             padding: "4px 8px", fontSize: 11, fontWeight: 600,
                             cursor: "pointer", whiteSpace: "nowrap",
@@ -498,9 +498,9 @@ export default async function AdminReportsPage({
                   display: "inline-flex", alignItems: "center", justifyContent: "center",
                   width: 34, height: 34, borderRadius: 7, fontSize: 13,
                   fontWeight: p === currentPage ? 700 : 400,
-                  backgroundColor: p === currentPage ? "#22c55e" : "#161b22",
-                  color: p === currentPage ? "#0d1117" : "#8b949e",
-                  border: "1px solid #30363d", textDecoration: "none",
+                  backgroundColor: p === currentPage ? "#059669" : "#ffffff",
+                  color: p === currentPage ? "#ffffff" : "#6b7280",
+                  border: "1px solid #e5e7eb", textDecoration: "none",
                 }}
               >
                 {p}

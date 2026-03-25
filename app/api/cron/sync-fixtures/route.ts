@@ -4,7 +4,7 @@
  *
  * Env vars:
  *   CRON_SECRET         – shared secret for cron authentication
- *   FOOTBALL_API_KEY    – API key (falls back to mock mode if missing)
+ *   API_FOOTBALL_KEY    – API key (falls back to mock mode if missing)
  *   FOOTBALL_API_HOST   – default: v3.football.api-sports.io
  *
  * Usage (Vercel Cron / external cron service):
@@ -12,32 +12,12 @@
  *   Authorization: Bearer {CRON_SECRET}
  */
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { currentFootballSeason, SUPPORTED_LEAGUES } from "@/lib/football/constants";
+import { getFootballProvider } from "@/lib/football/provider";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const SUPPORTED_LEAGUE_IDS = [39, 140, 78, 135, 61, 2];
-
-async function fetchFixturesFromAPI(leagueId: number, season: number): Promise<unknown[]> {
-  const apiKey = process.env.FOOTBALL_API_KEY;
-  const host = process.env.FOOTBALL_API_HOST ?? "v3.football.api-sports.io";
-  if (!apiKey) return [];
-
-  const today = new Date().toISOString().split("T")[0];
-  const url = `https://${host}/fixtures?date=${today}&league=${leagueId}&season=${season}`;
-
-  const res = await fetch(url, {
-    headers: {
-      "x-rapidapi-key": apiKey,
-      "x-rapidapi-host": host,
-    },
-    next: { revalidate: 0 },
-  });
-
-  if (!res.ok) throw new Error(`API error ${res.status} for league ${leagueId}`);
-  const data = await res.json();
-  return data.response ?? [];
-}
 
 export async function GET(request: NextRequest) {
   // Verify cron secret
@@ -48,33 +28,38 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const isMockMode = !process.env.FOOTBALL_API_KEY || process.env.FOOTBALL_MOCK_MODE === "true";
-  const currentSeason = 2024;
+  const isMockMode = !process.env.API_FOOTBALL_KEY || process.env.FOOTBALL_MOCK_MODE === "true";
 
   if (isMockMode) {
     return NextResponse.json({
       success: true,
       mode: "mock",
-      message: "Mock mode: no API key configured. Set FOOTBALL_API_KEY to enable real sync.",
+      message: "Mock mode: no API key configured. Set API_FOOTBALL_KEY to enable real sync.",
       count: 0,
       syncedAt: new Date().toISOString(),
     });
   }
 
-  const results: { leagueId: number; count: number; error?: string }[] = [];
+  const provider = getFootballProvider();
+  const season = currentFootballSeason();
+  const today = new Date().toISOString().split("T")[0];
 
-  for (const leagueId of SUPPORTED_LEAGUE_IDS) {
-    try {
-      const fixtures = await fetchFixturesFromAPI(leagueId, currentSeason);
-      // TODO: upsert fixtures to database
-      results.push({ leagueId, count: fixtures.length });
-    } catch (error) {
-      results.push({ leagueId, count: 0, error: String(error) });
-    }
-  }
+  const results = await Promise.all(
+    SUPPORTED_LEAGUES.map(async (league) => {
+      try {
+        const fixtures = await provider.fetchFixtures(league.id, today, season);
+        return { leagueId: league.id, count: fixtures.length };
+      } catch (error) {
+        return { leagueId: league.id, count: 0, error: String(error) };
+      }
+    })
+  );
 
   const totalSynced = results.reduce((sum, r) => sum + r.count, 0);
   const errors = results.filter((r) => r.error);
+
+  // Invalidate Next.js data cache so pages re-render with fresh data
+  revalidateTag("fixtures", {});
 
   return NextResponse.json({
     success: errors.length === 0,

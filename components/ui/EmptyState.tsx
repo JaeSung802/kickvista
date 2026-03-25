@@ -16,56 +16,14 @@ export default function EmptyState({
   actionHref,
 }: EmptyStateProps) {
   return (
-    <div
-      className="flex flex-col items-center justify-center text-center"
-      style={{
-        padding: "48px 24px",
-        backgroundColor: "#161b22",
-        border: "1px solid #30363d",
-        borderRadius: 12,
-      }}
-    >
-      <span style={{ fontSize: 48, lineHeight: 1, marginBottom: 16 }}>{icon}</span>
-
-      <h3
-        style={{
-          color: "#e6edf3",
-          fontSize: 18,
-          fontWeight: 600,
-          margin: "0 0 8px",
-        }}
-      >
-        {title}
-      </h3>
-
-      <p
-        style={{
-          color: "#8b949e",
-          fontSize: 14,
-          margin: "0 0 24px",
-          maxWidth: 320,
-          lineHeight: 1.6,
-        }}
-      >
-        {description}
-      </p>
-
+    <div className="flex flex-col items-center justify-center text-center px-6 py-12 bg-white border border-gray-200 rounded-xl">
+      <span className="text-5xl leading-none mb-4">{icon}</span>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-sm text-gray-500 max-w-xs leading-relaxed mb-6">{description}</p>
       {actionLabel && actionHref && (
         <a
           href={actionHref}
-          style={{
-            display: "inline-block",
-            backgroundColor: "#22c55e",
-            color: "#0d1117",
-            fontWeight: 600,
-            fontSize: 14,
-            padding: "10px 24px",
-            borderRadius: 8,
-            textDecoration: "none",
-            transition: "opacity 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          className="inline-block px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors no-underline"
         >
           {actionLabel}
         </a>

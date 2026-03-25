@@ -22,14 +22,18 @@ export const CACHE_TTL = {
   LIVE: 30,
   /** Today's fixture list — kick-off times, postponements */
   FIXTURES_TODAY: 300,
+  /** Recent results list — refreshed every 5 minutes */
+  RESULTS: 300,
   /** League standings table */
-  STANDINGS: 300,
+  STANDINGS: 3_600,
   /** Match detail while the match is in progress */
   MATCH_DETAIL_LIVE: 30,
   /** Match detail for a finished match (immutable) */
   MATCH_DETAIL_FINISHED: 3_600,
   /** Team info — badge URL, venue */
   TEAM: 3_600,
+  /** Squad roster — changes infrequently, refresh daily */
+  SQUAD: 86_400,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -46,7 +50,7 @@ export const CACHE_TTL = {
  *   cacheTags("standings", 39).forEach(revalidateTag);
  */
 export function cacheTags(
-  type: "fixtures" | "standings" | "match" | "team",
+  type: "fixtures" | "standings" | "match" | "team" | "squad",
   id?: number | string
 ): string[] {
   const base: string[] = [type];

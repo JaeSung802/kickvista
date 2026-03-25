@@ -132,7 +132,7 @@ export default async function AdminDashboardPage({
     {
       label: isKo ? "전체 사용자" : "Total Users",
       value: stats.totalUsers,
-      color: "#22c55e",
+      color: "#059669",
       icon: "👥",
     },
     {
@@ -144,7 +144,7 @@ export default async function AdminDashboardPage({
     {
       label: isKo ? "관리자" : "Admins",
       value: stats.totalAdmins,
-      color: "#22c55e",
+      color: "#059669",
       icon: "⭐",
     },
   ];
@@ -171,92 +171,30 @@ export default async function AdminDashboardPage({
   ];
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="bg-gray-50 min-h-screen">
       {/* Page header */}
-      <div
-        style={{
-          borderBottom: "1px solid #21262d",
-          background: "linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
-          padding: "32px 0",
-        }}
-      >
+      <div className="bg-white border-b border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span
-              style={{
-                width: 3,
-                height: 24,
-                borderRadius: 2,
-                backgroundColor: "#22c55e",
-                flexShrink: 0,
-              }}
-            />
-            <h1
-              style={{
-                color: "#e6edf3",
-                fontSize: 22,
-                fontWeight: 900,
-                margin: 0,
-              }}
-            >
-              {isKo ? "대시보드" : "Dashboard"}
-            </h1>
+          <div className="flex items-center gap-2.5">
+            <span className="w-0.5 h-6 rounded-full bg-emerald-600 shrink-0" />
+            <h1 className="text-xl font-black text-gray-900">{isKo ? "대시보드" : "Dashboard"}</h1>
           </div>
-          <p
-            style={{
-              color: "#8b949e",
-              fontSize: 13,
-              margin: "6px 0 0 13px",
-            }}
-          >
-            {isKo
-              ? "커뮤니티 현황 및 빠른 관리 링크"
-              : "Community overview and quick moderation links"}
+          <p className="text-sm text-gray-500 mt-1 ml-3.5">
+            {isKo ? "커뮤니티 현황 및 빠른 관리 링크" : "Community overview and quick moderation links"}
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-            gap: 14,
-            marginBottom: 32,
-          }}
-        >
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3.5 mb-8">
           {statCards.map((card) => (
-            <div
-              key={card.label}
-              style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 10,
-                padding: "18px 20px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 10,
-                }}
-              >
-                <span style={{ fontSize: 18 }}>{card.icon}</span>
-                <span style={{ color: "#8b949e", fontSize: 12, fontWeight: 600 }}>
-                  {card.label}
-                </span>
+            <div key={card.label} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="text-lg">{card.icon}</span>
+                <span className="text-xs font-semibold text-gray-500">{card.label}</span>
               </div>
-              <div
-                style={{
-                  color: card.color,
-                  fontSize: 28,
-                  fontWeight: 900,
-                  lineHeight: 1,
-                }}
-              >
+              <div className="text-3xl font-black tabular-nums" style={{ color: card.color }}>
                 {card.value.toLocaleString()}
               </div>
             </div>
@@ -264,37 +202,23 @@ export default async function AdminDashboardPage({
         </div>
 
         {/* Quick links */}
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-            <span style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: "#22c55e", flexShrink: 0 }} />
-            <h2 style={{ color: "#e6edf3", fontSize: 16, fontWeight: 700, margin: 0 }}>
-              {isKo ? "빠른 이동" : "Quick Actions"}
-            </h2>
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-0.5 h-4 rounded-full bg-emerald-600 shrink-0" />
+            <h2 className="text-base font-bold text-gray-900">{isKo ? "빠른 이동" : "Quick Actions"}</h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
             {quickLinks.map((link) => (
               <a
                 key={link.href}
                 href={link.href}
-                style={{
-                  display: "block",
-                  backgroundColor: "#161b22",
-                  border: "1px solid #30363d",
-                  borderRadius: 10,
-                  padding: "18px 20px",
-                  textDecoration: "none",
-                  transition: "border-color 0.15s, background 0.15s",
-                }}
+                className="block bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all"
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 20 }}>{link.icon}</span>
-                  <span style={{ color: "#e6edf3", fontSize: 14, fontWeight: 700 }}>
-                    {link.label}
-                  </span>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xl">{link.icon}</span>
+                  <span className="text-sm font-bold text-gray-900">{link.label}</span>
                 </div>
-                <p style={{ color: "#8b949e", fontSize: 12, margin: 0 }}>
-                  {link.desc}
-                </p>
+                <p className="text-xs text-gray-500">{link.desc}</p>
               </a>
             ))}
           </div>

@@ -66,8 +66,8 @@ export default function CategoryTabs({ selected, onChange, locale, counts }: Cat
                 gap: "5px",
                 padding: "6px 14px",
                 borderRadius: "20px",
-                border: isActive ? "1px solid #22c55e" : "1px solid #30363d",
-                backgroundColor: isActive ? "#22c55e" : "#161b22",
+                border: isActive ? "1px solid #059669" : "1px solid #30363d",
+                backgroundColor: isActive ? "#059669" : "#161b22",
                 color: isActive ? "#0d1117" : "#8b949e",
                 fontSize: "13px",
                 fontWeight: isActive ? 700 : 500,
@@ -78,7 +78,7 @@ export default function CategoryTabs({ selected, onChange, locale, counts }: Cat
               }}
               onMouseEnter={(e) => {
                 if (!isActive) {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = "#22c55e66";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "#05966966";
                   (e.currentTarget as HTMLButtonElement).style.color = "#e6edf3";
                 }
               }}
@@ -94,7 +94,7 @@ export default function CategoryTabs({ selected, onChange, locale, counts }: Cat
                 <span
                   style={{
                     backgroundColor: isActive ? "#0d1117" : "#0d1117",
-                    color: isActive ? "#22c55e" : "#8b949e",
+                    color: isActive ? "#059669" : "#8b949e",
                     fontSize: "11px",
                     fontWeight: 700,
                     padding: "1px 6px",

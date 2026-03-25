@@ -180,7 +180,7 @@ export default function ReportModal({
                   <button
                     onClick={closeModal}
                     style={{
-                      backgroundColor: "#22c55e",
+                      backgroundColor: "#059669",
                       color: "#0d1117",
                       border: "none",
                       borderRadius: 8,
@@ -239,7 +239,7 @@ export default function ReportModal({
                     <button
                       onClick={() => setModalState("open")}
                       style={{
-                        backgroundColor: "#22c55e",
+                        backgroundColor: "#059669",
                         color: "#0d1117",
                         border: "none",
                         borderRadius: 8,

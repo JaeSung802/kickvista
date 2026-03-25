@@ -12,72 +12,16 @@ export default function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <div
-      className="flex flex-col items-center justify-center text-center"
-      style={{
-        padding: "48px 24px",
-        backgroundColor: "#161b22",
-        border: "1px solid #30363d",
-        borderRadius: 12,
-      }}
-    >
-      {/* Error icon */}
-      <div
-        style={{
-          width: 52,
-          height: 52,
-          borderRadius: "50%",
-          backgroundColor: "rgba(239,68,68,0.12)",
-          border: "1.5px solid rgba(239,68,68,0.35)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 16,
-          fontSize: 24,
-        }}
-      >
+    <div className="flex flex-col items-center justify-center text-center px-6 py-12 bg-white border border-gray-200 rounded-xl">
+      <div className="w-13 h-13 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-2xl mb-4">
         ⚠️
       </div>
-
-      <h3
-        style={{
-          color: "#e6edf3",
-          fontSize: 18,
-          fontWeight: 600,
-          margin: "0 0 8px",
-        }}
-      >
-        {title}
-      </h3>
-
-      <p
-        style={{
-          color: "#8b949e",
-          fontSize: 14,
-          margin: "0 0 24px",
-          maxWidth: 320,
-          lineHeight: 1.6,
-        }}
-      >
-        {description}
-      </p>
-
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-sm text-gray-500 max-w-xs leading-relaxed mb-6">{description}</p>
       {onRetry && (
         <button
           onClick={onRetry}
-          style={{
-            backgroundColor: "transparent",
-            color: "#22c55e",
-            border: "1.5px solid #22c55e",
-            fontWeight: 600,
-            fontSize: 14,
-            padding: "10px 24px",
-            borderRadius: 8,
-            cursor: "pointer",
-            transition: "background-color 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(34,197,94,0.08)")}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+          className="px-6 py-2.5 text-sm font-semibold text-emerald-600 border border-emerald-500 rounded-lg hover:bg-emerald-50 transition-colors"
         >
           Try Again
         </button>

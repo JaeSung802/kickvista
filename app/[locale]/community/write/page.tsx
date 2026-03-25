@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getServerUser, getServerProfile } from "@/lib/auth";
+import { getServerRole, isAdmin as checkIsAdmin } from "@/lib/admin/roles";
 import WritePostForm from "@/components/community/WritePostForm";
 import type { Metadata } from "next";
 
@@ -25,48 +26,54 @@ export default async function WritePostPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ team?: string; league?: string }>;
+  searchParams: Promise<{ team?: string; league?: string; category?: string }>;
 }) {
   const { locale } = await params;
   const sp = await searchParams;
   if (!isValidLocale(locale)) notFound();
   const loc      = locale as Locale;
   const isKo     = loc === "ko";
-  const teamSlug   = sp.team   ?? null;
-  const leagueSlug = sp.league ?? null;
+  const teamSlug        = sp.team     ?? null;
+  const leagueSlug      = sp.league   ?? null;
+  const initialCategory = sp.category ?? null;
 
-  const user    = await getServerUser();
-  const profile = user ? await getServerProfile(user.id) : null;
+  const user = await getServerUser();
+  const [profileR, roleR] = user
+    ? await Promise.allSettled([getServerProfile(user.id), getServerRole()])
+    : [{ status: "fulfilled" as const, value: null }, { status: "fulfilled" as const, value: null }];
+  const profile = profileR.status === "fulfilled" ? profileR.value : null;
+  const role    = roleR.status    === "fulfilled" ? roleR.value    : null;
 
   const nickname = profile?.nickname ?? user?.email?.split("@")[0] ?? "fan";
   const badge    = "🥉"; // default badge; real rank system can enrich later
+  const adminUser = checkIsAdmin(role);
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="min-h-screen">
 
       {/* Page header */}
       <div
         style={{
-          borderBottom: "1px solid #21262d",
-          background: "linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
+          borderBottom: "1px solid #f3f4f6",
+          backgroundColor: "#ffffff",
         }}
         className="py-8"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
           <nav style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginBottom: 14 }}>
-            <a href={`/${loc}/community`} style={{ color: "#8b949e", textDecoration: "none" }}>
+            <a href={`/${loc}/community`} style={{ color: "#6b7280", textDecoration: "none" }}>
               {isKo ? "커뮤니티" : "Community"}
             </a>
-            <span style={{ color: "#30363d" }}>›</span>
-            <span style={{ color: "#e6edf3" }}>
+            <span style={{ color: "#d1d5db" }}>›</span>
+            <span style={{ color: "#111827" }}>
               {isKo ? "글쓰기" : "Write Post"}
             </span>
           </nav>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 3, height: 24, borderRadius: 2, backgroundColor: "#22c55e", flexShrink: 0 }} />
-            <h1 style={{ color: "#e6edf3", fontSize: 24, fontWeight: 900, margin: 0 }}>
+            <span style={{ width: 3, height: 24, borderRadius: 2, backgroundColor: "#059669", flexShrink: 0 }} />
+            <h1 style={{ color: "#111827", fontSize: 24, fontWeight: 900, margin: 0 }}>
               {isKo ? "글쓰기" : "Write a Post"}
             </h1>
           </div>
@@ -79,16 +86,16 @@ export default async function WritePostPage({
           <div
             style={{
               maxWidth: 480, margin: "0 auto",
-              backgroundColor: "#161b22", border: "1px solid rgba(34,197,94,0.2)",
+              backgroundColor: "#ffffff", border: "1px solid rgba(34,197,94,0.2)",
               borderRadius: 14, padding: "40px 32px", textAlign: "center",
-              background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(34,197,94,0.06) 0%, #161b22 70%)",
+              background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(34,197,94,0.06) 0%, #ffffff 70%)",
             }}
           >
             <span style={{ fontSize: 48, display: "block", marginBottom: 16 }}>⚽</span>
-            <h2 style={{ color: "#e6edf3", fontSize: 20, fontWeight: 800, margin: "0 0 10px" }}>
+            <h2 style={{ color: "#111827", fontSize: 20, fontWeight: 800, margin: "0 0 10px" }}>
               {isKo ? "로그인이 필요합니다" : "Sign in to write a post"}
             </h2>
-            <p style={{ color: "#8b949e", fontSize: 14, margin: "0 0 24px", lineHeight: 1.6 }}>
+            <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 24px", lineHeight: 1.6 }}>
               {isKo
                 ? "KickVista 커뮤니티에 게시글을 작성하려면 로그인하세요."
                 : "Join the KickVista community to share your football analysis, opinions, and news."}
@@ -98,7 +105,7 @@ export default async function WritePostPage({
                 href={`/${loc}/auth/login`}
                 style={{
                   display: "inline-block", padding: "10px 24px",
-                  backgroundColor: "#22c55e", color: "#0d1117",
+                  backgroundColor: "#059669", color: "#ffffff",
                   fontSize: 14, fontWeight: 700, borderRadius: 8, textDecoration: "none",
                 }}
               >
@@ -108,9 +115,9 @@ export default async function WritePostPage({
                 href={`/${loc}/auth/signup`}
                 style={{
                   display: "inline-block", padding: "10px 24px",
-                  backgroundColor: "transparent", color: "#8b949e",
+                  backgroundColor: "transparent", color: "#6b7280",
                   fontSize: 14, fontWeight: 600, borderRadius: 8, textDecoration: "none",
-                  border: "1px solid #30363d",
+                  border: "1px solid #e5e7eb",
                 }}
               >
                 {isKo ? "회원가입" : "Create Account"}
@@ -126,6 +133,8 @@ export default async function WritePostPage({
             teamSlug={teamSlug}
             leagueSlug={leagueSlug}
             backHref={teamSlug ? `/${loc}/team/${teamSlug}/community` : undefined}
+            isAdmin={adminUser}
+            initialCategory={initialCategory}
           />
         )}
       </div>

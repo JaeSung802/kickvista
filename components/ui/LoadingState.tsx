@@ -24,7 +24,7 @@ export default function LoadingState({ message, size = "md" }: LoadingStateProps
       />
 
       {message && (
-        <p style={{ color: "#8b949e", fontSize: fs, margin: 0, textAlign: "center" }}>
+        <p style={{ color: "#6b7280", fontSize: fs, margin: 0, textAlign: "center" }}>
           {message}
         </p>
       )}

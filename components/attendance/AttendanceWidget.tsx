@@ -50,122 +50,79 @@ export default function AttendanceWidget({
   const tx = t[locale];
 
   return (
-    <div
-      style={{
-        backgroundColor: "#161b22",
-        border: "1px solid #30363d",
-        borderRadius: 12,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
       {/* Rank color top stripe */}
-      <div style={{ height: 2, backgroundColor: rankColor }} />
-      <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 style={{ color: "#e6edf3", fontSize: 15, fontWeight: 700, margin: 0 }}>
-          {tx.attendance}
-        </h3>
-        {/* Rank badge */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            backgroundColor: "rgba(0,0,0,0.25)",
-            border: `1px solid ${rankColor}40`,
-            borderRadius: 999,
-            padding: "3px 10px",
-          }}
-        >
-          <span style={{ fontSize: 14 }}>{rankBadge}</span>
-          <span style={{ color: rankColor, fontSize: 12, fontWeight: 700 }}>{rankLabel}</span>
-        </div>
-      </div>
+      <div style={{ height: 3, backgroundColor: rankColor }} />
 
-      {/* Stats row */}
-      <div className="flex items-center justify-between">
-        {/* Points */}
-        <div className="flex flex-col items-center gap-1">
-          <span style={{ color: "#22c55e", fontSize: 20, fontWeight: 800 }}>
-            {totalPoints.toLocaleString()}
-          </span>
-          <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.points}</span>
-        </div>
-
-        <div style={{ width: 1, height: 36, backgroundColor: "#30363d" }} />
-
-        {/* Streak */}
-        <div className="flex flex-col items-center gap-1">
-          <span style={{ color: "#e6edf3", fontSize: 20, fontWeight: 800 }}>
-            🔥 {currentStreak}
-          </span>
-          <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.streak}</span>
-        </div>
-
-        <div style={{ width: 1, height: 36, backgroundColor: "#30363d" }} />
-
-        {/* Total days */}
-        <div className="flex flex-col items-center gap-1">
-          <span style={{ color: "#e6edf3", fontSize: 20, fontWeight: 800 }}>{totalDays}</span>
-          <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.days}</span>
-        </div>
-      </div>
-
-      {/* Progress bar */}
-      <div>
-        <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-          <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.nextRank}</span>
-          <span style={{ color: "#8b949e", fontSize: 11 }}>{progressToNextRank}%</span>
-        </div>
-        <div
-          style={{
-            height: 6,
-            backgroundColor: "#0d1117",
-            borderRadius: 999,
-            overflow: "hidden",
-            border: "1px solid #30363d",
-          }}
-        >
+      <div className="p-5 flex flex-col gap-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-gray-900">{tx.attendance}</h3>
+          {/* Rank badge */}
           <div
-            style={{
-              height: "100%",
-              width: `${Math.min(100, progressToNextRank)}%`,
-              backgroundColor: rankColor,
-              borderRadius: 999,
-              transition: "width 0.5s ease",
-            }}
-          />
+            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 bg-gray-50 border"
+            style={{ borderColor: `${rankColor}40` }}
+          >
+            <span className="text-sm">{rankBadge}</span>
+            <span className="text-xs font-bold" style={{ color: rankColor }}>{rankLabel}</span>
+          </div>
         </div>
-      </div>
 
-      {/* Check-in button */}
-      <button
-        onClick={hasCheckedInToday ? undefined : () => { onCheckIn?.(); fetch("/api/attendance/check-in", { method: "POST" }); }}
-        disabled={hasCheckedInToday}
-        style={{
-          width: "100%",
-          padding: "12px",
-          borderRadius: 8,
-          fontWeight: 700,
-          fontSize: 14,
-          cursor: hasCheckedInToday ? "default" : "pointer",
-          border: "none",
-          backgroundColor: hasCheckedInToday ? "#21262d" : "#22c55e",
-          color: hasCheckedInToday ? "#8b949e" : "#0d1117",
-          transition: "opacity 0.15s",
-        }}
-        onMouseEnter={(e) => {
-          if (!hasCheckedInToday) e.currentTarget.style.opacity = "0.88";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = "1";
-        }}
-      >
-        {hasCheckedInToday ? `✓ ${tx.checkedIn}` : tx.checkIn}
-      </button>
+        {/* Stats row */}
+        <div className="flex items-center justify-between">
+          {/* Points */}
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-xl font-black text-emerald-600 tabular-nums">
+              {totalPoints.toLocaleString()}
+            </span>
+            <span className="text-xs text-gray-400">{tx.points}</span>
+          </div>
+
+          <div className="w-px h-9 bg-gray-200" />
+
+          {/* Streak */}
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-xl font-black text-gray-800 tabular-nums">
+              🔥 {currentStreak}
+            </span>
+            <span className="text-xs text-gray-400">{tx.streak}</span>
+          </div>
+
+          <div className="w-px h-9 bg-gray-200" />
+
+          {/* Total days */}
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-xl font-black text-gray-800 tabular-nums">{totalDays}</span>
+            <span className="text-xs text-gray-400">{tx.days}</span>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs text-gray-400">{tx.nextRank}</span>
+            <span className="text-xs text-gray-400">{progressToNextRank}%</span>
+          </div>
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+            <div
+              className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+              style={{ width: `${Math.min(100, progressToNextRank)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Check-in button */}
+        <button
+          onClick={hasCheckedInToday ? undefined : () => { onCheckIn?.(); fetch("/api/attendance/check-in", { method: "POST" }); }}
+          disabled={hasCheckedInToday}
+          className={`w-full py-3 rounded-lg text-sm font-bold transition-opacity ${
+            hasCheckedInToday
+              ? "bg-gray-100 text-gray-400 cursor-default"
+              : "bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+          }`}
+        >
+          {hasCheckedInToday ? `✓ ${tx.checkedIn}` : tx.checkIn}
+        </button>
       </div>
     </div>
   );

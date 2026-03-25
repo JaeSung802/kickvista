@@ -1,12 +1,13 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
-import AdSlot from "@/components/ads/AdSlot";
+import AdSidebar from "@/components/ads/AdSidebar";
 import AttendanceWidget from "@/components/attendance/AttendanceWidget";
 import type { Metadata } from "next";
 import { getServerUser, getServerProfile } from "@/lib/auth";
 import { hasCheckedInToday } from "@/lib/attendance";
 import { getRank, getProgressToNextRank } from "@/lib/ranks";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -33,85 +34,102 @@ export async function generateMetadata({
   });
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
+// ─── Server Actions ───────────────────────────────────────────────────────────
 
-const MOCK_USER = {
-  nickname: "tacticsboard_official",
-  rankBadge: "👑",
-  rankTier: "legend",
-  rankColor: "#f59e0b",
-  level: 42,
-  totalPoints: 14820,
-  postCount: 142,
-  commentCount: 387,
-  likedCount: 1204,
-  streak: 15,
-  joinDate: "2024-01-15",
-  email: "user@example.com",
-  provider: "Google",
-};
+async function updateNickname(formData: FormData) {
+  "use server";
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
 
-const MOCK_POINTS_HISTORY = [
-  { date: "2026-03-14", activity: { en: "Daily Check-in", ko: "일일 출석" }, points: +10 },
-  { date: "2026-03-14", activity: { en: "Post Liked", ko: "게시글 추천 받음" }, points: +5 },
-  { date: "2026-03-13", activity: { en: "Daily Check-in", ko: "일일 출석" }, points: +10 },
-  { date: "2026-03-13", activity: { en: "Comment Written", ko: "댓글 작성" }, points: +3 },
-  { date: "2026-03-12", activity: { en: "Daily Check-in", ko: "일일 출석" }, points: +10 },
-  { date: "2026-03-12", activity: { en: "Post Written", ko: "게시글 작성" }, points: +15 },
-  { date: "2026-03-11", activity: { en: "Daily Check-in", ko: "일일 출석" }, points: +10 },
-];
+  const nickname = (formData.get("nickname") as string ?? "").trim();
+  if (!nickname) return;
 
-const MOCK_RECENT_POSTS = [
-  {
-    id: "1",
-    title: { en: "Arsenal vs Man City tactical breakdown", ko: "아스날 vs 맨시티 전술 분석" },
-    date: "2026-03-12",
-    views: 8420,
-    likes: 312,
-  },
-  {
-    id: "3",
-    title: { en: "Why the 4-3-3 is dominating Europe this season", ko: "왜 이번 시즌 4-3-3이 유럽을 지배하나" },
-    date: "2026-03-10",
-    views: 5840,
-    likes: 248,
-  },
-  {
-    id: "7",
-    title: { en: "Rating the Arsenal squad depth", ko: "아스날 선수단 깊이 평가" },
-    date: "2026-03-06",
-    views: 4230,
-    likes: 198,
-  },
-];
+  await supabase
+    .from("profiles")
+    .update({ nickname })
+    .eq("id", user.id);
 
-const MOCK_RECENT_COMMENTS = [
-  {
-    id: "c1",
-    postTitle: { en: "Champions League QF draw reaction", ko: "챔피언스리그 8강 추첨 반응" },
-    postId: "4",
-    excerpt: { en: "City vs Bayern is going to be absolute carnage", ko: "맨시티 vs 바이에른은 진짜 혈투가 될 것 같다" },
-    date: "2026-03-09",
-  },
-  {
-    id: "c2",
-    postTitle: { en: "Is Yamal already the best winger?", ko: "야말은 이미 최고의 윙어인가?" },
-    postId: "6",
-    excerpt: { en: "The Euros performance at 16 settled the debate for me", ko: "16살에 유로 퍼포먼스가 내겐 이미 답을 줬다" },
-    date: "2026-03-07",
-  },
-  {
-    id: "c3",
-    postTitle: { en: "VAR disallowed goal outrage", ko: "VAR 골 취소 분노" },
-    postId: "5",
-    excerpt: { en: "The daylight rule needs to be implemented ASAP", ko: "데이라이트 규칙 당장 적용해야 함" },
-    date: "2026-03-08",
-  },
-];
+  redirect("?tab=settings&saved=1");
+}
 
-const THIS_MONTH_POINTS = MOCK_POINTS_HISTORY
-  .filter((h) => h.date.startsWith("2026-03"))
-  .reduce((sum, h) => sum + h.points, 0);
+// ─── Real data helpers ────────────────────────────────────────────────────────
+
+async function fetchMyPosts(userId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("community_posts")
+    .select("id, title, view_count, like_count, created_at")
+    .eq("author_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[] ?? []).map((r) => ({
+    id: r.id as string,
+    title: r.title as string,
+    views: (r.view_count as number) ?? 0,
+    likes: (r.like_count as number) ?? 0,
+    date: (r.created_at as string).split("T")[0],
+  }));
+}
+
+async function fetchMyComments(userId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("community_comments")
+    .select("id, content, post_id, created_at, post:community_posts!post_id(id, title)")
+    .eq("author_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[] ?? []).map((r) => {
+    const post = Array.isArray(r.post) ? r.post[0] : r.post;
+    return {
+      id: r.id as string,
+      postId: (post?.id ?? r.post_id) as string,
+      postTitle: (post?.title ?? "") as string,
+      excerpt: (r.content as string).slice(0, 80),
+      date: (r.created_at as string).split("T")[0],
+    };
+  });
+}
+
+async function fetchPointsHistory(userId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("attendance_logs")
+    .select("attendance_date, points_earned")
+    .eq("user_id", userId)
+    .order("attendance_date", { ascending: false })
+    .limit(10);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[] ?? []).map((r) => ({
+    date: r.attendance_date as string,
+    points: (r.points_earned as number) ?? 10,
+  }));
+}
+
+async function fetchThisMonthPoints(userId: string) {
+  const supabase = await createClient();
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const { data } = await supabase
+    .from("attendance_logs")
+    .select("points_earned")
+    .eq("user_id", userId)
+    .gte("attendance_date", monthStart);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[] ?? []).reduce((sum: number, r: any) => sum + (r.points_earned ?? 10), 0);
+}
+
+async function fetchCounts(userId: string) {
+  const supabase = await createClient();
+  const [{ count: postCount }, { count: commentCount }] = await Promise.all([
+    supabase.from("community_posts").select("id", { count: "exact", head: true }).eq("author_id", userId),
+    supabase.from("community_comments").select("id", { count: "exact", head: true }).eq("author_id", userId),
+  ]);
+  return { postCount: postCount ?? 0, commentCount: commentCount ?? 0 };
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -125,30 +143,11 @@ function StatCard({
   accent?: boolean;
 }) {
   return (
-    <div
-      style={{
-        backgroundColor: "#0d1117",
-        border: "1px solid #30363d",
-        borderRadius: 10,
-        padding: "16px 20px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-        flex: 1,
-        minWidth: 100,
-      }}
-    >
-      <span
-        style={{
-          color: accent ? "#22c55e" : "#e6edf3",
-          fontSize: 22,
-          fontWeight: 800,
-          lineHeight: 1,
-        }}
-      >
+    <div className="flex flex-col gap-1 flex-1 min-w-24 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+      <span className={`text-xl font-extrabold leading-none tabular-nums ${accent ? "text-emerald-600" : "text-gray-900"}`}>
         {typeof value === "number" ? value.toLocaleString() : value}
       </span>
-      <span style={{ color: "#8b949e", fontSize: 11 }}>{label}</span>
+      <span className="text-xs text-gray-400">{label}</span>
     </div>
   );
 }
@@ -157,53 +156,114 @@ function StatCard({
 
 export default async function MyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ tab?: string; saved?: string }>;
 }) {
   const { locale } = await params;
+  const { tab: tabParam, saved } = await searchParams;
   if (!isValidLocale(locale)) notFound();
   const loc = locale as Locale;
   const isKo = loc === "ko";
+  const activeTab = tabParam ?? "overview";
 
-  // Load real user data if Supabase is configured; fall back to mock
+  // Auth gate — must be authenticated to view MyPage
   const supabaseUser = await getServerUser();
-  const [profile, checkedIn] = supabaseUser
-    ? await Promise.all([
-        getServerProfile(supabaseUser.id),
-        hasCheckedInToday(supabaseUser.id),
-      ])
-    : [null, false];
+
+  if (!supabaseUser) {
+    return (
+      <main className="bg-gray-50 min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md bg-white border border-gray-200 rounded-3xl shadow-xl p-10 flex flex-col items-center gap-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center text-3xl shadow-sm">
+            👤
+          </div>
+          <div className="flex flex-col gap-2">
+            <h1 className="text-xl font-extrabold text-gray-900">
+              {isKo ? "마이페이지" : "My Page"}
+            </h1>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              {isKo
+                ? "로그인 후 출석 포인트, 랭킹, 작성한 게시글을 확인할 수 있습니다."
+                : "Sign in to view your attendance points, rank, and community activity."}
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {[
+              { icon: "🏆", label: isKo ? "포인트 & 랭킹" : "Points & Rank" },
+              { icon: "📅", label: isKo ? "출석 기록" : "Attendance Log" },
+              { icon: "✍️", label: isKo ? "내 게시글" : "My Posts" },
+            ].map((f) => (
+              <span
+                key={f.label}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1"
+              >
+                {f.icon} {f.label}
+              </span>
+            ))}
+          </div>
+          <a
+            href={`/${loc}/auth/login`}
+            className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-6 py-3 rounded-xl transition-colors shadow-sm"
+          >
+            {isKo ? "로그인하기" : "Sign In"}
+          </a>
+          <p className="text-xs text-gray-400">
+            {isKo ? "계정이 없으신가요?" : "No account yet?"}{" "}
+            <a href={`/${loc}/auth/signup`} className="text-emerald-600 font-semibold hover:underline">
+              {isKo ? "무료로 가입" : "Create one free"}
+            </a>
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Authenticated — fetch all real data in parallel
+  const [profileR, checkedInR, myPostsR, myCommentsR, pointsHistoryR, thisMonthPointsR, countsR] = await Promise.allSettled([
+    getServerProfile(supabaseUser.id),
+    hasCheckedInToday(supabaseUser.id),
+    fetchMyPosts(supabaseUser.id),
+    fetchMyComments(supabaseUser.id),
+    fetchPointsHistory(supabaseUser.id),
+    fetchThisMonthPoints(supabaseUser.id),
+    fetchCounts(supabaseUser.id),
+  ]);
+  const profile         = profileR.status         === "fulfilled" ? profileR.value         : null;
+  const checkedIn       = checkedInR.status       === "fulfilled" ? checkedInR.value       : false;
+  const myPosts         = myPostsR.status         === "fulfilled" ? myPostsR.value         : [];
+  const myComments      = myCommentsR.status      === "fulfilled" ? myCommentsR.value      : [];
+  const pointsHistory   = pointsHistoryR.status   === "fulfilled" ? pointsHistoryR.value   : [];
+  const thisMonthPoints = thisMonthPointsR.status === "fulfilled" ? thisMonthPointsR.value : 0;
+  const counts          = countsR.status          === "fulfilled" ? countsR.value          : { postCount: 0, commentCount: 0 };
 
   const rank = profile ? getRank(profile.total_points) : null;
 
-  const u = profile
-    ? {
-        nickname: profile.nickname,
-        rankBadge: rank!.badge,
-        rankTier: rank!.tier,
-        rankColor: rank!.color,
-        level: 1,
-        totalPoints: profile.total_points,
-        postCount: 0,
-        commentCount: 0,
-        likedCount: 0,
-        streak: profile.current_streak,
-        joinDate: profile.created_at.split("T")[0],
-        email: supabaseUser?.email ?? "",
-        provider: supabaseUser?.app_metadata?.provider ?? "email",
-      }
-    : MOCK_USER;
+  const u = {
+    nickname: profile?.nickname ?? supabaseUser.email?.split("@")[0] ?? "fan",
+    rankBadge: rank?.badge ?? "🥉",
+    rankTier: rank?.tier ?? "bronze",
+    rankColor: rank?.color ?? "#cd7f32",
+    rankLabel: rank ? rank.label[loc] : (isKo ? "브론즈" : "Bronze"),
+    totalPoints: profile?.total_points ?? 0,
+    postCount: counts.postCount,
+    commentCount: counts.commentCount,
+    streak: profile?.current_streak ?? 0,
+    joinDate: profile?.created_at.split("T")[0] ?? "",
+    email: supabaseUser.email ?? "",
+    provider: (supabaseUser.app_metadata?.provider as string) ?? "email",
+  };
 
   const attendanceWidgetProps = {
     totalDays: 0,
-    currentStreak: profile?.current_streak ?? MOCK_USER.streak,
-    totalPoints: profile?.total_points ?? MOCK_USER.totalPoints,
-    rankTier: (rank?.tier ?? "silver") as import("@/lib/ranks").RankTier,
-    rankLabel: rank ? rank.label[loc] : isKo ? "실버" : "Silver",
-    rankColor: rank?.color ?? "#c0c0c0",
-    rankBadge: rank?.badge ?? "🥈",
+    currentStreak: profile?.current_streak ?? 0,
+    totalPoints: profile?.total_points ?? 0,
+    rankTier: (rank?.tier ?? "bronze") as import("@/lib/ranks").RankTier,
+    rankLabel: rank ? rank.label[loc] : isKo ? "브론즈" : "Bronze",
+    rankColor: rank?.color ?? "#cd7f32",
+    rankBadge: rank?.badge ?? "🥉",
     hasCheckedInToday: checkedIn,
-    progressToNextRank: profile ? getProgressToNextRank(profile.total_points) : 50,
+    progressToNextRank: profile ? getProgressToNextRank(profile.total_points) : 0,
     locale: loc,
   };
 
@@ -236,7 +296,10 @@ export default async function MyPage({
       email: "Email",
       memberSince: "Member Since",
       provider: "Provider",
-      level: "Level",
+      nickname: "Nickname",
+      save: "Save",
+      saved: "Saved!",
+      profileSettings: "Profile Settings",
     },
     ko: {
       editProfile: "프로필 편집",
@@ -266,182 +329,96 @@ export default async function MyPage({
       email: "이메일",
       memberSince: "가입일",
       provider: "로그인 방식",
-      level: "레벨",
+      nickname: "닉네임",
+      save: "저장",
+      saved: "저장됨!",
+      profileSettings: "프로필 설정",
     },
   };
 
   const tx = t[loc];
 
-  const ACTIVE_TAB_STYLE = {
-    padding: "10px 20px",
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#e6edf3",
-    textDecoration: "none",
-    borderBottom: "2px solid #22c55e",
-    whiteSpace: "nowrap" as const,
-  };
-  const INACTIVE_TAB_STYLE = {
-    padding: "10px 20px",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#8b949e",
-    textDecoration: "none",
-    borderBottom: "2px solid transparent",
-    whiteSpace: "nowrap" as const,
-  };
+  const tabs = [
+    { key: "overview",  label: tx.overview },
+    { key: "activity",  label: tx.activity },
+    { key: "stats",     label: tx.stats },
+    { key: "settings",  label: tx.settings },
+  ];
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="bg-gray-50 min-h-screen">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
 
         {/* 1. Profile header card */}
-        <div
-          style={{
-            backgroundColor: "#161b22",
-            border: "1px solid #30363d",
-            borderRadius: 12,
-            overflow: "hidden",
-          }}
-        >
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
           {/* Rank color stripe */}
           <div style={{ height: 4, backgroundColor: u.rankColor }} />
 
-          <div style={{ padding: "28px" }}>
-            <div
-              className="flex flex-wrap items-start gap-6"
-              style={{ marginBottom: 24 }}
-            >
+          <div className="p-7">
+            <div className="flex flex-wrap items-start gap-6 mb-6">
               {/* Avatar */}
               <div
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: "50%",
-                  backgroundColor: "#21262d",
-                  border: `3px solid ${u.rankColor}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 36,
-                  flexShrink: 0,
-                }}
+                className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-4xl shrink-0"
+                style={{ border: `3px solid ${u.rankColor}` }}
               >
                 {u.rankBadge}
               </div>
 
               {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" as const, marginBottom: 6 }}>
-                  <h1
-                    style={{
-                      color: "#e6edf3",
-                      fontSize: 20,
-                      fontWeight: 800,
-                      margin: 0,
-                    }}
-                  >
-                    {u.nickname}
-                  </h1>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+                  <h1 className="text-xl font-extrabold text-gray-900">{u.nickname}</h1>
                   <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: u.rankColor,
-                      backgroundColor: `${u.rankColor}20`,
-                      border: `1px solid ${u.rankColor}40`,
-                      borderRadius: 999,
-                      padding: "2px 10px",
-                    }}
+                    className="text-xs font-bold rounded-full px-2.5 py-0.5 border"
+                    style={{ color: u.rankColor, backgroundColor: `${u.rankColor}18`, borderColor: `${u.rankColor}40` }}
                   >
-                    {u.rankBadge} {rank ? rank.label[loc] : (isKo ? "레전드" : "Legend")}
+                    {u.rankBadge} {u.rankLabel}
                   </span>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      color: "#8b949e",
-                      backgroundColor: "#0d1117",
-                      border: "1px solid #30363d",
-                      borderRadius: 6,
-                      padding: "2px 10px",
-                    }}
-                  >
-                    {tx.level} {u.level}
+                  <span className="text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200 rounded px-2 py-0.5">
+                    {u.totalPoints.toLocaleString()} pt
                   </span>
                 </div>
-
-                <div style={{ color: "#8b949e", fontSize: 13, marginBottom: 14 }}>
-                  {isKo ? "실버 팬" : "Silver Fan"}
-                </div>
-
-                <div style={{ display: "flex", gap: 20, flexWrap: "wrap" as const }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ color: "#22c55e", fontSize: 18, fontWeight: 800 }}>
-                      {u.totalPoints.toLocaleString()}
-                    </span>
-                    <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.totalPoints}</span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ color: "#e6edf3", fontSize: 18, fontWeight: 800 }}>
-                      {u.postCount}
-                    </span>
-                    <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.posts}</span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ color: "#e6edf3", fontSize: 18, fontWeight: 800 }}>
-                      {u.commentCount}
-                    </span>
-                    <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.comments}</span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ color: "#e6edf3", fontSize: 18, fontWeight: 800 }}>
-                      {u.likedCount.toLocaleString()}
-                    </span>
-                    <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.liked}</span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <span style={{ color: "#e6edf3", fontSize: 18, fontWeight: 800 }}>
-                      🔥 {u.streak}
-                    </span>
-                    <span style={{ color: "#8b949e", fontSize: 11 }}>{tx.streak}</span>
-                  </div>
+                <div className="text-sm text-gray-400 mb-4">{u.rankLabel}</div>
+                <div className="flex gap-5 flex-wrap">
+                  {[
+                    { value: u.totalPoints.toLocaleString(), label: tx.totalPoints, accent: true },
+                    { value: u.postCount, label: tx.posts, accent: false },
+                    { value: u.commentCount, label: tx.comments, accent: false },
+                    { value: `🔥 ${u.streak}`, label: tx.streak, accent: false },
+                  ].map((s) => (
+                    <div key={s.label} className="flex flex-col gap-0.5">
+                      <span className={`text-lg font-extrabold ${s.accent ? "text-emerald-600" : "text-gray-900"}`}>{s.value}</span>
+                      <span className="text-xs text-gray-400">{s.label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Edit button */}
-              <div
-                style={{
-                  padding: "8px 18px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  backgroundColor: "transparent",
-                  color: "#8b949e",
-                  border: "1px solid #30363d",
-                  cursor: "pointer",
-                  alignSelf: "flex-start",
-                  whiteSpace: "nowrap" as const,
-                }}
+              {/* Edit button → goes to settings tab */}
+              <a
+                href={`/${loc}/mypage?tab=settings`}
+                className="self-start px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap no-underline"
               >
                 ✏️ {tx.editProfile}
-              </div>
+              </a>
             </div>
           </div>
 
           {/* 2. Tabs row */}
-          <nav
-            style={{
-              display: "flex",
-              borderTop: "1px solid #30363d",
-              paddingLeft: 16,
-              overflowX: "auto",
-            }}
-          >
-            <a href={`/${loc}/mypage`} style={ACTIVE_TAB_STYLE}>{tx.overview}</a>
-            <a href={`/${loc}/mypage?tab=activity`} style={INACTIVE_TAB_STYLE}>{tx.activity}</a>
-            <a href={`/${loc}/mypage?tab=stats`} style={INACTIVE_TAB_STYLE}>{tx.stats}</a>
-            <a href={`/${loc}/mypage?tab=settings`} style={INACTIVE_TAB_STYLE}>{tx.settings}</a>
+          <nav className="flex border-t border-gray-100 pl-4 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            {tabs.map((tab) => (
+              <a
+                key={tab.key}
+                href={`/${loc}/mypage?tab=${tab.key}`}
+                className={`px-5 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                  activeTab === tab.key
+                    ? "text-gray-900 border-emerald-600"
+                    : "text-gray-500 border-transparent hover:text-gray-800"
+                }`}
+              >
+                {tab.label}
+              </a>
+            ))}
           </nav>
         </div>
 
@@ -450,268 +427,299 @@ export default async function MyPage({
           {/* Left / main column */}
           <div className="lg:col-span-2 flex flex-col gap-6">
 
-            {/* 3. Attendance widget */}
-            <section>
-              <h2 style={{ color: "#e6edf3", fontSize: 15, fontWeight: 700, margin: "0 0 12px" }}>
-                {tx.attendance}
-              </h2>
-              <AttendanceWidget {...attendanceWidgetProps} />
-            </section>
+            {/* ── Overview tab ── */}
+            {activeTab === "overview" && (
+              <>
+                {/* 3. Attendance widget */}
+                <section>
+                  <h2 className="text-sm font-bold text-gray-900 mb-3">{tx.attendance}</h2>
+                  <AttendanceWidget {...attendanceWidgetProps} />
+                </section>
 
-            {/* 4. Points summary */}
-            <section
-              style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 12,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "14px 20px",
-                  borderBottom: "1px solid #30363d",
-                  backgroundColor: "#0d1117",
-                }}
-              >
-                <h2 style={{ color: "#e6edf3", fontSize: 15, fontWeight: 700, margin: 0 }}>
-                  {tx.pointsSummary}
-                </h2>
-              </div>
-              <div style={{ padding: "20px" }}>
-                {/* 3 stat cards */}
-                <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" as const }}>
-                  <StatCard label={tx.totalPoints} value={u.totalPoints} accent />
-                  <StatCard label={tx.thisMonth} value={THIS_MONTH_POINTS} />
-                  <StatCard label={tx.rank} value={rank ? rank.label[loc] : (isKo ? "레전드" : "Legend")} />
-                </div>
-
-                {/* Points history table */}
-                <div>
-                  <h3 style={{ color: "#8b949e", fontSize: 12, fontWeight: 700, margin: "0 0 10px", textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
-                    {tx.pointsHistory}
-                  </h3>
-                  <div
-                    style={{
-                      backgroundColor: "#0d1117",
-                      border: "1px solid #30363d",
-                      borderRadius: 8,
-                      overflow: "hidden",
-                    }}
-                  >
-                    {/* Table header */}
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "110px 1fr 60px",
-                        padding: "8px 14px",
-                        borderBottom: "1px solid #21262d",
-                      }}
-                    >
-                      <span style={{ color: "#484f58", fontSize: 11, fontWeight: 600 }}>{tx.date}</span>
-                      <span style={{ color: "#484f58", fontSize: 11, fontWeight: 600 }}>{tx.activityLabel}</span>
-                      <span style={{ color: "#484f58", fontSize: 11, fontWeight: 600, textAlign: "right" as const }}>{tx.pointsLabel}</span>
+                {/* 4. Points summary */}
+                <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-bold text-gray-900">{tx.pointsSummary}</h2>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex flex-wrap gap-2.5 mb-5">
+                      <StatCard label={tx.totalPoints} value={u.totalPoints} accent />
+                      <StatCard label={tx.thisMonth} value={thisMonthPoints} />
+                      <StatCard label={tx.rank} value={u.rankLabel} />
                     </div>
-                    {MOCK_POINTS_HISTORY.map((h, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "110px 1fr 60px",
-                          padding: "9px 14px",
-                          borderBottom: idx < MOCK_POINTS_HISTORY.length - 1 ? "1px solid #21262d" : "none",
-                          alignItems: "center",
-                        }}
-                      >
-                        <span style={{ color: "#8b949e", fontSize: 12 }}>{h.date}</span>
-                        <span style={{ color: "#c9d1d9", fontSize: 12 }}>
-                          {isKo ? h.activity.ko : h.activity.en}
-                        </span>
-                        <span
-                          style={{
-                            color: "#22c55e",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            textAlign: "right" as const,
-                          }}
+                    <div>
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+                        {tx.pointsHistory}
+                      </h3>
+                      <div className="bg-gray-50 border border-gray-100 rounded-lg overflow-hidden">
+                        <div className="grid gap-0 border-b border-gray-200" style={{ gridTemplateColumns: "110px 1fr 60px", padding: "8px 14px" }}>
+                          <span className="text-xs font-semibold text-gray-400">{tx.date}</span>
+                          <span className="text-xs font-semibold text-gray-400">{tx.activityLabel}</span>
+                          <span className="text-xs font-semibold text-gray-400 text-right">{tx.pointsLabel}</span>
+                        </div>
+                        {pointsHistory.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-gray-400">
+                            {isKo ? "출석 기록이 없습니다." : "No attendance records yet."}
+                          </div>
+                        ) : pointsHistory.map((h, idx) => (
+                          <div
+                            key={idx}
+                            className={`grid items-center${idx < pointsHistory.length - 1 ? " border-b border-gray-100" : ""}`}
+                            style={{ gridTemplateColumns: "110px 1fr 60px", padding: "9px 14px" }}
+                          >
+                            <span className="text-xs text-gray-500">{h.date}</span>
+                            <span className="text-xs text-gray-800">
+                              {isKo ? "일일 출석" : "Daily Check-in"}
+                            </span>
+                            <span className="text-xs font-bold text-emerald-600 text-right">+{h.points}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                {/* 5. Recent activity preview */}
+                <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                    <h2 className="text-sm font-bold text-gray-900">{tx.recentActivity}</h2>
+                    <a href={`/${loc}/mypage?tab=activity`} className="text-xs text-emerald-600 font-semibold hover:underline no-underline">
+                      {isKo ? "전체 보기" : "View all"}
+                    </a>
+                  </div>
+                  <div className="p-5 flex flex-col gap-5">
+                    <div>
+                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2.5">{tx.myPosts}</h3>
+                      <div className="flex flex-col gap-1.5">
+                        {myPosts.slice(0, 3).length === 0 ? (
+                          <p className="text-xs text-gray-400 py-3 text-center">
+                            {isKo ? "작성한 게시글이 없습니다." : "No posts yet."}
+                          </p>
+                        ) : myPosts.slice(0, 3).map((p) => (
+                          <a
+                            key={p.id}
+                            href={`/${loc}/community/post/${p.id}`}
+                            className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-3.5 py-2.5 hover:border-gray-200 hover:bg-white transition-colors gap-3 no-underline"
+                          >
+                            <span className="text-sm text-gray-800 truncate flex-1">{p.title}</span>
+                            <div className="flex gap-2.5 shrink-0">
+                              <span className="text-xs text-gray-400">👁 {p.views.toLocaleString()}</span>
+                              <span className="text-xs text-gray-400">▲ {p.likes}</span>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* ── Activity tab ── */}
+            {activeTab === "activity" && (
+              <>
+                <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-bold text-gray-900">{tx.myPosts}</h2>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex flex-col gap-1.5">
+                      {myPosts.length === 0 ? (
+                        <p className="text-xs text-gray-400 py-6 text-center">
+                          {isKo ? "작성한 게시글이 없습니다." : "No posts yet."}
+                        </p>
+                      ) : myPosts.map((p) => (
+                        <a
+                          key={p.id}
+                          href={`/${loc}/community/post/${p.id}`}
+                          className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-3.5 py-2.5 hover:border-gray-200 hover:bg-white transition-colors gap-3 no-underline"
                         >
-                          +{h.points}
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                            <span className="text-sm text-gray-800 truncate">{p.title}</span>
+                            <span className="text-xs text-gray-400">{p.date}</span>
+                          </div>
+                          <div className="flex gap-2.5 shrink-0">
+                            <span className="text-xs text-gray-400">👁 {p.views.toLocaleString()}</span>
+                            <span className="text-xs text-gray-400">▲ {p.likes}</span>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-bold text-gray-900">{tx.myComments}</h2>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex flex-col gap-1.5">
+                      {myComments.length === 0 ? (
+                        <p className="text-xs text-gray-400 py-6 text-center">
+                          {isKo ? "작성한 댓글이 없습니다." : "No comments yet."}
+                        </p>
+                      ) : myComments.map((c) => (
+                        <a
+                          key={c.id}
+                          href={`/${loc}/community/post/${c.postId}`}
+                          className="block bg-gray-50 border border-gray-100 rounded-lg px-3.5 py-2.5 hover:border-gray-200 hover:bg-white transition-colors no-underline"
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-xs text-gray-400 truncate">↩ {c.postTitle}</div>
+                            <span className="text-xs text-gray-400 shrink-0 ml-2">{c.date}</span>
+                          </div>
+                          <div className="text-sm text-gray-800 truncate">&ldquo;{c.excerpt}&rdquo;</div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* ── Stats tab ── */}
+            {activeTab === "stats" && (
+              <>
+                <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-bold text-gray-900">{tx.pointsSummary}</h2>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex flex-wrap gap-2.5 mb-6">
+                      <StatCard label={tx.totalPoints} value={u.totalPoints} accent />
+                      <StatCard label={tx.thisMonth} value={thisMonthPoints} />
+                      <StatCard label={tx.rank} value={u.rankLabel} />
+                      <StatCard label={tx.streak} value={`🔥 ${u.streak}`} />
+                      <StatCard label={tx.posts} value={u.postCount} />
+                      <StatCard label={tx.comments} value={u.commentCount} />
+                    </div>
+
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+                      {tx.pointsHistory}
+                    </h3>
+                    <div className="bg-gray-50 border border-gray-100 rounded-lg overflow-hidden">
+                      <div className="grid gap-0 border-b border-gray-200" style={{ gridTemplateColumns: "110px 1fr 60px", padding: "8px 14px" }}>
+                        <span className="text-xs font-semibold text-gray-400">{tx.date}</span>
+                        <span className="text-xs font-semibold text-gray-400">{tx.activityLabel}</span>
+                        <span className="text-xs font-semibold text-gray-400 text-right">{tx.pointsLabel}</span>
+                      </div>
+                      {pointsHistory.length === 0 ? (
+                        <div className="py-6 text-center text-xs text-gray-400">
+                          {isKo ? "출석 기록이 없습니다." : "No attendance records yet."}
+                        </div>
+                      ) : pointsHistory.map((h, idx) => (
+                        <div
+                          key={idx}
+                          className={`grid items-center${idx < pointsHistory.length - 1 ? " border-b border-gray-100" : ""}`}
+                          style={{ gridTemplateColumns: "110px 1fr 60px", padding: "9px 14px" }}
+                        >
+                          <span className="text-xs text-gray-500">{h.date}</span>
+                          <span className="text-xs text-gray-800">
+                            {isKo ? "일일 출석" : "Daily Check-in"}
+                          </span>
+                          <span className="text-xs font-bold text-emerald-600 text-right">+{h.points}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+
+            {/* ── Settings tab ── */}
+            {activeTab === "settings" && (
+              <>
+                {/* Profile settings */}
+                <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-bold text-gray-900">{tx.profileSettings}</h2>
+                  </div>
+                  <div className="p-5">
+                    {saved && (
+                      <div className="mb-4 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-sm font-semibold text-emerald-700">
+                        ✓ {tx.saved}
+                      </div>
+                    )}
+                    <form action={updateNickname} className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-gray-500" htmlFor="nickname">
+                          {tx.nickname}
+                        </label>
+                        <input
+                          id="nickname"
+                          name="nickname"
+                          type="text"
+                          defaultValue={u.nickname}
+                          maxLength={20}
+                          required
+                          className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="self-start px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors"
+                      >
+                        {tx.save}
+                      </button>
+                    </form>
+                  </div>
+                </section>
+
+                {/* Account info */}
+                <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-bold text-gray-900">{tx.accountInfo}</h2>
+                  </div>
+                  <div className="px-5 py-1">
+                    {[
+                      { label: tx.email, value: u.email },
+                      {
+                        label: tx.memberSince,
+                        value: new Date(u.joinDate).toLocaleDateString(isKo ? "ko-KR" : "en-GB", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        }),
+                      },
+                      { label: tx.provider, value: u.provider },
+                    ].map((row, idx, arr) => (
+                      <div
+                        key={row.label}
+                        className={`flex justify-between items-center gap-2 py-2.5${idx < arr.length - 1 ? " border-b border-gray-100" : ""}`}
+                      >
+                        <span className="text-xs text-gray-500">{row.label}</span>
+                        <span className="text-xs font-semibold text-gray-800 truncate max-w-35">
+                          {row.value}
                         </span>
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
-            </section>
-
-            {/* 5. Recent activity */}
-            <section
-              style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 12,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "14px 20px",
-                  borderBottom: "1px solid #30363d",
-                  backgroundColor: "#0d1117",
-                }}
-              >
-                <h2 style={{ color: "#e6edf3", fontSize: 15, fontWeight: 700, margin: 0 }}>
-                  {tx.recentActivity}
-                </h2>
-              </div>
-
-              <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 20 }}>
-                {/* My posts */}
-                <div>
-                  <h3 style={{ color: "#8b949e", fontSize: 12, fontWeight: 700, margin: "0 0 10px", textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
-                    {tx.myPosts}
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {MOCK_RECENT_POSTS.map((p) => (
-                      <a
-                        key={p.id}
-                        href={`/${loc}/community/post/${p.id}`}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          backgroundColor: "#0d1117",
-                          border: "1px solid #21262d",
-                          borderRadius: 8,
-                          padding: "10px 14px",
-                          textDecoration: "none",
-                          gap: 12,
-                        }}
-                      >
-                        <span
-                          style={{
-                            color: "#c9d1d9",
-                            fontSize: 13,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap" as const,
-                            flex: 1,
-                          }}
-                        >
-                          {isKo ? p.title.ko : p.title.en}
-                        </span>
-                        <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-                          <span style={{ color: "#484f58", fontSize: 11 }}>👁 {p.views.toLocaleString()}</span>
-                          <span style={{ color: "#484f58", fontSize: 11 }}>▲ {p.likes}</span>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                {/* My comments */}
-                <div>
-                  <h3 style={{ color: "#8b949e", fontSize: 12, fontWeight: 700, margin: "0 0 10px", textTransform: "uppercase" as const, letterSpacing: "0.06em" }}>
-                    {tx.myComments}
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {MOCK_RECENT_COMMENTS.map((c) => (
-                      <a
-                        key={c.id}
-                        href={`/${loc}/community/post/${c.postId}`}
-                        style={{
-                          backgroundColor: "#0d1117",
-                          border: "1px solid #21262d",
-                          borderRadius: 8,
-                          padding: "10px 14px",
-                          textDecoration: "none",
-                          display: "block",
-                        }}
-                      >
-                        <div
-                          style={{
-                            color: "#8b949e",
-                            fontSize: 11,
-                            marginBottom: 4,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap" as const,
-                          }}
-                        >
-                          ↩ {isKo ? c.postTitle.ko : c.postTitle.en}
-                        </div>
-                        <div
-                          style={{
-                            color: "#c9d1d9",
-                            fontSize: 13,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap" as const,
-                          }}
-                        >
-                          "{isKo ? c.excerpt.ko : c.excerpt.en}"
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
+                </section>
+              </>
+            )}
           </div>
 
           {/* Right sidebar */}
           <div className="flex flex-col gap-6">
 
-            {/* 6. Favourite league */}
-            <section
-              style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 12,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderBottom: "1px solid #30363d",
-                  backgroundColor: "#0d1117",
-                }}
-              >
-                <h3 style={{ color: "#e6edf3", fontSize: 13, fontWeight: 700, margin: 0 }}>
-                  {tx.favoriteLeague}
-                </h3>
+            {/* Favourite league */}
+            <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <h3 className="text-xs font-bold text-gray-900">{tx.favoriteLeague}</h3>
               </div>
               <a
-                href={`/${loc}/league/epl`}
-                style={{
-                  display: "block",
-                  padding: "18px 16px",
-                  textDecoration: "none",
-                }}
+                href={`/${loc}/league/premier-league`}
+                className="block px-4 py-4 hover:bg-gray-50 transition-colors no-underline"
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 10,
-                      backgroundColor: "#0d1117",
-                      border: "1px solid #30363d",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 28,
-                      flexShrink: 0,
-                    }}
-                  >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-13 h-13 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-3xl shrink-0" style={{ width: 52, height: 52 }}>
                     🏴󠁧󠁢󠁥󠁮󠁧󠁿
                   </div>
                   <div>
-                    <div style={{ color: "#e6edf3", fontSize: 14, fontWeight: 700, marginBottom: 3 }}>
+                    <div className="text-sm font-bold text-gray-900 mb-0.5">
                       {isKo ? "프리미어리그" : "Premier League"}
                     </div>
-                    <div style={{ color: "#8b949e", fontSize: 12 }}>
+                    <div className="text-xs text-gray-500">
                       {isKo ? "잉글랜드 · 2025/26 시즌" : "England · 2025/26 Season"}
                     </div>
                   </div>
@@ -719,71 +727,41 @@ export default async function MyPage({
               </a>
             </section>
 
-            {/* 7. Account info */}
-            <section
-              style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 12,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "12px 16px",
-                  borderBottom: "1px solid #30363d",
-                  backgroundColor: "#0d1117",
-                }}
-              >
-                <h3 style={{ color: "#e6edf3", fontSize: 13, fontWeight: 700, margin: 0 }}>
-                  {tx.accountInfo}
-                </h3>
-              </div>
-              <div style={{ padding: "16px" }}>
-                {[
-                  { label: tx.email, value: u.email },
-                  {
-                    label: tx.memberSince,
-                    value: new Date(u.joinDate).toLocaleDateString(isKo ? "ko-KR" : "en-GB", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    }),
-                  },
-                  { label: tx.provider, value: u.provider },
-                ].map((row, idx, arr) => (
-                  <div
-                    key={row.label}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "10px 0",
-                      borderBottom: idx < arr.length - 1 ? "1px solid #21262d" : "none",
-                    }}
-                  >
-                    <span style={{ color: "#8b949e", fontSize: 12 }}>{row.label}</span>
-                    <span
-                      style={{
-                        color: "#c9d1d9",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap" as const,
-                        maxWidth: 140,
-                      }}
+            {/* Account info in sidebar for non-settings tabs */}
+            {activeTab !== "settings" && (
+              <section className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                  <h3 className="text-xs font-bold text-gray-900">{tx.accountInfo}</h3>
+                </div>
+                <div className="px-4 py-1">
+                  {[
+                    { label: tx.email, value: u.email },
+                    {
+                      label: tx.memberSince,
+                      value: new Date(u.joinDate).toLocaleDateString(isKo ? "ko-KR" : "en-GB", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      }),
+                    },
+                    { label: tx.provider, value: u.provider },
+                  ].map((row, idx, arr) => (
+                    <div
+                      key={row.label}
+                      className={`flex justify-between items-center gap-2 py-2.5${idx < arr.length - 1 ? " border-b border-gray-100" : ""}`}
                     >
-                      {row.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
+                      <span className="text-xs text-gray-500">{row.label}</span>
+                      <span className="text-xs font-semibold text-gray-800 truncate max-w-35">
+                        {row.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Ad slot */}
-            <AdSlot slotId="mypage-sidebar" size="rectangle" />
+            <AdSidebar slot="mypage-sidebar" />
           </div>
         </div>
       </div>

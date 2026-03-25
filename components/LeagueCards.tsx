@@ -58,7 +58,7 @@ const leagues = [
     flag: "🌍",
     teams: 32,
     matches: 5,
-    color: "#22c55e",
+    color: "#059669",
     badge: "⭐",
   },
 ];
@@ -72,13 +72,13 @@ export default function LeagueCards() {
           <div className="flex items-center gap-3">
             <span
               className="w-1 h-6 rounded-full inline-block"
-              style={{ background: "#22c55e" }}
+              style={{ background: "#059669" }}
             />
             <h2 className="text-xl font-bold text-white">Top Leagues</h2>
           </div>
           <a
             href="#"
-            style={{ color: "#22c55e" }}
+            style={{ color: "#059669" }}
             className="text-sm font-medium hover:underline"
           >
             View all leagues →

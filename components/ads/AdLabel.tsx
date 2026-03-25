@@ -12,7 +12,7 @@ export default function AdLabel() {
         fontWeight: 600,
         letterSpacing: "0.08em",
         textTransform: "uppercase",
-        color: "#484f58",
+        color: "#9ca3af",
         backgroundColor: "transparent",
         borderRadius: 3,
         lineHeight: "1.6",

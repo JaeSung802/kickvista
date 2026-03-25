@@ -89,5 +89,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|ads.txt).*)"],
+  // Skip Next.js internals, API routes, and all static files
+  matcher: [
+    "/((?!api|_next/static|_next/image|_next/webpack|favicon|robots\\.txt|sitemap\\.xml|ads\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?|ttf|otf|eot)$).*)",
+  ],
 };

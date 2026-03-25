@@ -71,89 +71,50 @@ export default function RankCard({
 
   return (
     <div
+      className={`relative rounded-xl border-2 shadow-sm transition-shadow bg-white ${
+        isCurrentRank ? "shadow-md border-gray-300" : "border-gray-200"
+      }`}
       style={{
-        backgroundColor: isCurrentRank ? "#0d1117" : "#161b22",
-        border: `2px solid ${isCurrentRank ? color : "#30363d"}`,
-        borderRadius: "12px",
+        borderColor: isCurrentRank ? color : undefined,
         padding: "18px",
-        position: "relative",
-        transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-        boxShadow: isCurrentRank ? `0 0 16px ${color}33` : "none",
       }}
     >
       {/* Current rank indicator */}
       {isCurrentRank && (
         <div
-          style={{
-            position: "absolute",
-            top: "-1px",
-            right: "14px",
-            backgroundColor: color,
-            color: "#0d1117",
-            fontSize: "10px",
-            fontWeight: 800,
-            padding: "2px 10px",
-            borderRadius: "0 0 6px 6px",
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
-          }}
+          className="absolute top-0 right-3.5 text-xs font-black uppercase tracking-wide px-2.5 py-0.5 rounded-b-md text-white"
+          style={{ backgroundColor: color, fontSize: 10 }}
         >
           {locale === "ko" ? "현재 등급" : "Current"}
         </div>
       )}
 
       {/* Badge + tier name */}
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-        <span
-          style={{
-            fontSize: "36px",
-            lineHeight: 1,
-            filter: isCurrentRank ? "drop-shadow(0 0 6px rgba(255,255,255,0.3))" : "none",
-          }}
-        >
-          {badge}
-        </span>
+      <div className="flex items-center gap-3 mb-3">
+        <span className="text-4xl leading-none">{badge}</span>
         <div>
-          <h3
-            style={{
-              color: color,
-              fontSize: "16px",
-              fontWeight: 800,
-              margin: 0,
-              lineHeight: 1.2,
-            }}
-          >
+          {/* Title always in gray-900 for readability — color accent on the bullet icons */}
+          <h3 className="text-base font-black leading-tight text-gray-900">
             {displayLabel}
           </h3>
-          <p style={{ color: "#8b949e", fontSize: "12px", margin: "3px 0 0 0" }}>
-            {pointsText}
-          </p>
+          <p className="text-xs text-gray-600 mt-0.5">{pointsText}</p>
         </div>
       </div>
 
       {/* Divider */}
       <div
-        style={{
-          height: "1px",
-          backgroundColor: isCurrentRank ? `${color}44` : "#21262d",
-          marginBottom: "12px",
-        }}
+        className="mb-3"
+        style={{ height: 1, backgroundColor: isCurrentRank ? `${color}33` : "#e5e7eb" }}
       />
 
       {/* Perks list */}
-      <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "7px" }}>
+      <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
         {perks.map((perk, i) => (
           <li
             key={i}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              color: isCurrentRank ? "#e6edf3" : "#8b949e",
-              fontSize: "13px",
-            }}
+            className="flex items-center gap-1.5 text-xs text-gray-600"
           >
-            <span style={{ color: color, fontSize: "10px", flexShrink: 0 }}>✦</span>
+            <span className="text-xs shrink-0" style={{ color }}>✦</span>
             {locale === "ko" ? perk.ko : perk.en}
           </li>
         ))}

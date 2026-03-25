@@ -26,6 +26,17 @@ export const CANONICAL_LEAGUE_URL_SLUGS = [
   "serie-a",
   "ligue-1",
   "champions-league",
+  "europa-league",
+  "eredivisie",
+  "primeira-liga",
+  "saudi-pro-league",
+  "mls",
+  "k-league-1",
+  "j1-league",
+  "liga-mx",
+  "super-lig",
+  "brasileirao",
+  "scottish-premiership",
 ] as const;
 
 /** All valid league URL slugs (canonical + redirect) */

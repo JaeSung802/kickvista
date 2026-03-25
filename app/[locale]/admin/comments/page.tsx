@@ -152,7 +152,7 @@ export default async function AdminCommentsPage({
           padding: "2px 8px",
           borderRadius: 20,
           backgroundColor: "rgba(34,197,94,0.12)",
-          color: "#22c55e",
+          color: "#059669",
           border: "1px solid rgba(34,197,94,0.25)",
           whiteSpace: "nowrap",
         }}
@@ -170,22 +170,22 @@ export default async function AdminCommentsPage({
   ];
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="min-h-screen">
       {/* Header */}
       <div
         style={{
-          borderBottom: "1px solid #21262d",
-          background: "linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
+          borderBottom: "1px solid #f3f4f6",
+          backgroundColor: "#ffffff",
           padding: "28px 0",
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <span style={{ width: 3, height: 22, borderRadius: 2, backgroundColor: "#22c55e", flexShrink: 0 }} />
-            <h1 style={{ color: "#e6edf3", fontSize: 20, fontWeight: 900, margin: 0 }}>
+            <span style={{ width: 3, height: 22, borderRadius: 2, backgroundColor: "#059669", flexShrink: 0 }} />
+            <h1 style={{ color: "#111827", fontSize: 20, fontWeight: 900, margin: 0 }}>
               {isKo ? "댓글 관리" : "Comment Moderation"}
             </h1>
-            <span style={{ color: "#8b949e", fontSize: 13, marginLeft: 4 }}>
+            <span style={{ color: "#6b7280", fontSize: 13, marginLeft: 4 }}>
               ({total.toLocaleString()})
             </span>
           </div>
@@ -200,10 +200,10 @@ export default async function AdminCommentsPage({
               name="status"
               defaultValue={statusFilter}
               style={{
-                background: "#161b22",
-                border: "1px solid #30363d",
+                background: "#ffffff",
+                border: "1px solid #e5e7eb",
                 borderRadius: 7,
-                color: "#e6edf3",
+                color: "#111827",
                 fontSize: 13,
                 padding: "7px 12px",
                 cursor: "pointer",
@@ -218,8 +218,8 @@ export default async function AdminCommentsPage({
             <button
               type="submit"
               style={{
-                background: "#22c55e",
-                color: "#0d1117",
+                background: "#059669",
+                color: "#ffffff",
                 border: "none",
                 borderRadius: 7,
                 padding: "7px 16px",
@@ -233,7 +233,7 @@ export default async function AdminCommentsPage({
             {statusFilter !== "all" && (
               <a
                 href={baseUrl}
-                style={{ color: "#8b949e", fontSize: 13, textDecoration: "none" }}
+                style={{ color: "#6b7280", fontSize: 13, textDecoration: "none" }}
               >
                 {isKo ? "초기화" : "Reset"}
               </a>
@@ -247,7 +247,7 @@ export default async function AdminCommentsPage({
           <div
             style={{
               textAlign: "center",
-              color: "#8b949e",
+              color: "#6b7280",
               padding: "60px 0",
               fontSize: 14,
             }}
@@ -257,8 +257,8 @@ export default async function AdminCommentsPage({
         ) : (
           <div
             style={{
-              backgroundColor: "#161b22",
-              border: "1px solid #30363d",
+              backgroundColor: "#ffffff",
+              border: "1px solid #e5e7eb",
               borderRadius: 10,
               overflow: "hidden",
             }}
@@ -270,10 +270,10 @@ export default async function AdminCommentsPage({
                 gridTemplateColumns: "2fr 1.2fr 90px 80px 190px",
                 gap: 8,
                 padding: "10px 16px",
-                borderBottom: "1px solid #21262d",
+                borderBottom: "1px solid #f3f4f6",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#484f58",
+                color: "#6b7280",
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
               }}
@@ -300,7 +300,7 @@ export default async function AdminCommentsPage({
                     gridTemplateColumns: "2fr 1.2fr 90px 80px 190px",
                     gap: 8,
                     padding: "12px 16px",
-                    borderBottom: "1px solid #21262d",
+                    borderBottom: "1px solid #f3f4f6",
                     alignItems: "start",
                     opacity: c.deletedAt ? 0.55 : 1,
                   }}
@@ -309,7 +309,7 @@ export default async function AdminCommentsPage({
                   <div>
                     <p
                       style={{
-                        color: "#e6edf3",
+                        color: "#111827",
                         fontSize: 13,
                         margin: 0,
                         display: "-webkit-box",
@@ -321,11 +321,11 @@ export default async function AdminCommentsPage({
                       {c.content}
                     </p>
                     {c.deleteReason && (
-                      <span style={{ color: "#8b949e", fontSize: 11, display: "block", marginTop: 3 }}>
+                      <span style={{ color: "#6b7280", fontSize: 11, display: "block", marginTop: 3 }}>
                         {isKo ? "사유: " : "Reason: "}{c.deleteReason}
                       </span>
                     )}
-                    <div style={{ color: "#484f58", fontSize: 11, marginTop: 3 }}>
+                    <div style={{ color: "#6b7280", fontSize: 11, marginTop: 3 }}>
                       {new Date(c.createdAt).toLocaleDateString()}
                     </div>
                   </div>
@@ -351,7 +351,7 @@ export default async function AdminCommentsPage({
                   </div>
 
                   {/* Author */}
-                  <div style={{ color: "#8b949e", fontSize: 12, paddingTop: 2 }}>
+                  <div style={{ color: "#6b7280", fontSize: 12, paddingTop: 2 }}>
                     {c.authorName}
                   </div>
 
@@ -367,7 +367,7 @@ export default async function AdminCommentsPage({
                           style={{
                             width: "100%",
                             background: "rgba(34,197,94,0.1)",
-                            color: "#22c55e",
+                            color: "#059669",
                             border: "1px solid rgba(34,197,94,0.25)",
                             borderRadius: 6,
                             padding: "5px 10px",
@@ -388,10 +388,10 @@ export default async function AdminCommentsPage({
                             style={{
                               flex: 1,
                               minWidth: 0,
-                              background: "#0d1117",
-                              border: "1px solid #30363d",
+                              background: "#f9fafb",
+                              border: "1px solid #e5e7eb",
                               borderRadius: 5,
-                              color: "#e6edf3",
+                              color: "#111827",
                               fontSize: 11,
                               padding: "4px 7px",
                             }}
@@ -421,10 +421,10 @@ export default async function AdminCommentsPage({
                             style={{
                               flex: 1,
                               minWidth: 0,
-                              background: "#0d1117",
-                              border: "1px solid #30363d",
+                              background: "#f9fafb",
+                              border: "1px solid #e5e7eb",
                               borderRadius: 5,
-                              color: "#e6edf3",
+                              color: "#111827",
                               fontSize: 11,
                               padding: "4px 7px",
                             }}
@@ -480,9 +480,9 @@ export default async function AdminCommentsPage({
                   fontSize: 13,
                   fontWeight: p === currentPage ? 700 : 400,
                   backgroundColor:
-                    p === currentPage ? "#22c55e" : "#161b22",
-                  color: p === currentPage ? "#0d1117" : "#8b949e",
-                  border: "1px solid #30363d",
+                    p === currentPage ? "#059669" : "#ffffff",
+                  color: p === currentPage ? "#ffffff" : "#6b7280",
+                  border: "1px solid #e5e7eb",
                   textDecoration: "none",
                 }}
               >

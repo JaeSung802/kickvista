@@ -10,13 +10,15 @@ interface UserMenuProps {
     points: number;
     rankBadge: string;
     avatarUrl?: string;
+    avatarBorderColor?: string;
+    titleBadge?: string;
   } | null;
   locale: "ko" | "en";
 }
 
 const t = {
-  en: { myPage: "My Page", settings: "Settings", signOut: "Sign Out" },
-  ko: { myPage: "마이페이지", settings: "설정", signOut: "로그아웃" },
+  en: { myPage: "My Page", shop: "Point Shop", settings: "Settings", signOut: "Sign Out" },
+  ko: { myPage: "마이페이지", shop: "포인트 상점", settings: "설정", signOut: "로그아웃" },
 };
 
 export default function UserMenu({ user, locale }: UserMenuProps) {
@@ -44,56 +46,56 @@ export default function UserMenu({ user, locale }: UserMenuProps) {
   if (!user) return <LoginButton locale={locale} />;
 
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+    <div ref={ref} className="relative inline-block">
       {/* Trigger */}
       <button
         onClick={() => setOpen((p) => !p)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "6px 12px 6px 6px",
-          backgroundColor: "#161b22",
-          border: "1px solid #30363d",
-          borderRadius: 999,
-          cursor: "pointer",
-          transition: "border-color 0.15s",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#8b949e")}
-        onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#30363d")}
+        className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 bg-white border border-gray-200 rounded-full hover:border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer"
       >
-        {/* Avatar */}
-        {user.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            alt={user.nickname}
-            style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              backgroundColor: "#22c55e",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#0d1117",
-              flexShrink: 0,
-            }}
-          >
-            {user.nickname[0]?.toUpperCase()}
-          </div>
-        )}
+        {/* Avatar with optional border */}
+        <div
+          className="shrink-0"
+          style={
+            user.avatarBorderColor
+              ? {
+                  borderRadius: "50%",
+                  padding: 2,
+                  background: `linear-gradient(135deg, ${user.avatarBorderColor}, ${user.avatarBorderColor}99)`,
+                }
+              : undefined
+          }
+        >
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.nickname}
+              className="w-7 h-7 rounded-full object-cover block"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+              {user.nickname[0]?.toUpperCase()}
+            </div>
+          )}
+        </div>
 
-        <div style={{ textAlign: "left" }}>
-          <div style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>
+        <div className="text-left">
+          <div className="text-sm font-semibold text-gray-900 leading-tight flex items-center gap-1">
             {user.rankBadge} {user.nickname}
+            {user.titleBadge && user.titleBadge !== "Rookie" && (
+              <span
+                className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: user.titleBadge === "Champion"
+                    ? "linear-gradient(135deg, #b45309, #eab308)"
+                    : "linear-gradient(135deg, #7c3aed, #34d399)",
+                  color: "#fff",
+                }}
+              >
+                {user.titleBadge === "Champion" ? "👑 " : ""}{user.titleBadge}
+              </span>
+            )}
           </div>
-          <div style={{ color: "#8b949e", fontSize: 11, lineHeight: 1.2 }}>
+          <div className="text-xs text-gray-400 leading-tight">
             {user.points.toLocaleString()} pts
           </div>
         </div>
@@ -104,13 +106,9 @@ export default function UserMenu({ user, locale }: UserMenuProps) {
           height="12"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="#8b949e"
+          stroke="currentColor"
           strokeWidth="2.5"
-          style={{
-            marginLeft: 2,
-            transition: "transform 0.2s",
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-          }}
+          className={`ml-0.5 text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
@@ -118,64 +116,37 @@ export default function UserMenu({ user, locale }: UserMenuProps) {
 
       {/* Dropdown */}
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            right: 0,
-            minWidth: 160,
-            backgroundColor: "#161b22",
-            border: "1px solid #30363d",
-            borderRadius: 10,
-            padding: "6px",
-            zIndex: 100,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-          }}
-        >
+        <div className="absolute top-[calc(100%+6px)] right-0 min-w-44 bg-white border border-gray-200 rounded-xl p-1.5 z-100 shadow-lg">
           {[
-            { label: tx.myPage, href: `/${locale}/mypage` },
+            { label: tx.myPage,   href: `/${locale}/mypage` },
             { label: tx.settings, href: `/${locale}/settings` },
           ].map((item) => (
             <a
               key={item.href}
               href={item.href}
-              style={{
-                display: "block",
-                padding: "9px 12px",
-                borderRadius: 6,
-                color: "#e6edf3",
-                fontSize: 13,
-                fontWeight: 500,
-                textDecoration: "none",
-                transition: "background-color 0.12s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#21262d")}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+              className="block px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition-colors no-underline"
             >
               {item.label}
             </a>
           ))}
 
-          <div style={{ height: 1, backgroundColor: "#30363d", margin: "4px 0" }} />
+          {/* Point Shop — highlighted entry */}
+          <a
+            href={`/${locale}/settings#point-shop`}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold no-underline transition-colors"
+            style={{ color: "#b45309", backgroundColor: "#fffbeb" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#fef3c7"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "#fffbeb"; }}
+          >
+            <span style={{ fontSize: 14 }}>🪙</span>
+            {tx.shop}
+          </a>
+
+          <div className="h-px bg-gray-100 my-1" />
 
           <button
             onClick={handleSignOut}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "9px 12px",
-              borderRadius: 6,
-              color: "#f85149",
-              fontSize: 13,
-              fontWeight: 500,
-              backgroundColor: "transparent",
-              border: "none",
-              cursor: "pointer",
-              transition: "background-color 0.12s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(248,81,73,0.08)")}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+            className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
           >
             {tx.signOut}
           </button>

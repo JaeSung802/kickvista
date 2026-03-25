@@ -70,7 +70,7 @@ function PredictionCard({ analysis, locale }: PredictionCardProps) {
         transition: "border-color 0.2s ease",
       }}
       onMouseEnter={(e) =>
-        ((e.currentTarget as HTMLDivElement).style.borderColor = "#22c55e33")
+        ((e.currentTarget as HTMLDivElement).style.borderColor = "#05966933")
       }
       onMouseLeave={(e) =>
         ((e.currentTarget as HTMLDivElement).style.borderColor = "#30363d")
@@ -186,7 +186,7 @@ function PredictionCard({ analysis, locale }: PredictionCardProps) {
         <Link
           href={href}
           style={{
-            backgroundColor: "#22c55e",
+            backgroundColor: "#059669",
             color: "#0d1117",
             fontSize: "12px",
             fontWeight: 700,
@@ -257,8 +257,8 @@ export default function PredictionGrid({ analyses, locale }: PredictionGridProps
                 style={{
                   padding: "5px 12px",
                   borderRadius: "6px",
-                  border: `1px solid ${isActive ? "#22c55e" : "#30363d"}`,
-                  backgroundColor: isActive ? "#22c55e" : "transparent",
+                  border: `1px solid ${isActive ? "#059669" : "#30363d"}`,
+                  backgroundColor: isActive ? "#059669" : "transparent",
                   color: isActive ? "#0d1117" : "#8b949e",
                   fontSize: "12px",
                   fontWeight: isActive ? 700 : 500,

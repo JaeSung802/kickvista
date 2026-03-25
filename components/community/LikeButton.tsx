@@ -106,7 +106,7 @@ export default function LikeButton({
         fontSize: isSm ? 12 : 13,
         fontWeight: 600,
         backgroundColor: liked ? "rgba(34,197,94,0.1)" : "transparent",
-        color: liked ? "#22c55e" : "#8b949e",
+        color: liked ? "#059669" : "#8b949e",
         border: `1px solid ${liked ? "rgba(34,197,94,0.3)" : "#30363d"}`,
         cursor: pending ? "default" : "pointer",
         opacity: pending ? 0.7 : 1,

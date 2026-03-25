@@ -99,7 +99,7 @@ export default function LeagueCards({ locale, liveCounts }: LeagueCardsProps) {
           <a
             href={`/${locale}/leagues`}
             className="text-sm font-medium transition-colors"
-            style={{ color: "#22c55e" }}
+            style={{ color: "#059669" }}
             onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
           >
@@ -156,7 +156,7 @@ export default function LeagueCards({ locale, liveCounts }: LeagueCardsProps) {
                   className="text-xs px-2 py-0.5 rounded-full font-semibold"
                   style={{
                     background: "rgba(34,197,94,0.1)",
-                    color: "#22c55e",
+                    color: "#059669",
                     border: "1px solid rgba(34,197,94,0.2)",
                   }}
                 >

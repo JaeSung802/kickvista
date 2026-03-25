@@ -29,7 +29,7 @@ interface ArticleListProps {
 function getConfidenceColor(confidence: number): string {
   if (confidence < 40) return "#ef4444";
   if (confidence < 65) return "#f59e0b";
-  return "#22c55e";
+  return "#059669";
 }
 
 function formatDate(dateStr: string, locale: "ko" | "en"): string {

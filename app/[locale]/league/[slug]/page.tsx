@@ -16,9 +16,12 @@ import {
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
 import LeagueHeader from "@/components/league/LeagueHeader";
 import PostCard from "@/components/community/PostCard";
-import AdSlot from "@/components/ads/AdSlot";
+import AdBanner from "@/components/ads/AdBanner";
+import AdSidebar from "@/components/ads/AdSidebar";
 import { getPostsByLeague } from "@/lib/community/teamPosts";
 import { TEAM_REGISTRY } from "@/lib/football/teamRegistry";
+import { listAnalysesByLeague } from "@/lib/analysis/db";
+import { TeamLogo } from "@/components/ui/TeamLogo";
 
 function isValidLeagueUrlSlug(value: string): boolean {
   return ALL_VALID_LEAGUE_URL_SLUGS.includes(value);
@@ -48,10 +51,10 @@ const labels = {
   en: {
     recentResults:    "Recent Results",
     upcoming:         "Upcoming Fixtures",
-    analysis:         "Latest Analysis",
+    analysis:         "AI Match Analysis",
     viewAll:          "View all →",
     ft:               "FT",
-    standingsPreview: "Table",
+    standingsTitle:   "Standings",
     pos:              "Pos",
     team:             "Club",
     pts:              "Pts",
@@ -59,14 +62,24 @@ const labels = {
     gd:               "GD",
     noResults:        "No recent results.",
     noUpcoming:       "No upcoming fixtures.",
+    noAnalysis:       "Analysis coming soon.",
+    teams:            "Teams",
+    fanDiscussion:    "Fan Discussion",
+    community:        "Community →",
+    leagueStats:      "League Stats",
+    homeWins:         "Home Wins",
+    awayWins:         "Away Wins",
+    draws:            "Draws",
+    avgGoals:         "Avg Goals",
+    topTeam:          "Top of Table",
   },
   ko: {
     recentResults:    "최근 결과",
     upcoming:         "다가오는 경기",
-    analysis:         "최근 분석",
+    analysis:         "AI 경기 분석",
     viewAll:          "전체 보기 →",
     ft:               "종료",
-    standingsPreview: "순위",
+    standingsTitle:   "순위표",
     pos:              "순위",
     team:             "클럽",
     pts:              "승점",
@@ -74,49 +87,41 @@ const labels = {
     gd:               "득실",
     noResults:        "최근 결과가 없습니다.",
     noUpcoming:       "예정된 경기가 없습니다.",
+    noAnalysis:       "분석이 곧 제공됩니다.",
+    teams:            "팀",
+    fanDiscussion:    "팬 토론",
+    community:        "커뮤니티 →",
+    leagueStats:      "리그 통계",
+    homeWins:         "홈 승",
+    awayWins:         "원정 승",
+    draws:            "무승부",
+    avgGoals:         "경기당 평균 득점",
+    topTeam:          "리그 1위",
   },
 };
 
-type PostCategory = "match-discussion" | "transfer-news" | "tactics" | "highlights" | "predictions" | "general";
+type PostCategory = "match-discussion" | "transfer-news" | "tactics" | "highlights" | "predictions" | "general" | "notice";
 
 const CATEGORY_META: Record<PostCategory, { labelEn: string; labelKo: string; color: string; bg: string; border: string }> = {
-  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",   color: "#22c55e", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.25)"   },
+  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",   color: "#059669", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.25)"   },
   "transfer-news":    { labelEn: "Transfer News",    labelKo: "이적 뉴스",   color: "#f59e0b", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.25)"  },
   "tactics":          { labelEn: "Tactics",          labelKo: "전술 분석",   color: "#8b5cf6", bg: "rgba(139,92,246,0.1)",  border: "rgba(139,92,246,0.25)"  },
   "highlights":       { labelEn: "Highlights",       labelKo: "하이라이트",  color: "#ef4444", bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.25)"   },
   "predictions":      { labelEn: "Predictions",      labelKo: "예측",        color: "#06b6d4", bg: "rgba(6,182,212,0.1)",   border: "rgba(6,182,212,0.25)"   },
   "general":          { labelEn: "General",          labelKo: "일반",        color: "#8b949e", bg: "rgba(139,148,158,0.1)", border: "rgba(139,148,158,0.25)" },
+  "notice":           { labelEn: "Notice",           labelKo: "공지사항",    color: "#059669", bg: "rgba(22,163,74,0.08)",  border: "rgba(22,163,74,0.2)"    },
 };
 
-const MOCK_ANALYSIS = [
-  {
-    slug:       "arsenal-liverpool-preview",
-    titleEn:    "Arsenal vs Liverpool: Title Race Decider Preview",
-    titleKo:    "아스날 vs 리버풀: 타이틀 레이스 결정전 프리뷰",
-    confidence: 72,
-    outcomeEn:  "Arsenal Win",
-    outcomeKo:  "아스날 승리",
-  },
-  {
-    slug:       "man-city-tactical-breakdown",
-    titleEn:    "Man City's Pressing System — A Deep Dive",
-    titleKo:    "맨시티 프레싱 시스템 심층 분석",
-    confidence: 65,
-    outcomeEn:  "Home Win",
-    outcomeKo:  "홈 승리",
-  },
-];
-
-// ─── Shared row renderers ─────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionHeader({ title, href, viewAll }: { title: string; href: string; viewAll: string }) {
   return (
     <div className="flex items-center justify-between mb-4">
       <div className="flex items-center gap-2">
-        <span className="section-title-bar" />
-        <h2 style={{ color: "#e6edf3", fontSize: 18, fontWeight: 700, margin: 0 }}>{title}</h2>
+        <span className="w-0.5 h-5 rounded-full bg-emerald-600 shrink-0" />
+        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
       </div>
-      <a href={href} style={{ color: "#22c55e", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+      <a href={href} className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
         {viewAll}
       </a>
     </div>
@@ -125,11 +130,8 @@ function SectionHeader({ title, href, viewAll }: { title: string; href: string; 
 
 function EmptyCard({ message }: { message: string }) {
   return (
-    <div
-      className="flex items-center justify-center py-10 rounded-xl"
-      style={{ background: "#161b22", border: "1px solid #30363d" }}
-    >
-      <p style={{ color: "#484f58", fontSize: 13 }}>{message}</p>
+    <div className="flex items-center justify-center py-10 rounded-xl bg-white border border-gray-200">
+      <p className="text-sm text-gray-400">{message}</p>
     </div>
   );
 }
@@ -145,7 +147,6 @@ export default async function LeagueOverviewPage({
 
   if (!isValidLocale(locale) || !isValidLeagueUrlSlug(slug)) notFound();
 
-  // 301 redirect old slugs to canonical
   if (LEAGUE_URL_REDIRECTS[slug]) {
     redirect(`/${locale}/league/${LEAGUE_URL_REDIRECTS[slug]}`);
   }
@@ -158,25 +159,47 @@ export default async function LeagueOverviewPage({
   const t    = labels[loc];
   const isKo = loc === "ko";
 
-  // Fetch all data in parallel via the provider abstraction
-  const [results, upcoming, standings, communityResult] = await Promise.all([
-    queryRecentResults(internalSlug, 5),
-    queryUpcomingFixtures(internalSlug, 5),
+  // allSettled: slow or failing sources never block the rest of the page
+  const [resultsR, upcomingR, standingsR, communityR, analysesR] = await Promise.allSettled([
+    queryRecentResults(internalSlug, 8),
+    queryUpcomingFixtures(internalSlug, 8),
     queryStandings(internalSlug),
     getPostsByLeague(internalSlug, { sort: "latest", limit: 10 }),
+    listAnalysesByLeague(internalSlug, loc, 3),
   ]);
+
+  const results        = resultsR.status   === "fulfilled" ? resultsR.value   : [];
+  const upcoming       = upcomingR.status  === "fulfilled" ? upcomingR.value  : [];
+  const standings      = standingsR.status === "fulfilled" ? standingsR.value : null;
+  const communityResult = communityR.status === "fulfilled" ? communityR.value : { posts: [], total: 0 };
+  const analyses       = analysesR.status  === "fulfilled" ? analysesR.value  : [];
 
   const recentMatches   = fixturesToMatches(results, loc);
   const upcomingMatches = fixturesToMatches(upcoming, loc);
-  const standingRows    = standings ? standingsToRows(standings, 6) : [];
+  const standingRows    = standings ? standingsToRows(standings) : [];
+  const topRows         = standingRows.slice(0, 20);
 
-  // Teams in this league, derived from the static registry
+  // League teams: prefer live standings (current-season accurate) over static registry
+  // Build an ID→slug lookup so we can link to /team/{slug} from standings data
+  const teamIdToSlug = Object.fromEntries(
+    Object.entries(TEAM_REGISTRY).map(([slug, entry]) => [entry.id, slug])
+  );
   const leagueTeams = Object.entries(TEAM_REGISTRY)
     .filter(([, entry]) => entry.leagueSlug === internalSlug)
-    .map(([teamSlug, entry]) => ({ slug: teamSlug, ...entry }));
+    .map(([, entry]) => entry);
+
+  // Simple league stats derived from standings
+  const totalTeams = standingRows.length;
+  const totalWon   = standingRows.reduce((s, r) => s + r.won, 0);
+  const totalDrawn = standingRows.reduce((s, r) => s + r.drawn, 0);
+  const totalGames = standingRows.reduce((s, r) => s + r.played, 0) / 2; // each match counted twice
+  const homeWinPct = totalGames > 0 ? Math.round((totalWon / 2 / totalGames) * 100) : 0;
+  const awayWinPct = totalGames > 0 ? Math.round((totalWon / 2 / totalGames) * 100) : 0;
+  const drawPct    = totalGames > 0 ? Math.round((totalDrawn / 2 / totalGames) * 100) : 0;
+  const leader     = standingRows[0];
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="bg-gray-50 min-h-screen">
       {/* League header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-6">
         <LeagueHeader slug={internalSlug} locale={loc} />
@@ -184,12 +207,13 @@ export default async function LeagueOverviewPage({
 
       {/* Top ad */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6">
-        <AdSlot slotId={`league-${slug}-top`} size="leaderboard" />
+        <AdBanner slot="league-top" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* ── Main content ── */}
+
+          {/* ── Main content (2/3) ── */}
           <div className="lg:col-span-2 flex flex-col gap-8">
 
             {/* Recent Results */}
@@ -202,80 +226,35 @@ export default async function LeagueOverviewPage({
               {recentMatches.length === 0 ? (
                 <EmptyCard message={t.noResults} />
               ) : (
-                <div
-                  style={{
-                    background: "#161b22",
-                    border: "1px solid #30363d",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                  }}
-                >
-                  {recentMatches.map((m, idx) => {
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm divide-y divide-gray-100">
+                  {recentMatches.map((m) => {
                     const homeWin = (m.homeScore ?? 0) > (m.awayScore ?? 0);
                     const awayWin = (m.awayScore ?? 0) > (m.homeScore ?? 0);
                     return (
                       <a
                         key={m.id}
                         href={`/${loc}/match/${m.id}`}
-                        className="hover-row"
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          padding: "14px 20px",
-                          borderBottom: idx < recentMatches.length - 1 ? "1px solid #21262d" : "none",
-                          textDecoration: "none",
-                          transition: "background 0.15s",
-                        }}
+                        className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors"
                       >
-                        {/* Home team */}
-                        <div className="flex items-center gap-2" style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontSize: 18, flexShrink: 0 }}>{m.homeFlag}</span>
-                          <span
-                            className="truncate"
-                            style={{
-                              color: homeWin ? "#e6edf3" : "#8b949e",
-                              fontSize: 14,
-                              fontWeight: homeWin ? 700 : 500,
-                            }}
-                          >
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <TeamLogo logo={m.homeLogo} name={m.homeTeam} size={20} />
+                          <span className={`text-sm truncate ${homeWin ? "font-bold text-gray-900" : "font-medium text-gray-500"}`}>
                             {m.homeTeam}
                           </span>
                         </div>
-
-                        {/* Score */}
-                        <div className="flex flex-col items-center gap-1 shrink-0 mx-3">
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              background: "#0d1117",
-                              borderRadius: 8,
-                              padding: "4px 14px",
-                              border: "1px solid #21262d",
-                            }}
-                          >
-                            <span style={{ color: "#e6edf3", fontSize: 16, fontWeight: 800 }}>{m.homeScore}</span>
-                            <span style={{ color: "#484f58", fontSize: 12 }}>–</span>
-                            <span style={{ color: "#e6edf3", fontSize: 16, fontWeight: 800 }}>{m.awayScore}</span>
+                        <div className="flex flex-col items-center gap-0.5 shrink-0 mx-3">
+                          <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1">
+                            <span className="text-base font-black text-gray-900 tabular-nums">{m.homeScore}</span>
+                            <span className="text-gray-300 text-xs">–</span>
+                            <span className="text-base font-black text-gray-900 tabular-nums">{m.awayScore}</span>
                           </div>
-                          <span style={{ color: "#484f58", fontSize: 10, fontWeight: 600 }}>{t.ft}</span>
+                          <span className="text-[10px] font-semibold text-gray-400">{t.ft}</span>
                         </div>
-
-                        {/* Away team */}
-                        <div className="flex items-center gap-2 justify-end" style={{ flex: 1, minWidth: 0 }}>
-                          <span
-                            className="truncate text-right"
-                            style={{
-                              color: awayWin ? "#e6edf3" : "#8b949e",
-                              fontSize: 14,
-                              fontWeight: awayWin ? 700 : 500,
-                            }}
-                          >
+                        <div className="flex items-center gap-2 justify-end flex-1 min-w-0">
+                          <span className={`text-sm truncate text-right ${awayWin ? "font-bold text-gray-900" : "font-medium text-gray-500"}`}>
                             {m.awayTeam}
                           </span>
-                          <span style={{ fontSize: 18, flexShrink: 0 }}>{m.awayFlag}</span>
+                          <TeamLogo logo={m.awayLogo} name={m.awayTeam} size={20} />
                         </div>
                       </a>
                     );
@@ -294,63 +273,26 @@ export default async function LeagueOverviewPage({
               {upcomingMatches.length === 0 ? (
                 <EmptyCard message={t.noUpcoming} />
               ) : (
-                <div
-                  style={{
-                    background: "#161b22",
-                    border: "1px solid #30363d",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                  }}
-                >
-                  {upcomingMatches.map((m, idx) => (
-                    <div
-                      key={m.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "14px 20px",
-                        borderBottom: idx < upcomingMatches.length - 1 ? "1px solid #21262d" : "none",
-                      }}
-                    >
-                      {/* Home */}
-                      <div className="flex items-center gap-2" style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ fontSize: 18, flexShrink: 0 }}>{m.homeFlag}</span>
-                        <span className="truncate" style={{ color: "#e6edf3", fontSize: 14, fontWeight: 600 }}>
-                          {m.homeTeam}
-                        </span>
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm divide-y divide-gray-100">
+                  {upcomingMatches.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between px-5 py-3.5">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <TeamLogo logo={m.homeLogo} name={m.homeTeam} size={20} />
+                        <span className="text-sm font-semibold text-gray-800 truncate">{m.homeTeam}</span>
                       </div>
-
-                      {/* Kick-off time */}
-                      <div className="flex flex-col items-center gap-1 shrink-0 mx-3">
+                      <div className="flex flex-col items-center gap-0.5 shrink-0 mx-3">
                         {m.time && (
-                          <span
-                            style={{
-                              color: "#22c55e",
-                              fontSize: 14,
-                              fontWeight: 700,
-                              background: "rgba(34,197,94,0.08)",
-                              border: "1px solid rgba(34,197,94,0.2)",
-                              borderRadius: 6,
-                              padding: "3px 10px",
-                            }}
-                          >
+                          <span className="text-sm font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md px-2.5 py-0.5">
                             {m.time}
                           </span>
                         )}
                         {m.venue && (
-                          <span style={{ color: "#484f58", fontSize: 10 }} className="truncate max-w-24">
-                            {m.venue}
-                          </span>
+                          <span className="text-[10px] text-gray-400 truncate max-w-28">{m.venue}</span>
                         )}
                       </div>
-
-                      {/* Away */}
-                      <div className="flex items-center gap-2 justify-end" style={{ flex: 1, minWidth: 0 }}>
-                        <span className="truncate text-right" style={{ color: "#e6edf3", fontSize: 14, fontWeight: 600 }}>
-                          {m.awayTeam}
-                        </span>
-                        <span style={{ fontSize: 18, flexShrink: 0 }}>{m.awayFlag}</span>
+                      <div className="flex items-center gap-2 justify-end flex-1 min-w-0">
+                        <span className="text-sm font-semibold text-gray-800 truncate text-right">{m.awayTeam}</span>
+                        <TeamLogo logo={m.awayLogo} name={m.awayTeam} size={20} />
                       </div>
                     </div>
                   ))}
@@ -358,104 +300,135 @@ export default async function LeagueOverviewPage({
               )}
             </section>
 
-            {/* Latest Analysis */}
+            {/* AI Analysis */}
             <section>
               <SectionHeader
                 title={t.analysis}
                 href={`/${loc}/analysis`}
                 viewAll={t.viewAll}
               />
-              <div className="flex flex-col gap-3">
-                {MOCK_ANALYSIS.map((item) => (
+              {analyses.length === 0 ? (
+                <div className="bg-white border border-gray-200 rounded-xl p-8 text-center shadow-sm">
+                  <span className="text-3xl">🤖</span>
+                  <p className="text-sm text-gray-400 mt-2">{t.noAnalysis}</p>
                   <a
-                    key={item.slug}
-                    href={`/${loc}/analysis/${item.slug}`}
-                    className="hover-card"
-                    style={{
-                      display: "block",
-                      background: "#161b22",
-                      border: "1px solid #30363d",
-                      borderRadius: 12,
-                      padding: "18px 20px",
-                      textDecoration: "none",
-                      transition: "border-color 0.15s",
-                    }}
+                    href={`/${loc}/analysis`}
+                    className="inline-block mt-3 text-xs font-semibold text-emerald-600 hover:text-emerald-700"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex flex-col gap-2" style={{ flex: 1, minWidth: 0 }}>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            letterSpacing: "0.06em",
-                            textTransform: "uppercase" as const,
-                            color: "#8b5cf6",
-                            background: "rgba(139,92,246,0.12)",
-                            border: "1px solid rgba(139,92,246,0.25)",
-                            borderRadius: 5,
-                            padding: "3px 9px",
-                            display: "inline-block",
-                            width: "fit-content",
-                          }}
-                        >
-                          {isKo ? "AI 프리뷰" : "AI Preview"}
-                        </span>
-                        <h3 style={{ color: "#e6edf3", fontSize: 15, fontWeight: 700, margin: 0, lineHeight: 1.45 }}>
-                          {isKo ? item.titleKo : item.titleEn}
-                        </h3>
-                      </div>
-                      <div style={{ textAlign: "right" as const, flexShrink: 0 }}>
-                        <div style={{ color: "#22c55e", fontSize: 20, fontWeight: 800 }}>{item.confidence}%</div>
-                        <div style={{ color: "#8b949e", fontSize: 11 }}>{isKo ? item.outcomeKo : item.outcomeEn}</div>
-                      </div>
-                    </div>
+                    {isKo ? "전체 분석 보기 →" : "Browse all analysis →"}
                   </a>
-                ))}
-              </div>
-            </section>
-
-            {/* ── Teams in this league ── */}
-            {leagueTeams.length > 0 && (
-              <section>
-                <div className="flex items-center mb-4">
-                  <span className="section-title-bar" />
-                  <h2 style={{ color: "#e6edf3", fontSize: 18, fontWeight: 700, margin: "0 0 0 8px" }}>
-                    {isKo ? "⚽ 팀" : "⚽ Teams"}
-                  </h2>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
-                  {leagueTeams.map((team) => (
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {analyses.map((item) => (
                     <a
-                      key={team.slug}
-                      href={`/${loc}/team/${team.slug}`}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 8,
-                        padding: "10px 12px", borderRadius: 10,
-                        backgroundColor: "#161b22", border: "1px solid #30363d",
-                        textDecoration: "none", transition: "border-color 0.15s",
-                      }}
+                      key={item.id}
+                      href={`/${loc}/analysis/${item.slug}`}
+                      className="block bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all"
                     >
-                      <span style={{ fontSize: 20, flexShrink: 0 }}>{team.flag}</span>
-                      <span style={{ color: "#c9d1d9", fontSize: 12, fontWeight: 600, lineHeight: 1.3 }}>
-                        {isKo ? team.nameKo : team.nameEn}
-                      </span>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex flex-col gap-2 flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold uppercase tracking-wide rounded px-2 py-0.5 w-fit ${
+                              item.type === "preview"
+                                ? "text-emerald-600 bg-emerald-50 border border-emerald-200"
+                                : "text-blue-600 bg-blue-50 border border-blue-200"
+                            }`}>
+                              {item.type === "preview"
+                                ? (isKo ? "AI 프리뷰" : "AI Preview")
+                                : (isKo ? "AI 리캡" : "AI Recap")}
+                            </span>
+                            <span className="text-[10px] text-gray-400">
+                              {new Date(item.generatedAt).toLocaleDateString(isKo ? "ko-KR" : "en-GB", { month: "short", day: "numeric" })}
+                            </span>
+                          </div>
+                          <h3 className="text-sm font-bold text-gray-900 leading-snug">{item.title}</h3>
+                          {item.summary && (
+                            <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{item.summary}</p>
+                          )}
+                        </div>
+                        {item.prediction && (
+                          <div className="text-right shrink-0">
+                            <div className="text-xl font-black text-emerald-600">{item.prediction.confidence}%</div>
+                            <div className="text-xs text-gray-400">{item.prediction.label}</div>
+                          </div>
+                        )}
+                      </div>
                     </a>
                   ))}
+                  <a
+                    href={`/${loc}/analysis`}
+                    className="text-center text-sm font-semibold text-emerald-600 hover:text-emerald-700 py-2"
+                  >
+                    {isKo ? "모든 분석 보기 →" : "View all analyses →"}
+                  </a>
+                </div>
+              )}
+            </section>
+
+            {/* Teams in this league */}
+            {(standingRows.length > 0 || leagueTeams.length > 0) && (
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-0.5 h-5 rounded-full bg-emerald-600 shrink-0" />
+                  <h2 className="text-lg font-bold text-gray-900">⚽ {t.teams}</h2>
+                </div>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2">
+                  {standingRows.length > 0
+                    ? /* Live: standings-based list — always current season */ standingRows.map((row) => {
+                        const teamSlug = teamIdToSlug[row.teamId];
+                        const logoUrl = row.logo ?? `https://media.api-sports.io/football/teams/${row.teamId}.png`;
+                        const name = isKo ? (row.teamKo ?? row.team) : row.team;
+                        const href = teamSlug ? `/${loc}/team/${teamSlug}` : undefined;
+                        return (
+                          <a
+                            key={row.teamId}
+                            href={href}
+                            className={`flex items-center gap-2.5 px-3 py-2.5 bg-white border border-gray-200 rounded-lg transition-colors ${href ? "hover:border-emerald-300 hover:text-emerald-700" : "pointer-events-none"}`}
+                          >
+                            <div className="bg-white rounded-full p-0.5 border border-gray-100 shadow-sm shrink-0">
+                              <TeamLogo logo={logoUrl} name={name} size={28} />
+                            </div>
+                            <span className="text-xs font-semibold text-gray-700 leading-snug truncate">
+                              {name}
+                            </span>
+                          </a>
+                        );
+                      })
+                    : /* Fallback: static registry with CDN logo */ leagueTeams.map((team) => (
+                        <a
+                          key={team.slug}
+                          href={`/${loc}/team/${team.slug}`}
+                          className="flex items-center gap-2.5 px-3 py-2.5 bg-white border border-gray-200 rounded-lg hover:border-emerald-300 hover:text-emerald-700 transition-colors"
+                        >
+                          <div className="bg-white rounded-full p-0.5 border border-gray-100 shadow-sm shrink-0">
+                            <TeamLogo
+                              logo={`https://media.api-sports.io/football/teams/${team.id}.png`}
+                              name={isKo ? team.nameKo : team.nameEn}
+                              size={28}
+                            />
+                          </div>
+                          <span className="text-xs font-semibold text-gray-700 leading-snug truncate">
+                            {isKo ? team.nameKo : team.nameEn}
+                          </span>
+                        </a>
+                      ))
+                  }
                 </div>
               </section>
             )}
 
-            {/* ── Community discussion ── */}
+            {/* Community discussion */}
             <section>
               <SectionHeader
-                title={isKo ? "💬 팬 토론" : "💬 Fan Discussion"}
+                title={`💬 ${t.fanDiscussion}`}
                 href={`/${loc}/community`}
-                viewAll={isKo ? "커뮤니티 →" : "Community →"}
+                viewAll={t.community}
               />
               {communityResult.posts.length === 0 ? (
                 <EmptyCard message={isKo ? "아직 게시글이 없습니다." : "No posts yet."} />
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm divide-y divide-gray-100">
                   {communityResult.posts.map((post) => {
                     const catMeta = CATEGORY_META[post.category as PostCategory];
                     return (
@@ -478,106 +451,142 @@ export default async function LeagueOverviewPage({
                       />
                     );
                   })}
+                  <div className="px-5 py-3 bg-gray-50">
+                    <a href={`/${loc}/community`} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
+                      {isKo ? "커뮤니티 전체 보기 →" : "View all community posts →"}
+                    </a>
+                  </div>
                 </div>
               )}
             </section>
           </div>
 
-          {/* ── Sidebar ── */}
-          <div className="flex flex-col gap-6">
-            {/* Compact standings */}
-            <div
-              style={{
-                background: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 12,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "14px 18px",
-                  borderBottom: "1px solid #21262d",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <h3 style={{ color: "#e6edf3", fontSize: 14, fontWeight: 700, margin: 0 }}>
-                  {t.standingsPreview}
-                </h3>
-                <a
-                  href={`/${loc}/league/${slug}/standings`}
-                  style={{ color: "#22c55e", fontSize: 12, fontWeight: 600, textDecoration: "none" }}
-                >
+          {/* ── Sidebar (1/3) ── */}
+          <div className="flex flex-col gap-5">
+
+            {/* Full standings (top 8 with zone indicators) */}
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <h3 className="text-sm font-bold text-gray-800">{t.standingsTitle}</h3>
+                <a href={`/${loc}/league/${slug}/standings`} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
                   {t.viewAll}
                 </a>
               </div>
 
-              {standingRows.length === 0 ? (
-                <div className="px-4 py-6">
-                  <p style={{ color: "#484f58", fontSize: 12, textAlign: "center" as const }}>—</p>
-                </div>
+              {topRows.length === 0 ? (
+                <div className="px-4 py-6 text-center text-xs text-gray-400">—</div>
               ) : (
-                standingRows.map((row, idx) => (
-                  <div
-                    key={row.team}
-                    className="hover-row"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "10px 18px",
-                      borderBottom: idx < standingRows.length - 1 ? "1px solid #21262d" : "none",
-                      transition: "background 0.15s",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: row.pos <= 4 ? "#22c55e" : row.pos === 5 ? "#f59e0b" : "#484f58",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        minWidth: 18,
-                        textAlign: "right" as const,
-                      }}
-                    >
-                      {row.pos}
-                    </span>
-                    <span style={{ fontSize: 16 }}>{row.flag}</span>
-                    <span
-                      style={{
-                        color: "#e6edf3",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        flex: 1,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap" as const,
-                      }}
-                    >
-                      {isKo ? (row.teamKo ?? row.team) : row.team}
-                    </span>
-                    <span style={{ color: "#8b949e", fontSize: 12, minWidth: 22, textAlign: "right" as const }}>
-                      {row.played}
-                    </span>
-                    <span
-                      style={{
-                        color: "#e6edf3",
-                        fontSize: 13,
-                        fontWeight: 800,
-                        minWidth: 28,
-                        textAlign: "right" as const,
-                      }}
-                    >
-                      {row.pts}
-                    </span>
+                <>
+                  {/* Table header */}
+                  <div className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 bg-gray-50/50">
+                    <span className="text-[10px] font-bold text-gray-400 w-5 text-right">{t.pos}</span>
+                    <span className="flex-1 text-[10px] font-bold text-gray-400">{t.team}</span>
+                    <span className="text-[10px] font-bold text-gray-400 w-5 text-right">{t.played}</span>
+                    <span className="text-[10px] font-bold text-gray-400 w-6 text-right">{t.gd}</span>
+                    <span className="text-[10px] font-bold text-gray-400 w-7 text-right">{t.pts}</span>
                   </div>
-                ))
+                  <div className="divide-y divide-gray-50">
+                    {topRows.map((row) => {
+                      const zoneColor =
+                        row.pos <= 4 ? "bg-blue-500" :
+                        row.pos === 5 ? "bg-orange-400" :
+                        totalTeams > 0 && row.pos >= totalTeams - 2 ? "bg-red-500" :
+                        "bg-transparent";
+                      return (
+                        <div key={row.pos} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 transition-colors">
+                          <div className="relative flex items-center justify-end w-5">
+                            <span className={`absolute left-0 top-1 bottom-1 w-0.5 rounded-full ${zoneColor}`} />
+                            <span className={`text-xs font-bold tabular-nums ${
+                              row.pos <= 4 ? "text-blue-600" :
+                              row.pos === 5 ? "text-orange-500" :
+                              totalTeams > 0 && row.pos >= totalTeams - 2 ? "text-red-500" :
+                              "text-gray-400"
+                            }`}>
+                              {row.pos}
+                            </span>
+                          </div>
+                          <TeamLogo logo={row.logo} name={row.team} size={16} />
+                          <span className="text-xs font-medium text-gray-800 flex-1 truncate">
+                            {row.displayName}
+                          </span>
+                          <span className="text-[11px] text-gray-400 tabular-nums w-5 text-right">{row.played}</span>
+                          <span className="text-[11px] text-gray-400 tabular-nums w-6 text-right">{row.gd}</span>
+                          <span className="text-xs font-bold text-gray-900 tabular-nums w-7 text-right">{row.pts}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {standingRows.length > 8 && (
+                    <div className="px-4 py-2.5 border-t border-gray-100 text-center">
+                      <a href={`/${loc}/league/${slug}/standings`} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
+                        {isKo ? `전체 ${standingRows.length}팀 보기 →` : `View all ${standingRows.length} teams →`}
+                      </a>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
+            {/* League Stats */}
+            {totalTeams > 0 && (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">📊 {t.leagueStats}</h3>
+                </div>
+                <div className="p-4 flex flex-col gap-3">
+                  {/* Leader */}
+                  {leader && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">{t.topTeam}</span>
+                      <div className="flex items-center gap-1.5">
+                        <TeamLogo logo={leader.logo} name={leader.team} size={16} />
+                        <span className="text-xs font-bold text-gray-900">{leader.displayName}</span>
+                        <span className="text-xs text-emerald-600 font-bold">{leader.pts}pts</span>
+                      </div>
+                    </div>
+                  )}
+                  {/* Win distribution */}
+                  {totalGames > 0 && (
+                    <>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">{t.homeWins}</span>
+                          <span className="text-xs font-bold text-gray-700">{homeWinPct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${homeWinPct}%` }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">{t.draws}</span>
+                          <span className="text-xs font-bold text-gray-700">{drawPct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-gray-400 rounded-full" style={{ width: `${drawPct}%` }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-gray-500">{t.awayWins}</span>
+                          <span className="text-xs font-bold text-gray-700">{awayWinPct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${awayWinPct}%` }} />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  <div className="pt-1 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-xs text-gray-400">{isKo ? "팀 수" : "Teams"}</span>
+                    <span className="text-xs font-bold text-gray-700">{totalTeams}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Sidebar ad */}
-            <AdSlot slotId={`league-${slug}-sidebar`} size="rectangle" />
+            <AdSidebar slot="league-sidebar" />
           </div>
         </div>
       </div>

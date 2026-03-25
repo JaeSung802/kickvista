@@ -3,10 +3,12 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import AttendanceWidget from "@/components/attendance/AttendanceWidget";
 import AttendanceHistory from "@/components/attendance/AttendanceHistory";
-import AdSlot from "@/components/ads/AdSlot";
+import AdBanner from "@/components/ads/AdBanner";
+import AdSidebar from "@/components/ads/AdSidebar";
 import { getServerUser, getServerProfile } from "@/lib/auth";
 import { hasCheckedInToday, getAttendanceHistory } from "@/lib/attendance";
 import { getRank, getProgressToNextRank } from "@/lib/ranks";
+import PointRankingWidget, { type RankingEntry } from "@/components/ranking/PointRankingWidget";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +40,7 @@ function generateMockHistory() {
     streakDay: number;
     pointsEarned: number;
   }[] = [];
-  const today = new Date("2026-03-14");
-  // Deterministic pattern: checked in on most days except a few scattered misses
+  const today = new Date();
   const missedOffsets = new Set([4, 9, 15, 22, 26]);
   for (let i = 29; i >= 0; i--) {
     const date = new Date(today);
@@ -53,7 +54,6 @@ function generateMockHistory() {
       pointsEarned: checkedIn ? (i < 3 ? 15 : i < 7 ? 12 : 10) : 0,
     });
   }
-  // Force last 3 days as checked in (current streak)
   history[27].checkedIn = true;
   history[27].pointsEarned = 10;
   history[28].checkedIn = true;
@@ -74,7 +74,6 @@ const RANK_TIERS = [
     colorEn: "Bronze",
     colorKo: "브론즈",
     color: "#cd7f32",
-    borderColor: "#7a4a1c",
     requireEn: "0 – 99 pts",
     requireKo: "0 – 99 포인트",
     perksEn: ["Access to daily check-in", "Basic leaderboard visibility"],
@@ -85,8 +84,7 @@ const RANK_TIERS = [
     badge: "🥈",
     colorEn: "Silver",
     colorKo: "실버",
-    color: "#c0c0c0",
-    borderColor: "#9e9e9e",
+    color: "#64748b", // slate-500, matches lib/ranks.ts — visible on white backgrounds
     requireEn: "100 – 499 pts",
     requireKo: "100 – 499 포인트",
     perksEn: ["Double points on weekends", "Silver badge on profile"],
@@ -97,8 +95,7 @@ const RANK_TIERS = [
     badge: "🥇",
     colorEn: "Gold",
     colorKo: "골드",
-    color: "#ffd700",
-    borderColor: "#c8a800",
+    color: "#eab308",
     requireEn: "500 – 1,999 pts",
     requireKo: "500 – 1,999 포인트",
     perksEn: [
@@ -117,8 +114,7 @@ const RANK_TIERS = [
     badge: "💎",
     colorEn: "Platinum",
     colorKo: "플래티넘",
-    color: "#a8d8ea",
-    borderColor: "#14b8a6",
+    color: "#0ea5e9",
     requireEn: "2,000 – 4,999 pts",
     requireKo: "2,000 – 4,999 포인트",
     perksEn: [
@@ -137,8 +133,7 @@ const RANK_TIERS = [
     badge: "👑",
     colorEn: "Legend",
     colorKo: "레전드",
-    color: "#a855f7",
-    borderColor: "#7c3aed",
+    color: "#34d399",
     requireEn: "5,000+ pts",
     requireKo: "5,000 포인트 이상",
     perksEn: [
@@ -156,19 +151,22 @@ const RANK_TIERS = [
   },
 ];
 
-// ─── Mock leaderboard ─────────────────────────────────────────────────────────
+// ─── Fallback leaderboard ─────────────────────────────────────────────────────
+// Shown by PointRankingWidget while Supabase is not yet configured, or when the
+// live query returns 0 rows due to the leaderboard view's SECURITY INVOKER mode.
+// See supabase/schema.sql → get_leaderboard() for the permanent DB-side fix.
 
-const MOCK_LEADERBOARD = [
-  { rank: 1,  name: "footballking_kr",   tier: "legend",   badge: "👑", pts: 8240, streak: 127 },
-  { rank: 2,  name: "premierleaguefan",  tier: "legend",   badge: "👑", pts: 7310, streak: 98  },
-  { rank: 3,  name: "bundesligaboss",    tier: "legend",   badge: "👑", pts: 6890, streak: 82  },
-  { rank: 4,  name: "seriea_fanatic",    tier: "platinum", badge: "💎", pts: 4670, streak: 56  },
-  { rank: 5,  name: "laliganerd",        tier: "platinum", badge: "💎", pts: 3820, streak: 44  },
-  { rank: 6,  name: "championsleague_x", tier: "platinum", badge: "💎", pts: 2540, streak: 31  },
-  { rank: 7,  name: "kickvista_gold7",   tier: "gold",     badge: "🥇", pts: 1820, streak: 22  },
-  { rank: 8,  name: "goalgetter_88",     tier: "gold",     badge: "🥇", pts: 1540, streak: 18  },
-  { rank: 9,  name: "silverstreak_kr",   tier: "silver",   badge: "🥈", pts: 380,  streak: 12  },
-  { rank: 10, name: "kickvista_user10",  tier: "silver",   badge: "🥈", pts: 290,  streak: 7   },
+const FALLBACK_LEADERBOARD: RankingEntry[] = [
+  { rank: 1,  nickname: "footballking_kr",   badge: "👑", tier: "Legend",   totalPoints: 8240, currentStreak: 127 },
+  { rank: 2,  nickname: "premierleaguefan",  badge: "👑", tier: "Legend",   totalPoints: 7310, currentStreak: 98  },
+  { rank: 3,  nickname: "bundesligaboss",    badge: "👑", tier: "Legend",   totalPoints: 6890, currentStreak: 82  },
+  { rank: 4,  nickname: "seriea_fanatic",    badge: "💎", tier: "Platinum", totalPoints: 4670, currentStreak: 56  },
+  { rank: 5,  nickname: "laliganerd",        badge: "💎", tier: "Platinum", totalPoints: 3820, currentStreak: 44  },
+  { rank: 6,  nickname: "championsleague_x", badge: "💎", tier: "Platinum", totalPoints: 2540, currentStreak: 31  },
+  { rank: 7,  nickname: "kickvista_gold7",   badge: "🥇", tier: "Gold",     totalPoints: 1820, currentStreak: 22  },
+  { rank: 8,  nickname: "goalgetter_88",     badge: "🥇", tier: "Gold",     totalPoints: 1540, currentStreak: 18  },
+  { rank: 9,  nickname: "silverstreak_kr",   badge: "🥈", tier: "Silver",   totalPoints: 380,  currentStreak: 12  },
+  { rank: 10, nickname: "kickvista_user10",  badge: "🥈", tier: "Silver",   totalPoints: 290,  currentStreak: 7   },
 ];
 
 const labels = {
@@ -196,9 +194,6 @@ const labels = {
     points: "Points",
     days: "days",
     pts: "pts",
-    perks: "Perks",
-    required: "Required",
-    you: "You",
   },
   ko: {
     pageTitle: "출석 체크",
@@ -224,9 +219,6 @@ const labels = {
     points: "포인트",
     days: "일",
     pts: "pts",
-    perks: "혜택",
-    required: "필요 포인트",
-    you: "나",
   },
 };
 
@@ -245,25 +237,32 @@ export default async function AttendancePage({
   const supabaseUser = await getServerUser();
   let realHistory = MOCK_HISTORY;
 
+  // Default to Bronze (0 pts) — the correct starting rank for any new / unauthenticated user.
+  // This is what renders inside <AttendanceWidget> only when supabaseUser is truthy;
+  // the widget is hidden for guests (login prompt shown instead).
+  const BRONZE = getRank(0);
   let widgetProps = {
-    totalDays: 45,
-    currentStreak: 3,
-    totalPoints: 350,
-    rankTier: "silver" as import("@/lib/ranks").RankTier,
-    rankLabel: isKo ? "실버" : "Silver",
-    rankColor: "#c0c0c0",
-    rankBadge: "🥈",
+    totalDays: 0,
+    currentStreak: 0,
+    totalPoints: 0,
+    rankTier: BRONZE.tier as import("@/lib/ranks").RankTier,
+    rankLabel: BRONZE.label[loc],
+    rankColor: BRONZE.color,
+    rankBadge: BRONZE.badge,
     hasCheckedInToday: false,
-    progressToNextRank: 50,
+    progressToNextRank: 0,
     locale: loc,
   };
 
   if (supabaseUser) {
-    const [profile, checkedIn, history] = await Promise.all([
+    const [profileR, checkedInR, historyR] = await Promise.allSettled([
       getServerProfile(supabaseUser.id),
       hasCheckedInToday(supabaseUser.id),
       getAttendanceHistory(supabaseUser.id),
     ]);
+    const profile  = profileR.status  === "fulfilled" ? profileR.value  : null;
+    const checkedIn = checkedInR.status === "fulfilled" ? checkedInR.value : false;
+    const history  = historyR.status  === "fulfilled" ? historyR.value  : [];
 
     if (profile) {
       const rank = getRank(profile.total_points);
@@ -283,54 +282,28 @@ export default async function AttendancePage({
     }
   }
 
+  // Rank to highlight in the tier cards section.
+  // null for unauthenticated users — no tier should show "Current".
+  const currentRankTier: string | null = supabaseUser ? widgetProps.rankTier : null;
+
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="bg-gray-50 min-h-screen">
       {/* ── Page hero ─────────────────────────────────────────────────── */}
-      <div
-        style={{
-          background: "linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
-          borderBottom: "1px solid #21262d",
-        }}
-        className="py-12"
-      >
+      <div className="bg-white border-b border-gray-200 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              backgroundColor: "rgba(34,197,94,0.1)",
-              border: "1px solid rgba(34,197,94,0.2)",
-              borderRadius: 999,
-              padding: "5px 14px",
-              marginBottom: 16,
-            }}
-          >
-            <span style={{ fontSize: 14 }}>🏆</span>
-            <span style={{ color: "#22c55e", fontSize: 12, fontWeight: 700 }}>
-              {t.systemBadge}
-            </span>
-          </div>
-          <h1
-            style={{
-              color: "#e6edf3",
-              fontSize: 32,
-              fontWeight: 900,
-              margin: "0 0 10px",
-              lineHeight: 1.2,
-            }}
-          >
+          <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1 text-xs font-bold text-emerald-700 mb-4">
+            🏆 {t.systemBadge}
+          </span>
+          <h1 className="text-3xl font-black text-gray-900 leading-tight mb-2">
             {t.pageTitle}
           </h1>
-          <p style={{ color: "#8b949e", fontSize: 15, margin: 0 }}>
-            {t.pageSubtitle}
-          </p>
+          <p className="text-gray-500 text-sm">{t.pageSubtitle}</p>
         </div>
       </div>
 
       {/* ── Top ad ──────────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <AdSlot slotId="attendance-top" size="leaderboard" />
+        <AdBanner slot="attendance-top" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
@@ -338,247 +311,156 @@ export default async function AttendancePage({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           {/* LEFT: Widget + History */}
           <div className="lg:col-span-2 flex flex-col gap-8">
-            {/* Attendance widget */}
-            <div>
-              <h2
-                style={{
-                  color: "#e6edf3",
-                  fontSize: 18,
-                  fontWeight: 800,
-                  margin: "0 0 16px",
-                }}
-              >
-                {t.checkInTitle}
-              </h2>
-              <AttendanceWidget {...widgetProps} />
-            </div>
+            {supabaseUser ? (
+              <>
+                {/* Attendance widget */}
+                <div>
+                  <h2 className="text-lg font-extrabold text-gray-900 mb-4">{t.checkInTitle}</h2>
+                  <AttendanceWidget {...widgetProps} />
+                </div>
 
-            {/* Attendance history */}
-            <div>
-              <h2
-                style={{
-                  color: "#e6edf3",
-                  fontSize: 18,
-                  fontWeight: 800,
-                  margin: "0 0 16px",
-                }}
-              >
-                {t.historyTitle}
-              </h2>
-              <AttendanceHistory history={realHistory} locale={loc} />
-            </div>
+                {/* Attendance history */}
+                <div>
+                  <h2 className="text-lg font-extrabold text-gray-900 mb-4">{t.historyTitle}</h2>
+                  <AttendanceHistory history={realHistory} locale={loc} />
+                </div>
+              </>
+            ) : (
+              /* Login prompt for unauthenticated users — premium card */
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-10 flex flex-col items-center gap-6 text-center">
+                {/* Calendar-style check-in icon */}
+                <div className="relative shrink-0">
+                  <div className="w-20 h-20 rounded-2xl bg-white border-2 border-emerald-200 shadow-sm flex flex-col overflow-hidden">
+                    <div className="h-7 bg-emerald-600 flex items-center justify-center gap-1">
+                      <span className="text-white text-[10px] font-black tracking-widest uppercase">
+                        {isKo ? "출석" : "CHECK"}
+                      </span>
+                    </div>
+                    <div className="flex-1 flex items-center justify-center">
+                      <span className="text-2xl font-black text-emerald-600">✓</span>
+                    </div>
+                  </div>
+                  <span className="absolute -top-1.5 -right-1.5 text-lg leading-none">🔥</span>
+                </div>
+
+                {/* Copy */}
+                <div className="flex flex-col gap-2">
+                  <h2 className="text-xl font-extrabold text-gray-900">
+                    {isKo ? "출석 체크로 포인트 적립" : "Earn Points with Daily Check-ins"}
+                  </h2>
+                  <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
+                    {isKo
+                      ? "매일 로그인하고 출석 체크로 포인트를 쌓아 브론즈부터 레전드까지 등급을 올리세요."
+                      : "Sign in daily, check in, and climb from Bronze to Legend by stacking points and streaks."}
+                  </p>
+                </div>
+
+                {/* Reward preview pills */}
+                <div className="flex flex-wrap justify-center gap-2">
+                  {[
+                    { icon: "🥉", label: isKo ? "브론즈" : "Bronze" },
+                    { icon: "🥈", label: isKo ? "실버" : "Silver" },
+                    { icon: "🥇", label: isKo ? "골드" : "Gold" },
+                    { icon: "👑", label: isKo ? "레전드" : "Legend" },
+                  ].map((tier) => (
+                    <span
+                      key={tier.label}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-full px-3 py-1"
+                    >
+                      {tier.icon} {tier.label}
+                    </span>
+                  ))}
+                </div>
+
+                {/* CTA */}
+                <a
+                  href={`/${loc}/auth/login`}
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-8 py-3 rounded-xl transition-colors shadow-sm"
+                >
+                  {isKo ? "로그인하고 출석 체크" : "Sign In to Check In"}
+                </a>
+                <p className="text-xs text-gray-400">
+                  {isKo ? "계정이 없으신가요?" : "No account yet?"}{" "}
+                  <a href={`/${loc}/auth/signup`} className="text-emerald-600 font-semibold hover:underline">
+                    {isKo ? "무료로 가입하기" : "Create one free"}
+                  </a>
+                </p>
+              </div>
+            )}
           </div>
 
           {/* RIGHT: Points system + Ad */}
           <div className="flex flex-col gap-6">
             {/* Points system card */}
-            <div
-              style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 12,
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  padding: "14px 18px",
-                  borderBottom: "1px solid #21262d",
-                  backgroundColor: "#0d1117",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
-                <span style={{ fontSize: 16 }}>💡</span>
-                <h3
-                  style={{
-                    color: "#e6edf3",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    margin: 0,
-                  }}
-                >
-                  {t.pointsSystemTitle}
-                </h3>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <span className="text-base">💡</span>
+                <h3 className="text-sm font-bold text-gray-800">{t.pointsSystemTitle}</h3>
               </div>
-              <div style={{ padding: "16px 18px" }}>
+              <div className="divide-y divide-gray-100">
                 {[
-                  { label: t.basePoints, color: "#22c55e", icon: "✓" },
-                  { label: t.streak3, color: "#3b82f6", icon: "🔥" },
-                  { label: t.streak7, color: "#f59e0b", icon: "🔥" },
-                  { label: t.streak14, color: "#f97316", icon: "🔥" },
-                  { label: t.streak30, color: "#a855f7", icon: "👑" },
+                  { label: t.basePoints, color: "text-emerald-600", icon: "✓" },
+                  { label: t.streak3, color: "text-blue-600", icon: "🔥" },
+                  { label: t.streak7, color: "text-amber-600", icon: "🔥" },
+                  { label: t.streak14, color: "text-orange-600", icon: "🔥" },
+                  { label: t.streak30, color: "text-emerald-600", icon: "👑" },
                 ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "8px 0",
-                      borderBottom: "1px solid #21262d",
-                    }}
-                  >
-                    <span style={{ fontSize: 14, width: 20, textAlign: "center" as const }}>
-                      {item.icon}
-                    </span>
-                    <span
-                      style={{
-                        color: item.color,
-                        fontSize: 13,
-                        fontWeight: 600,
-                        flex: 1,
-                      }}
-                    >
-                      {item.label}
-                    </span>
+                  <div key={item.label} className="flex items-center gap-3 px-4 py-3">
+                    <span className="text-sm w-5 text-center shrink-0">{item.icon}</span>
+                    <span className={`text-sm font-semibold ${item.color}`}>{item.label}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Sidebar ad */}
-            <AdSlot slotId="attendance-sidebar" size="rectangle" />
+            <AdSidebar slot="attendance-sidebar" />
           </div>
         </div>
 
-        {/* ── Rank tiers section (full width) ─────────────────────────── */}
-        <section style={{ marginBottom: 48 }}>
-          <div style={{ marginBottom: 24 }}>
-            <h2
-              style={{
-                color: "#e6edf3",
-                fontSize: 22,
-                fontWeight: 900,
-                margin: "0 0 6px",
-              }}
-            >
-              {t.ranksTitle}
-            </h2>
-            <p style={{ color: "#8b949e", fontSize: 13, margin: 0 }}>
-              {t.ranksSubtitle}
-            </p>
+        {/* ── Rank tiers section ───────────────────────────────────────── */}
+        <section className="mb-12">
+          <div className="mb-6">
+            <h2 className="text-2xl font-black text-gray-900 mb-1">{t.ranksTitle}</h2>
+            <p className="text-sm text-gray-500">{t.ranksSubtitle}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {RANK_TIERS.map((rank) => {
-              const isCurrentRank = rank.tier === "silver";
+              const isCurrentRank = rank.tier === currentRankTier;
               return (
                 <div
                   key={rank.tier}
-                  style={{
-                    backgroundColor: "#161b22",
-                    border: `1px solid ${isCurrentRank ? rank.color + "80" : rank.borderColor + "40"}`,
-                    borderRadius: 12,
-                    padding: "20px 16px",
-                    display: "flex",
-                    flexDirection: "column" as const,
-                    alignItems: "center",
-                    gap: 10,
-                    position: "relative" as const,
-                    overflow: "hidden",
-                    boxShadow: isCurrentRank
-                      ? `0 0 20px ${rank.color}30, 0 0 40px ${rank.color}15`
-                      : "none",
-                  }}
+                  className={`bg-white rounded-xl border shadow-sm p-5 flex flex-col items-center gap-3 relative overflow-hidden ${
+                    isCurrentRank ? "border-gray-300 ring-2 ring-emerald-500 ring-offset-1" : "border-gray-200"
+                  }`}
                 >
                   {/* Current rank ribbon */}
                   {isCurrentRank && (
-                    <div
-                      style={{
-                        position: "absolute" as const,
-                        top: 0,
-                        right: 0,
-                        backgroundColor: rank.color,
-                        color: "#0d1117",
-                        fontSize: 9,
-                        fontWeight: 800,
-                        padding: "3px 10px",
-                        borderBottomLeftRadius: 8,
-                        letterSpacing: "0.05em",
-                        textTransform: "uppercase" as const,
-                      }}
-                    >
+                    <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2.5 py-1 rounded-bl-lg tracking-wide">
                       {t.currentBadge}
                     </div>
                   )}
 
-                  {/* Badge */}
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: "50%",
-                      backgroundColor: "#0d1117",
-                      border: `2px solid ${rank.color}50`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 26,
-                    }}
-                  >
+                  {/* Badge circle */}
+                  <div className="w-12 h-12 rounded-full bg-gray-50 border-2 border-gray-200 flex items-center justify-center text-2xl">
                     {rank.badge}
                   </div>
 
                   {/* Tier name */}
-                  <div style={{ textAlign: "center" as const }}>
-                    <div
-                      style={{
-                        color: rank.color,
-                        fontSize: 14,
-                        fontWeight: 800,
-                        marginBottom: 3,
-                      }}
-                    >
+                  <div className="text-center">
+                    <div className="text-sm font-extrabold text-gray-800 mb-1">
                       {isKo ? rank.colorKo : rank.colorEn}
                     </div>
-                    <div
-                      style={{
-                        color: "#484f58",
-                        fontSize: 11,
-                        backgroundColor: "#0d1117",
-                        border: "1px solid #21262d",
-                        borderRadius: 4,
-                        padding: "2px 8px",
-                        display: "inline-block",
-                      }}
-                    >
+                    <div className="text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded px-2 py-0.5 inline-block">
                       {isKo ? rank.requireKo : rank.requireEn}
                     </div>
                   </div>
 
                   {/* Perks */}
-                  <ul
-                    style={{
-                      margin: 0,
-                      padding: 0,
-                      listStyle: "none",
-                      width: "100%",
-                    }}
-                  >
+                  <ul className="w-full space-y-1">
                     {(isKo ? rank.perksKo : rank.perksEn).map((perk) => (
-                      <li
-                        key={perk}
-                        style={{
-                          color: "#8b949e",
-                          fontSize: 11,
-                          display: "flex",
-                          alignItems: "flex-start",
-                          gap: 5,
-                          marginBottom: 4,
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        <span
-                          style={{
-                            color: rank.color,
-                            fontSize: 9,
-                            marginTop: 2,
-                            flexShrink: 0,
-                          }}
-                        >
-                          ✓
-                        </span>
+                      <li key={perk} className="flex items-start gap-1.5 text-xs text-gray-500 leading-snug">
+                        <span className="text-emerald-500 text-[9px] mt-0.5 shrink-0">✓</span>
                         {perk}
                       </li>
                     ))}
@@ -590,170 +472,18 @@ export default async function AttendancePage({
         </section>
 
         {/* ── Leaderboard preview (top 10) ────────────────────────────── */}
-        <section style={{ marginBottom: 48 }}>
-          <div style={{ marginBottom: 20 }}>
-            <h2
-              style={{
-                color: "#e6edf3",
-                fontSize: 22,
-                fontWeight: 900,
-                margin: "0 0 6px",
-              }}
-            >
-              {t.leaderboardTitle}
-            </h2>
-            <p style={{ color: "#8b949e", fontSize: 13, margin: 0 }}>
-              {t.leaderboardSubtitle}
-            </p>
+        {/* Auth gating, live fetch, loading/empty/error states are all handled
+            inside PointRankingWidget (client component with onAuthStateChange). */}
+        <section className="mb-12">
+          <div className="mb-5">
+            <h2 className="text-2xl font-black text-gray-900 mb-1">{t.leaderboardTitle}</h2>
+            <p className="text-sm text-gray-500">{t.leaderboardSubtitle}</p>
           </div>
-
-          <div
-            style={{
-              backgroundColor: "#161b22",
-              border: "1px solid #30363d",
-              borderRadius: 12,
-              overflow: "hidden",
-            }}
-          >
-            {/* Table header */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "48px 1fr 80px 80px 80px",
-                gap: 0,
-                padding: "10px 20px",
-                backgroundColor: "#0d1117",
-                borderBottom: "1px solid #21262d",
-              }}
-            >
-              {[t.rank, t.user, t.tier, t.streak, t.points].map((h) => (
-                <span
-                  key={h}
-                  style={{
-                    color: "#484f58",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: "uppercase" as const,
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  {h}
-                </span>
-              ))}
-            </div>
-
-            {/* Rows */}
-            {MOCK_LEADERBOARD.map((entry, idx) => {
-              const medalColors: Record<number, string> = {
-                1: "#ffd700",
-                2: "#c0c0c0",
-                3: "#cd7f32",
-              };
-              const rankDisplay =
-                entry.rank <= 3
-                  ? (["🥇", "🥈", "🥉"] as const)[entry.rank - 1]
-                  : String(entry.rank);
-              return (
-                <div
-                  key={entry.rank}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "48px 1fr 80px 80px 80px",
-                    gap: 0,
-                    padding: "13px 20px",
-                    borderBottom:
-                      idx < MOCK_LEADERBOARD.length - 1
-                        ? "1px solid #21262d"
-                        : "none",
-                    backgroundColor:
-                      entry.rank <= 3 ? "rgba(255,215,0,0.03)" : "transparent",
-                  }}
-                >
-                  <span
-                    style={{
-                      color: medalColors[entry.rank] ?? "#484f58",
-                      fontSize: entry.rank <= 3 ? 16 : 13,
-                      fontWeight: 800,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    {rankDisplay}
-                  </span>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <span style={{ fontSize: 14, flexShrink: 0 }}>
-                      {entry.badge}
-                    </span>
-                    <span
-                      style={{
-                        color: "#e6edf3",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap" as const,
-                      }}
-                    >
-                      {entry.name}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      color: "#8b949e",
-                      fontSize: 12,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    {entry.tier}
-                  </span>
-                  <span
-                    style={{
-                      color: "#f59e0b",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    {entry.streak}
-                    <span
-                      style={{ color: "#484f58", fontWeight: 400, marginLeft: 3 }}
-                    >
-                      {t.days}
-                    </span>
-                  </span>
-                  <span
-                    style={{
-                      color: "#22c55e",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    {entry.pts.toLocaleString()}
-                    <span
-                      style={{ color: "#484f58", fontWeight: 400, marginLeft: 3 }}
-                    >
-                      {t.pts}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <PointRankingWidget locale={loc} fallbackEntries={FALLBACK_LEADERBOARD} />
         </section>
 
         {/* ── Bottom ad ───────────────────────────────────────────────── */}
-        <AdSlot slotId="attendance-bottom" size="leaderboard" />
+        <AdBanner slot="attendance-bottom" />
       </div>
     </main>
   );

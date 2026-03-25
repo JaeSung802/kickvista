@@ -107,7 +107,7 @@ export default function PostActions({ postId, likeCount, isLikedByUser = false, 
           style={{
             ...btn.base,
             backgroundColor: copied ? "rgba(34,197,94,0.1)" : "transparent",
-            color: copied ? "#22c55e" : "#8b949e",
+            color: copied ? "#059669" : "#8b949e",
             borderColor: copied ? "rgba(34,197,94,0.3)" : "#30363d",
           }}
         >

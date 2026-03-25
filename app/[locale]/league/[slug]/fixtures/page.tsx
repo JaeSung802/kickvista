@@ -80,10 +80,10 @@ export default async function LeagueFixturesPage({
   const liveCount = matches.filter((m) => m.status === "live").length;
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="min-h-screen">
       {/* League header */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
-        <LeagueHeader slug={internalSlug} locale={loc} />
+        <LeagueHeader slug={internalSlug} locale={loc} activeTab={1} />
       </div>
 
       {/* Top ad */}
@@ -95,10 +95,10 @@ export default async function LeagueFixturesPage({
         {/* Page title bar */}
         <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
           <div>
-            <h1 style={{ color: "#e6edf3", fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>
+            <h1 style={{ color: "#111827", fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>
               {t.pageTitle}
             </h1>
-            <p style={{ color: "#8b949e", fontSize: 13, margin: 0 }}>{t.pageSubtitle}</p>
+            <p style={{ color: "#6b7280", fontSize: 13, margin: 0 }}>{t.pageSubtitle}</p>
           </div>
           {liveCount > 0 && (
             <div
@@ -112,9 +112,9 @@ export default async function LeagueFixturesPage({
             >
               <span
                 className="w-2 h-2 rounded-full inline-block"
-                style={{ background: "#22c55e" }}
+                style={{ background: "#059669" }}
               />
-              <span style={{ color: "#22c55e", fontSize: 13, fontWeight: 700 }}>
+              <span style={{ color: "#059669", fontSize: 13, fontWeight: 700 }}>
                 {liveCount} {t.liveNow}
               </span>
             </div>

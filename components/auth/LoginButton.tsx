@@ -12,41 +12,18 @@ export default function LoginButton({ locale, className = "" }: LoginButtonProps
   return (
     <a
       href={href}
-      className={className}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 7,
-        padding: "8px 18px",
-        borderRadius: 8,
-        border: "1.5px solid #30363d",
-        backgroundColor: "transparent",
-        color: "#e6edf3",
-        fontSize: 14,
-        fontWeight: 600,
-        textDecoration: "none",
-        transition: "border-color 0.15s, background-color 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "#22c55e";
-        e.currentTarget.style.backgroundColor = "rgba(34,197,94,0.06)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "#30363d";
-        e.currentTarget.style.backgroundColor = "transparent";
-      }}
+      className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors no-underline ${className}`}
     >
-      {/* Login icon */}
       <svg
-        width="15"
-        height="15"
+        width="14"
+        height="14"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        style={{ flexShrink: 0 }}
+        className="shrink-0"
       >
         <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
         <polyline points="10 17 15 12 10 7" />

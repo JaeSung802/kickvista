@@ -94,18 +94,18 @@ export default function MatchesSection() {
           <div className="flex items-center gap-3">
             <span
               className="w-1 h-6 rounded-full inline-block"
-              style={{ background: "#22c55e" }}
+              style={{ background: "#059669" }}
             />
             <h2 className="text-xl font-bold text-white">Today&apos;s Matches</h2>
             <span
               className="flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "#22c55e22", color: "#22c55e" }}
+              style={{ background: "#05966922", color: "#059669" }}
             >
-              <span className="live-dot w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+              <span className="live-dot w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
               2 LIVE
             </span>
           </div>
-          <a href="#" style={{ color: "#22c55e" }} className="text-sm font-medium hover:underline">
+          <a href="#" style={{ color: "#059669" }} className="text-sm font-medium hover:underline">
             View all →
           </a>
         </div>
@@ -121,7 +121,7 @@ export default function MatchesSection() {
               className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
               style={
                 i === 0
-                  ? { background: "#22c55e", color: "#0d1117" }
+                  ? { background: "#059669", color: "#0d1117" }
                   : { color: "#8b949e" }
               }
               onMouseEnter={(e) => {

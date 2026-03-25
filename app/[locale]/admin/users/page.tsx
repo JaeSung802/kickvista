@@ -104,7 +104,7 @@ export default async function AdminUsersPage({
     const styles: Record<string, { bg: string; color: string; border: string; label: string }> = {
       admin: {
         bg: "rgba(34,197,94,0.12)",
-        color: "#22c55e",
+        color: "#059669",
         border: "rgba(34,197,94,0.25)",
         label: isKo ? "관리자" : "Admin",
       },
@@ -116,7 +116,7 @@ export default async function AdminUsersPage({
       },
       user: {
         bg: "rgba(139,148,158,0.12)",
-        color: "#8b949e",
+        color: "#6b7280",
         border: "rgba(139,148,158,0.2)",
         label: isKo ? "사용자" : "User",
       },
@@ -141,22 +141,22 @@ export default async function AdminUsersPage({
   }
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="min-h-screen">
       {/* Header */}
       <div
         style={{
-          borderBottom: "1px solid #21262d",
-          background: "linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
+          borderBottom: "1px solid #f3f4f6",
+          backgroundColor: "#ffffff",
           padding: "28px 0",
         }}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            <span style={{ width: 3, height: 22, borderRadius: 2, backgroundColor: "#22c55e", flexShrink: 0 }} />
-            <h1 style={{ color: "#e6edf3", fontSize: 20, fontWeight: 900, margin: 0 }}>
+            <span style={{ width: 3, height: 22, borderRadius: 2, backgroundColor: "#059669", flexShrink: 0 }} />
+            <h1 style={{ color: "#111827", fontSize: 20, fontWeight: 900, margin: 0 }}>
               {isKo ? "사용자 관리" : "User Management"}
             </h1>
-            <span style={{ color: "#8b949e", fontSize: 13, marginLeft: 4 }}>
+            <span style={{ color: "#6b7280", fontSize: 13, marginLeft: 4 }}>
               ({total.toLocaleString()})
             </span>
           </div>
@@ -172,10 +172,10 @@ export default async function AdminUsersPage({
               defaultValue={q}
               placeholder={isKo ? "닉네임 검색..." : "Search by nickname..."}
               style={{
-                background: "#0d1117",
-                border: "1px solid #30363d",
+                background: "#f9fafb",
+                border: "1px solid #e5e7eb",
                 borderRadius: 7,
-                color: "#e6edf3",
+                color: "#111827",
                 fontSize: 13,
                 padding: "7px 12px",
                 width: 220,
@@ -186,10 +186,10 @@ export default async function AdminUsersPage({
               name="role"
               defaultValue={roleFilter}
               style={{
-                background: "#161b22",
-                border: "1px solid #30363d",
+                background: "#ffffff",
+                border: "1px solid #e5e7eb",
                 borderRadius: 7,
-                color: "#e6edf3",
+                color: "#111827",
                 fontSize: 13,
                 padding: "7px 12px",
                 cursor: "pointer",
@@ -204,8 +204,8 @@ export default async function AdminUsersPage({
             <button
               type="submit"
               style={{
-                background: "#22c55e",
-                color: "#0d1117",
+                background: "#059669",
+                color: "#ffffff",
                 border: "none",
                 borderRadius: 7,
                 padding: "7px 16px",
@@ -219,7 +219,7 @@ export default async function AdminUsersPage({
             {(q || roleFilter !== "all") && (
               <a
                 href={baseUrl}
-                style={{ color: "#8b949e", fontSize: 13, textDecoration: "none" }}
+                style={{ color: "#6b7280", fontSize: 13, textDecoration: "none" }}
               >
                 {isKo ? "초기화" : "Reset"}
               </a>
@@ -233,7 +233,7 @@ export default async function AdminUsersPage({
           <div
             style={{
               textAlign: "center",
-              color: "#8b949e",
+              color: "#6b7280",
               padding: "60px 0",
               fontSize: 14,
             }}
@@ -243,8 +243,8 @@ export default async function AdminUsersPage({
         ) : (
           <div
             style={{
-              backgroundColor: "#161b22",
-              border: "1px solid #30363d",
+              backgroundColor: "#ffffff",
+              border: "1px solid #e5e7eb",
               borderRadius: 10,
               overflow: "hidden",
             }}
@@ -256,10 +256,10 @@ export default async function AdminUsersPage({
                 gridTemplateColumns: "1.5fr 110px 90px 80px 90px 280px",
                 gap: 8,
                 padding: "10px 16px",
-                borderBottom: "1px solid #21262d",
+                borderBottom: "1px solid #f3f4f6",
                 fontSize: 11,
                 fontWeight: 700,
-                color: "#484f58",
+                color: "#6b7280",
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
               }}
@@ -286,21 +286,21 @@ export default async function AdminUsersPage({
                     gridTemplateColumns: "1.5fr 110px 90px 80px 90px 280px",
                     gap: 8,
                     padding: "12px 16px",
-                    borderBottom: "1px solid #21262d",
+                    borderBottom: "1px solid #f3f4f6",
                     alignItems: "center",
                     opacity: u.isBanned ? 0.6 : 1,
                   }}
                 >
                   {/* Nickname */}
                   <div>
-                    <span style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600 }}>
+                    <span style={{ color: "#111827", fontSize: 13, fontWeight: 600 }}>
                       {u.nickname}
                     </span>
                     {isSelf && (
                       <span
                         style={{
                           fontSize: 10,
-                          color: "#22c55e",
+                          color: "#059669",
                           marginLeft: 6,
                           backgroundColor: "rgba(34,197,94,0.1)",
                           padding: "1px 5px",
@@ -332,24 +332,24 @@ export default async function AdminUsersPage({
                         {isKo ? "차단됨" : "Banned"}
                       </span>
                     ) : (
-                      <span style={{ color: "#484f58", fontSize: 12 }}>—</span>
+                      <span style={{ color: "#6b7280", fontSize: 12 }}>—</span>
                     )}
                   </div>
 
                   {/* Points */}
-                  <div style={{ color: "#8b949e", fontSize: 13 }}>
+                  <div style={{ color: "#6b7280", fontSize: 13 }}>
                     {u.totalPoints.toLocaleString()}
                   </div>
 
                   {/* Joined */}
-                  <div style={{ color: "#484f58", fontSize: 12 }}>
+                  <div style={{ color: "#6b7280", fontSize: 12 }}>
                     {new Date(u.createdAt).toLocaleDateString()}
                   </div>
 
                   {/* Actions (disabled for self) */}
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     {isSelf ? (
-                      <span style={{ color: "#484f58", fontSize: 12 }}>
+                      <span style={{ color: "#6b7280", fontSize: 12 }}>
                         {isKo ? "본인 계정" : "Your account"}
                       </span>
                     ) : (
@@ -360,10 +360,10 @@ export default async function AdminUsersPage({
                             name="role"
                             defaultValue={u.role}
                             style={{
-                              background: "#0d1117",
-                              border: "1px solid #30363d",
+                              background: "#f9fafb",
+                              border: "1px solid #e5e7eb",
                               borderRadius: 5,
-                              color: "#e6edf3",
+                              color: "#111827",
                               fontSize: 12,
                               padding: "4px 8px",
                               cursor: "pointer",
@@ -399,7 +399,7 @@ export default async function AdminUsersPage({
                               background: u.isBanned
                                 ? "rgba(34,197,94,0.1)"
                                 : "rgba(239,68,68,0.1)",
-                              color: u.isBanned ? "#22c55e" : "#ef4444",
+                              color: u.isBanned ? "#059669" : "#ef4444",
                               border: `1px solid ${u.isBanned ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
                               borderRadius: 5,
                               padding: "4px 10px",
@@ -447,9 +447,9 @@ export default async function AdminUsersPage({
                   borderRadius: 7,
                   fontSize: 13,
                   fontWeight: p === currentPage ? 700 : 400,
-                  backgroundColor: p === currentPage ? "#22c55e" : "#161b22",
-                  color: p === currentPage ? "#0d1117" : "#8b949e",
-                  border: "1px solid #30363d",
+                  backgroundColor: p === currentPage ? "#059669" : "#ffffff",
+                  color: p === currentPage ? "#ffffff" : "#6b7280",
+                  border: "1px solid #e5e7eb",
                   textDecoration: "none",
                 }}
               >

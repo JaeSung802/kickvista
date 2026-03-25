@@ -1,4 +1,4 @@
-import type { Fixture, Standings, MatchDetail, Team } from "../types";
+import type { Fixture, Standings, MatchDetail, Team, H2HData, TeamStatistics, FixturePlayerStats } from "../types";
 
 /**
  * IFootballProvider
@@ -44,4 +44,50 @@ export interface IFootballProvider {
    * @param limit  Optional cap on the number of results returned
    */
   fetchResults(leagueId: number, season: number, limit?: number): Promise<Fixture[]>;
+
+  /**
+   * Fetch fixtures within a date range (inclusive) with KST timezone.
+   * More reliable than single-date query for cross-midnight kick-offs.
+   */
+  fetchFixturesRange(leagueId: number, from: string, to: string, season?: number): Promise<Fixture[]>;
+
+  /**
+   * Fetch the N most recent finished fixtures for a league.
+   * Fallback when the date-range query returns nothing.
+   */
+  fetchFixturesLast(leagueId: number, season: number, n: number): Promise<Fixture[]>;
+
+  /**
+   * Fetch the N next scheduled (NS) fixtures for a league.
+   * Last-resort fallback so the home page always shows something.
+   */
+  fetchFixturesNext(leagueId: number, season: number, n: number): Promise<Fixture[]>;
+
+  /**
+   * Fetch head-to-head record between two teams (last 10 matches).
+   */
+  fetchHeadToHead(team1Id: number, team2Id: number): Promise<H2HData>;
+
+  /**
+   * Fetch aggregated team statistics for a league season.
+   * Returns null if unavailable.
+   */
+  fetchTeamStatistics(leagueId: number, season: number, teamId: number): Promise<TeamStatistics | null>;
+
+  /**
+   * Fetch per-player statistics for a finished fixture (ratings, goals, etc.).
+   * Used for automatic Man of the Match selection.
+   */
+  fetchFixturePlayers(fixtureId: number): Promise<FixturePlayerStats[]>;
+
+  /**
+   * Fetch the last N finished fixtures for a specific team in a league season.
+   * More precise than fetchResults — filtered by team ID at the API level.
+   */
+  fetchTeamResults(teamId: number, leagueId: number, season: number, n: number): Promise<Fixture[]>;
+
+  /**
+   * Fetch the next N scheduled fixtures for a specific team in a league season.
+   */
+  fetchTeamFixturesNext(teamId: number, leagueId: number, season: number, n: number): Promise<Fixture[]>;
 }

@@ -25,15 +25,15 @@ export default function MatchCard({ match }: { match: Match }) {
       className="relative flex flex-col gap-3 p-4 rounded-xl transition-all duration-200 hover:border-opacity-70 cursor-pointer group"
       style={{
         background: "#161b22",
-        border: `1px solid ${isLive ? "#22c55e44" : "#30363d"}`,
-        boxShadow: isLive ? "0 0 0 1px #22c55e22" : "none",
+        border: `1px solid ${isLive ? "#05966944" : "#30363d"}`,
+        boxShadow: isLive ? "0 0 0 1px #05966922" : "none",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget).style.borderColor = isLive ? "#22c55e88" : "#484f58";
+        (e.currentTarget).style.borderColor = isLive ? "#05966988" : "#484f58";
         (e.currentTarget).style.background = "#1c2128";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget).style.borderColor = isLive ? "#22c55e44" : "#30363d";
+        (e.currentTarget).style.borderColor = isLive ? "#05966944" : "#30363d";
         (e.currentTarget).style.background = "#161b22";
       }}
     >
@@ -48,8 +48,8 @@ export default function MatchCard({ match }: { match: Match }) {
 
         {isLive && (
           <div className="flex items-center gap-1.5">
-            <span className="live-dot w-2 h-2 rounded-full bg-green-500 inline-block" />
-            <span className="text-xs font-bold text-green-400">
+            <span className="live-dot w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+            <span className="text-xs font-bold text-amber-400">
               {match.minute}&apos;
             </span>
           </div>

@@ -30,7 +30,8 @@ type PostCategory =
   | "tactics"
   | "highlights"
   | "predictions"
-  | "general";
+  | "general"
+  | "notice";
 
 // ─── Category metadata ────────────────────────────────────────────────────────
 
@@ -38,12 +39,13 @@ const CATEGORY_META: Record<
   PostCategory,
   { labelEn: string; labelKo: string; color: string; bg: string; border: string }
 > = {
-  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",   color: "#22c55e", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.25)"   },
+  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",   color: "#059669", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.25)"   },
   "transfer-news":    { labelEn: "Transfer News",    labelKo: "이적 뉴스",   color: "#f59e0b", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.25)"  },
   "tactics":          { labelEn: "Tactics",          labelKo: "전술 분석",   color: "#8b5cf6", bg: "rgba(139,92,246,0.1)",  border: "rgba(139,92,246,0.25)"  },
   "highlights":       { labelEn: "Highlights",       labelKo: "하이라이트",  color: "#ef4444", bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.25)"   },
   "predictions":      { labelEn: "Predictions",      labelKo: "예측",        color: "#06b6d4", bg: "rgba(6,182,212,0.1)",   border: "rgba(6,182,212,0.25)"   },
   "general":          { labelEn: "General",          labelKo: "일반",        color: "#8b949e", bg: "rgba(139,148,158,0.1)", border: "rgba(139,148,158,0.25)" },
+  "notice":           { labelEn: "Notice",           labelKo: "공지사항",    color: "#059669", bg: "rgba(22,163,74,0.08)",  border: "rgba(22,163,74,0.2)"    },
 };
 
 const ALL_CATEGORIES: PostCategory[] = [
@@ -95,13 +97,13 @@ export default async function LatestPostsPage({
   };
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+    <main className="min-h-screen">
 
       {/* Hero */}
       <div
         style={{
-          background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59,130,246,0.06) 0%, transparent 70%), linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
-          borderBottom: "1px solid #21262d",
+          backgroundColor: "#ffffff",
+          borderBottom: "1px solid #f3f4f6",
         }}
         className="py-10"
       >
@@ -110,17 +112,17 @@ export default async function LatestPostsPage({
             <div>
               <a
                 href={`/${loc}/community`}
-                style={{ color: "#8b949e", fontSize: 13, textDecoration: "none", display: "block", marginBottom: 8 }}
+                style={{ color: "#6b7280", fontSize: 13, textDecoration: "none", display: "block", marginBottom: 8 }}
               >
                 {tx.back}
               </a>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                 <span style={{ width: 3, height: 24, borderRadius: 2, backgroundColor: "#3b82f6", flexShrink: 0 }} />
-                <h1 style={{ color: "#e6edf3", fontSize: 28, fontWeight: 900, margin: 0 }}>
+                <h1 style={{ color: "#111827", fontSize: 28, fontWeight: 900, margin: 0 }}>
                   {tx.title}
                 </h1>
               </div>
-              <p style={{ color: "#8b949e", fontSize: 14, margin: "0 0 0 13px" }}>
+              <p style={{ color: "#6b7280", fontSize: 14, margin: "0 0 0 13px" }}>
                 {tx.subtitle}
               </p>
             </div>
@@ -130,7 +132,7 @@ export default async function LatestPostsPage({
                 href={`/${loc}/community/hot${activeCategory ? `?category=${activeCategory}` : ""}`}
                 style={{
                   padding: "7px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  color: "#8b949e", border: "1px solid #30363d", textDecoration: "none",
+                  color: "#6b7280", border: "1px solid #e5e7eb", textDecoration: "none",
                 }}
               >
                 {tx.hot}
@@ -139,8 +141,8 @@ export default async function LatestPostsPage({
                 <a
                   href={`/${loc}/community/write`}
                   style={{
-                    padding: "8px 18px", backgroundColor: "#22c55e",
-                    color: "#0d1117", fontSize: 13, fontWeight: 700,
+                    padding: "8px 18px", backgroundColor: "#059669",
+                    color: "#ffffff", fontSize: 13, fontWeight: 700,
                     borderRadius: 8, textDecoration: "none",
                   }}
                 >
@@ -151,7 +153,7 @@ export default async function LatestPostsPage({
                   href={`/${loc}/auth/login`}
                   style={{
                     padding: "8px 18px", backgroundColor: "rgba(34,197,94,0.1)",
-                    color: "#22c55e", fontSize: 13, fontWeight: 700,
+                    color: "#059669", fontSize: 13, fontWeight: 700,
                     borderRadius: 8, textDecoration: "none", border: "1px solid rgba(34,197,94,0.25)",
                   }}
                 >
@@ -177,9 +179,9 @@ export default async function LatestPostsPage({
             style={{
               padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 700,
               textDecoration: "none", flexShrink: 0,
-              backgroundColor: !activeCategory ? "#22c55e" : "transparent",
-              color: !activeCategory ? "#0d1117" : "#8b949e",
-              border: !activeCategory ? "none" : "1px solid #30363d",
+              backgroundColor: !activeCategory ? "#059669" : "transparent",
+              color: !activeCategory ? "#ffffff" : "#6b7280",
+              border: !activeCategory ? "none" : "1px solid #e5e7eb",
             }}
           >
             {tx.allCategories}
@@ -195,8 +197,8 @@ export default async function LatestPostsPage({
                   padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600,
                   textDecoration: "none", flexShrink: 0,
                   backgroundColor: isActive ? meta.bg : "transparent",
-                  color: isActive ? meta.color : "#8b949e",
-                  border: isActive ? `1px solid ${meta.border}` : "1px solid #30363d",
+                  color: isActive ? meta.color : "#6b7280",
+                  border: isActive ? `1px solid ${meta.border}` : "1px solid #e5e7eb",
                 }}
               >
                 {isKo ? meta.labelKo : meta.labelEn}
@@ -209,8 +211,8 @@ export default async function LatestPostsPage({
         {pinnedPosts.length > 0 && (
           <section>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <span style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: "#22c55e", flexShrink: 0 }} />
-              <h2 style={{ color: "#e6edf3", fontSize: 16, fontWeight: 800, margin: 0 }}>
+              <span style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: "#059669", flexShrink: 0 }} />
+              <h2 style={{ color: "#111827", fontSize: 16, fontWeight: 800, margin: 0 }}>
                 {tx.pinned}
               </h2>
             </div>
@@ -244,23 +246,23 @@ export default async function LatestPostsPage({
         {/* Regular posts */}
         <section>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <span style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: "#22c55e", flexShrink: 0 }} />
-            <h2 style={{ color: "#e6edf3", fontSize: 16, fontWeight: 800, margin: 0 }}>
+            <span style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: "#059669", flexShrink: 0 }} />
+            <h2 style={{ color: "#111827", fontSize: 16, fontWeight: 800, margin: 0 }}>
               {activeCategory
                 ? (isKo ? CATEGORY_META[activeCategory].labelKo : CATEGORY_META[activeCategory].labelEn)
                 : tx.allPosts}
-              <span style={{ color: "#8b949e", fontSize: 13, fontWeight: 400, marginLeft: 8 }}>({total})</span>
+              <span style={{ color: "#6b7280", fontSize: 13, fontWeight: 400, marginLeft: 8 }}>({total})</span>
             </h2>
           </div>
           {regularPosts.length === 0 ? (
             <div
               style={{
-                backgroundColor: "#161b22", border: "1px solid #30363d",
+                backgroundColor: "#ffffff", border: "1px solid #e5e7eb",
                 borderRadius: 12, padding: "48px 20px", textAlign: "center",
               }}
             >
               <span style={{ fontSize: 36 }}>⚽</span>
-              <p style={{ color: "#8b949e", fontSize: 14, marginTop: 12 }}>
+              <p style={{ color: "#6b7280", fontSize: 14, marginTop: 12 }}>
                 {tx.noPosts}
               </p>
               {isLoggedIn && (
@@ -268,8 +270,8 @@ export default async function LatestPostsPage({
                   href={`/${loc}/community/write`}
                   style={{
                     display: "inline-block", marginTop: 16,
-                    padding: "8px 20px", backgroundColor: "#22c55e",
-                    color: "#0d1117", fontSize: 13, fontWeight: 700,
+                    padding: "8px 20px", backgroundColor: "#059669",
+                    color: "#ffffff", fontSize: 13, fontWeight: 700,
                     borderRadius: 8, textDecoration: "none",
                   }}
                 >
@@ -316,8 +318,8 @@ export default async function LatestPostsPage({
                 }).toString()}`}
                 style={{
                   padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  backgroundColor: "transparent", color: "#8b949e",
-                  border: "1px solid #30363d", textDecoration: "none",
+                  backgroundColor: "transparent", color: "#6b7280",
+                  border: "1px solid #e5e7eb", textDecoration: "none",
                 }}
               >
                 ← {tx.prev}
@@ -331,7 +333,7 @@ export default async function LatestPostsPage({
                 }).toString()}`}
                 style={{
                   padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  backgroundColor: "rgba(34,197,94,0.1)", color: "#22c55e",
+                  backgroundColor: "rgba(34,197,94,0.1)", color: "#059669",
                   border: "1px solid rgba(34,197,94,0.25)", textDecoration: "none",
                 }}
               >

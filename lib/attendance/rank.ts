@@ -37,7 +37,7 @@ export const RANK_TIERS: RankInfo[] = [
     labelKo: "플래티넘",
     minPoints: 2000,
     maxPoints: 4999,
-    color: "#22c55e",
+    color: "#059669",
     badge: "💎",
     emoji: "💫",
   },

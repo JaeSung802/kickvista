@@ -71,6 +71,19 @@ create policy "attendance_logs: owner insert"
 
 -- ─── Leaderboard view (public read) ──────────────────────────────
 -- Shows nickname + points + streak for the top-100. No PII exposed.
+--
+-- ⚠ SECURITY NOTE: This view is SECURITY INVOKER (Postgres default), meaning
+-- the RLS policy `auth.uid() = id` on `profiles` applies to the caller.
+-- Querying this view directly via the anon/authenticated role returns ONLY the
+-- current user's own row — not the full leaderboard.
+--
+-- Fix A (preferred): use the get_leaderboard() SECURITY DEFINER function below,
+-- which runs under the DB owner's rights and bypasses the per-row RLS check
+-- while still exposing only the public-facing columns.
+--
+-- Fix B (simpler but broader): make the view itself SECURITY DEFINER so that
+-- it also runs as the owner. Requires PostgreSQL 15+:
+--   alter view public.leaderboard security definer;
 
 create or replace view public.leaderboard as
   select
@@ -84,6 +97,37 @@ create or replace view public.leaderboard as
 
 -- Grant anonymous/authenticated read access to the leaderboard view
 grant select on public.leaderboard to anon, authenticated;
+
+-- ─── get_leaderboard() — SECURITY DEFINER RPC ────────────────────
+-- Called by PointRankingWidget as a fallback when the view returns 0 rows.
+-- Runs under the role that owns the function (usually `postgres`) so the
+-- profiles RLS policy is bypassed. Exposes only public-safe columns.
+
+create or replace function public.get_leaderboard()
+returns table (
+  nickname        text,
+  total_points    integer,
+  current_streak  integer,
+  created_at      timestamptz
+)
+security definer
+set search_path = public
+language sql
+stable
+as $$
+  select
+    nickname,
+    total_points,
+    current_streak,
+    created_at
+  from profiles
+  where nickname <> ''          -- exclude accounts that haven't set a display name
+  order by total_points desc
+  limit 10;
+$$;
+
+-- Allow any visitor (anon) and logged-in user to call the function
+grant execute on function public.get_leaderboard() to anon, authenticated;
 
 -- ─── Trigger: auto-update updated_at on profiles ─────────────────
 

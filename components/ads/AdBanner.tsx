@@ -60,8 +60,8 @@ export default function AdBanner({ slot, className = "" }: AdBannerProps) {
             style={{
               width: "100%",
               height: 90,
-              backgroundColor: "#161b22",
-              border: "1.5px dashed #30363d",
+              backgroundColor: "#f9fafb",
+              border: "1.5px dashed #d1d5db",
               borderRadius: 6,
               display: "flex",
               flexDirection: "column",
@@ -72,11 +72,10 @@ export default function AdBanner({ slot, className = "" }: AdBannerProps) {
               overflow: "hidden",
             }}
           >
-            <div className="ad-shimmer-sweep" />
-            <span style={{ color: "#8b949e", fontSize: 12, fontWeight: 500, zIndex: 1 }}>
+            <span style={{ color: "#9ca3af", fontSize: 12, fontWeight: 500 }}>
               Google AdSense
             </span>
-            <span style={{ color: "#30363d", fontSize: 11, zIndex: 1 }}>728 × 90 — Banner</span>
+            <span style={{ color: "#d1d5db", fontSize: 11 }}>728 × 90 — Banner</span>
           </div>
         )}
       </div>

@@ -2,6 +2,9 @@ import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import AdSlot from "@/components/ads/AdSlot";
+import { getServerUser } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -54,7 +57,7 @@ const MOCK_RECENT_POSTS = [
     titleEn: "Salah's movement in the second half was on another level",
     titleKo: "살라의 후반전 움직임은 진짜 레전드급이었다",
     category: "match-discussion",
-    categoryColor: "#22c55e",
+    categoryColor: "#059669",
     comments: 12,
     timeAgo: "2h ago",
     timeAgoKo: "2시간 전",
@@ -175,125 +178,110 @@ export default async function ProfilePage({
   const t = labels[loc];
   const isKo = loc === "ko";
 
+  const supabaseUser = await getServerUser();
+
+  if (!supabaseUser) {
+    return (
+      <main className="bg-gray-50 min-h-screen flex items-center justify-center px-4">
+        <div className="w-full max-w-md bg-emerald-50 border border-emerald-100 rounded-2xl p-10 flex flex-col items-center gap-6 text-center">
+          <span className="text-5xl leading-none">🏆</span>
+          <div className="flex flex-col gap-2">
+            <h1 className="text-xl font-extrabold text-gray-900">
+              {isKo ? "내 프로필" : "My Profile"}
+            </h1>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              {isKo
+                ? "로그인 후 포인트, 등급, 출석 기록을 확인할 수 있습니다."
+                : "Sign in to view your points, rank, and attendance history."}
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            {[
+              { icon: "🥉", label: isKo ? "브론즈" : "Bronze" },
+              { icon: "🥈", label: isKo ? "실버" : "Silver" },
+              { icon: "🥇", label: isKo ? "골드" : "Gold" },
+              { icon: "👑", label: isKo ? "레전드" : "Legend" },
+            ].map((tier) => (
+              <span
+                key={tier.label}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-white border border-emerald-200 rounded-full px-3 py-1"
+              >
+                {tier.icon} {tier.label}
+              </span>
+            ))}
+          </div>
+          <a
+            href={`/${loc}/auth/login`}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-8 py-3 rounded-xl transition-colors shadow-sm"
+          >
+            {isKo ? "로그인하기" : "Sign In"}
+          </a>
+          <p className="text-xs text-gray-400">
+            {isKo ? "계정이 없으신가요?" : "No account yet?"}{" "}
+            <a href={`/${loc}/auth/signup`} className="text-emerald-600 font-semibold hover:underline">
+              {isKo ? "무료로 가입하기" : "Create one free"}
+            </a>
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   const user = MOCK_USER;
   const xpPercent = Math.round((user.xpCurrent / user.xpMax) * 100);
 
   return (
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
-      {/* Profile hero */}
-      <div
-        style={{
-          background: "linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
-          borderBottom: "1px solid #21262d",
-        }}
-        className="py-10"
-      >
+    <main className="bg-gray-50 min-h-screen">
+      {/* ── Profile hero ──────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-gray-200 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             {/* User info */}
             <div className="flex items-center gap-5">
               {/* Avatar */}
               <div
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: "50%",
-                  backgroundColor: "#161b22",
-                  border: `3px solid ${user.rankColor}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 40,
-                  flexShrink: 0,
-                }}
+                className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-4xl shrink-0"
+                style={{ border: `3px solid ${user.rankColor}` }}
               >
                 {user.avatar}
               </div>
 
               {/* Details */}
               <div>
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <h1
-                    style={{
-                      color: "#e6edf3",
-                      fontSize: 22,
-                      fontWeight: 900,
-                      margin: 0,
-                    }}
-                  >
-                    {user.nickname}
-                  </h1>
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <h1 className="text-2xl font-black text-gray-900">{user.nickname}</h1>
                   {/* Rank badge */}
                   <span
+                    className="inline-flex items-center gap-1 text-xs font-bold rounded-full px-2.5 py-0.5 border"
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      backgroundColor: `${user.rankColor}20`,
-                      border: `1px solid ${user.rankColor}50`,
-                      borderRadius: 999,
-                      padding: "2px 10px",
+                      color: user.rankColor,
+                      backgroundColor: `${user.rankColor}18`,
+                      borderColor: `${user.rankColor}50`,
                     }}
                   >
-                    <span style={{ fontSize: 13 }}>{user.rankBadge}</span>
-                    <span style={{ color: user.rankColor, fontSize: 12, fontWeight: 700 }}>
-                      {isKo ? user.rankLabelKo : user.rankLabel}
-                    </span>
+                    {user.rankBadge} {isKo ? user.rankLabelKo : user.rankLabel}
                   </span>
                   {/* Level badge */}
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 3,
-                      backgroundColor: "rgba(34,197,94,0.1)",
-                      border: "1px solid rgba(34,197,94,0.25)",
-                      borderRadius: 999,
-                      padding: "2px 10px",
-                      color: "#22c55e",
-                      fontSize: 12,
-                      fontWeight: 700,
-                    }}
-                  >
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
                     {t.level} {user.level}
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4" style={{ marginTop: 4 }}>
-                  <span style={{ color: "#8b949e", fontSize: 13 }}>
-                    📅 {t.joinedOn}: {user.joinDate}
-                  </span>
-                  <span style={{ color: "#8b949e", fontSize: 13 }}>
-                    {isKo ? user.favoriteLeagueKo : user.favoriteLeague}
-                  </span>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-3">
+                  <span>📅 {t.joinedOn}: {user.joinDate}</span>
+                  <span>{isKo ? user.favoriteLeagueKo : user.favoriteLeague}</span>
                 </div>
 
                 {/* XP progress */}
-                <div style={{ marginTop: 10, maxWidth: 280 }}>
-                  <div
-                    className="flex items-center justify-between"
-                    style={{ marginBottom: 5 }}
-                  >
-                    <span style={{ color: "#484f58", fontSize: 11 }}>
-                      {t.xp}: {user.xpCurrent.toLocaleString()} / {user.xpMax.toLocaleString()}
-                    </span>
-                    <span style={{ color: "#8b949e", fontSize: 11 }}>{xpPercent}%</span>
+                <div className="max-w-xs">
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+                    <span>{t.xp}: {user.xpCurrent.toLocaleString()} / {user.xpMax.toLocaleString()}</span>
+                    <span>{xpPercent}%</span>
                   </div>
-                  <div
-                    style={{
-                      height: 6,
-                      backgroundColor: "#21262d",
-                      borderRadius: 999,
-                      overflow: "hidden",
-                    }}
-                  >
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
                     <div
-                      style={{
-                        height: "100%",
-                        width: `${xpPercent}%`,
-                        background: "linear-gradient(90deg, #22c55e, #4ade80)",
-                        borderRadius: 999,
-                      }}
+                      className="h-full bg-emerald-600 rounded-full"
+                      style={{ width: `${xpPercent}%` }}
                     />
                   </div>
                 </div>
@@ -301,41 +289,16 @@ export default async function ProfilePage({
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <a
                 href={`/${loc}/profile/edit`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "9px 18px",
-                  backgroundColor: "#161b22",
-                  color: "#e6edf3",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  borderRadius: 8,
-                  textDecoration: "none",
-                  border: "1px solid #30363d",
-                  transition: "border-color 0.15s",
-                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors no-underline"
               >
                 ✏️ {t.editProfile}
               </a>
               <a
                 href={`/${loc}/profile/settings`}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "9px 18px",
-                  backgroundColor: "#161b22",
-                  color: "#8b949e",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  borderRadius: 8,
-                  textDecoration: "none",
-                  border: "1px solid #30363d",
-                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-gray-500 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors no-underline"
               >
                 ⚙️ {t.settings}
               </a>
@@ -344,111 +307,53 @@ export default async function ProfilePage({
         </div>
       </div>
 
-      {/* Stats strip */}
-      <div style={{ borderBottom: "1px solid #21262d" }}>
+      {/* ── Stats strip ───────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div
-            className="flex flex-wrap items-center gap-0"
-            style={{ overflowX: "auto" }}
-          >
+          <div className="flex flex-wrap items-center divide-x divide-gray-100 overflow-x-auto">
             {[
-              { label: t.points,         value: user.totalPoints.toLocaleString(), color: "#22c55e" },
-              { label: t.totalAttendance, value: `${user.totalAttendance} ${t.days}`,  color: "#e6edf3" },
-              { label: t.streak,          value: `🔥 ${user.currentStreak} ${t.days}`, color: "#f59e0b" },
-              { label: t.longestStreak,   value: `${user.longestStreak} ${t.days}`,    color: "#e6edf3" },
-            ].map((stat, idx, arr) => (
-              <div
-                key={stat.label}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 2,
-                  padding: "16px 32px",
-                  borderRight: idx < arr.length - 1 ? "1px solid #21262d" : "none",
-                }}
-              >
-                <span style={{ color: stat.color, fontSize: 20, fontWeight: 800 }}>
-                  {stat.value}
-                </span>
-                <span style={{ color: "#8b949e", fontSize: 11 }}>{stat.label}</span>
+              { label: t.points,          value: user.totalPoints.toLocaleString(), className: "text-emerald-600" },
+              { label: t.totalAttendance, value: `${user.totalAttendance} ${t.days}`, className: "text-gray-900" },
+              { label: t.streak,          value: `🔥 ${user.currentStreak} ${t.days}`, className: "text-amber-500" },
+              { label: t.longestStreak,   value: `${user.longestStreak} ${t.days}`,   className: "text-gray-900" },
+            ].map((stat) => (
+              <div key={stat.label} className="flex flex-col items-center gap-0.5 px-8 py-4">
+                <span className={`text-xl font-extrabold tabular-nums ${stat.className}`}>{stat.value}</span>
+                <span className="text-xs text-gray-400">{stat.label}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* ── Main content ──────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
           {/* Left column */}
           <div className="lg:col-span-2 flex flex-col gap-8">
+
             {/* This month's attendance */}
             <section>
-              <h2
-                style={{
-                  color: "#e6edf3",
-                  fontSize: 18,
-                  fontWeight: 800,
-                  margin: "0 0 16px",
-                }}
-              >
-                {t.attendanceTitle}
-              </h2>
-              <div
-                style={{
-                  backgroundColor: "#161b22",
-                  border: "1px solid #30363d",
-                  borderRadius: 12,
-                  padding: "20px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, 1fr)",
-                    gap: 8,
-                    marginBottom: 14,
-                  }}
-                >
+              <h2 className="text-lg font-extrabold text-gray-900 mb-4">{t.attendanceTitle}</h2>
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+                {/* Day headers */}
+                <div className="grid grid-cols-7 gap-2 mb-3">
                   {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        textAlign: "center" as const,
-                        color: "#484f58",
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {d}
-                    </div>
+                    <div key={i} className="text-center text-xs font-bold text-gray-400">{d}</div>
                   ))}
                 </div>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, 1fr)",
-                    gap: 6,
-                  }}
-                >
-                  {/* Padding for first day of month (March 2026 starts on Sunday) */}
+                {/* Calendar grid */}
+                <div className="grid grid-cols-7 gap-1.5">
                   {MONTHLY_ATTENDANCE.map((day) => (
                     <div
                       key={day.date}
                       title={day.date}
-                      style={{
-                        aspectRatio: "1",
-                        borderRadius: 8,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        backgroundColor: day.checked ? "#22c55e" : "#21262d",
-                        color: day.checked ? "#0d1117" : "#484f58",
-                        border: day.checked ? "none" : "1px solid #30363d",
-                      }}
+                      className={`aspect-square rounded-lg flex items-center justify-center text-xs font-semibold ${
+                        day.checked
+                          ? "bg-emerald-500 text-white"
+                          : "bg-gray-100 text-gray-400 border border-gray-200"
+                      }`}
                     >
                       {new Date(day.date).getDate()}
                     </div>
@@ -457,22 +362,12 @@ export default async function ProfilePage({
                 {/* Legend */}
                 <div className="flex items-center gap-4 mt-4">
                   <div className="flex items-center gap-1.5">
-                    <div
-                      style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: "#22c55e" }}
-                    />
-                    <span style={{ color: "#8b949e", fontSize: 11 }}>{t.checked}</span>
+                    <div className="w-2.5 h-2.5 rounded bg-emerald-500" />
+                    <span className="text-xs text-gray-400">{t.checked}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: 2,
-                        backgroundColor: "#21262d",
-                        border: "1px solid #30363d",
-                      }}
-                    />
-                    <span style={{ color: "#8b949e", fontSize: 11 }}>{t.missed}</span>
+                    <div className="w-2.5 h-2.5 rounded bg-gray-100 border border-gray-200" />
+                    <span className="text-xs text-gray-400">{t.missed}</span>
                   </div>
                 </div>
               </div>
@@ -481,65 +376,41 @@ export default async function ProfilePage({
             {/* Recent Posts */}
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 style={{ color: "#e6edf3", fontSize: 18, fontWeight: 800, margin: 0 }}>
-                  {t.postsTitle}
-                </h2>
-                <a
-                  href={`/${loc}/community`}
-                  style={{ color: "#22c55e", fontSize: 13, fontWeight: 600, textDecoration: "none" }}
-                >
+                <h2 className="text-lg font-extrabold text-gray-900">{t.postsTitle}</h2>
+                <a href={`/${loc}/community`} className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 no-underline">
                   {t.viewAllPosts}
                 </a>
               </div>
-              <div
-                style={{
-                  backgroundColor: "#161b22",
-                  border: "1px solid #30363d",
-                  borderRadius: 12,
-                  overflow: "hidden",
-                }}
-              >
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                 {MOCK_RECENT_POSTS.map((post, idx) => (
                   <a
                     key={post.id}
                     href={`/${loc}/community/${post.id}`}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      padding: "14px 18px",
-                      borderBottom: idx < MOCK_RECENT_POSTS.length - 1 ? "1px solid #21262d" : "none",
-                      textDecoration: "none",
-                      transition: "background 0.15s",
-                    }}
+                    className={`flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors no-underline ${
+                      idx < MOCK_RECENT_POSTS.length - 1 ? "border-b border-gray-100" : ""
+                    }`}
                   >
-                    <div style={{ flex: 1 }}>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span
+                          className="text-[10px] font-bold rounded px-1.5 py-0.5"
                           style={{
-                            fontSize: 10,
-                            fontWeight: 700,
                             color: post.categoryColor,
                             backgroundColor: `${post.categoryColor}18`,
                             border: `1px solid ${post.categoryColor}40`,
-                            borderRadius: 4,
-                            padding: "2px 7px",
                           }}
                         >
                           {post.category}
                         </span>
-                        <span style={{ color: "#484f58", fontSize: 11 }}>
+                        <span className="text-xs text-gray-400">
                           {isKo ? post.timeAgoKo : post.timeAgo}
                         </span>
                       </div>
-                      <span style={{ color: "#e6edf3", fontSize: 14, fontWeight: 600 }}>
+                      <span className="text-sm font-semibold text-gray-800 truncate block">
                         {isKo ? post.titleKo : post.titleEn}
                       </span>
                     </div>
-                    <span style={{ color: "#484f58", fontSize: 12, flexShrink: 0 }}>
-                      💬 {post.comments}
-                    </span>
+                    <span className="text-xs text-gray-400 shrink-0">💬 {post.comments}</span>
                   </a>
                 ))}
               </div>
@@ -548,48 +419,24 @@ export default async function ProfilePage({
             {/* Recent Comments */}
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 style={{ color: "#e6edf3", fontSize: 18, fontWeight: 800, margin: 0 }}>
-                  {t.commentsTitle}
-                </h2>
-                <a
-                  href={`/${loc}/community`}
-                  style={{ color: "#22c55e", fontSize: 13, fontWeight: 600, textDecoration: "none" }}
-                >
+                <h2 className="text-lg font-extrabold text-gray-900">{t.commentsTitle}</h2>
+                <a href={`/${loc}/community`} className="text-sm font-semibold text-emerald-600 hover:text-emerald-700 no-underline">
                   {t.viewAllComments}
                 </a>
               </div>
-              <div
-                style={{
-                  backgroundColor: "#161b22",
-                  border: "1px solid #30363d",
-                  borderRadius: 12,
-                  overflow: "hidden",
-                }}
-              >
+              <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                 {MOCK_RECENT_COMMENTS.map((comment, idx) => (
                   <div
                     key={comment.id}
-                    style={{
-                      padding: "14px 18px",
-                      borderBottom: idx < MOCK_RECENT_COMMENTS.length - 1 ? "1px solid #21262d" : "none",
-                    }}
+                    className={`px-4 py-3.5 ${idx < MOCK_RECENT_COMMENTS.length - 1 ? "border-b border-gray-100" : ""}`}
                   >
-                    <p
-                      style={{ color: "#484f58", fontSize: 12, margin: "0 0 4px" }}
-                    >
+                    <p className="text-xs text-gray-400 truncate mb-1">
                       💬 {isKo ? comment.postTitleKo : comment.postTitleEn}
                     </p>
-                    <p
-                      style={{
-                        color: "#8b949e",
-                        fontSize: 13,
-                        margin: "0 0 6px",
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {isKo ? comment.commentKo : comment.commentEn}
+                    <p className="text-sm text-gray-700 leading-relaxed mb-1">
+                      &ldquo;{isKo ? comment.commentKo : comment.commentEn}&rdquo;
                     </p>
-                    <span style={{ color: "#484f58", fontSize: 11 }}>
+                    <span className="text-xs text-gray-400">
                       {isKo ? comment.timeAgoKo : comment.timeAgo}
                     </span>
                   </div>
@@ -601,80 +448,49 @@ export default async function ProfilePage({
           {/* Right sidebar */}
           <div className="flex flex-col gap-6">
             {/* Profile details card */}
-            <div
-              style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 12,
-                padding: "20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 14,
-              }}
-            >
-              <h3
-                style={{ color: "#e6edf3", fontSize: 14, fontWeight: 700, margin: 0 }}
-              >
-                {isKo ? "프로필 정보" : "Profile Details"}
-              </h3>
-              {[
-                { label: t.favoriteLeague, value: isKo ? user.favoriteLeagueKo : user.favoriteLeague },
-                { label: t.favoriteTeam,   value: isKo ? user.favoriteTeamKo : user.favoriteTeam },
-                { label: t.rank,           value: `${user.rankBadge} ${isKo ? user.rankLabelKo : user.rankLabel}` },
-                { label: t.level,          value: `⚡ ${user.level}` },
-                { label: t.joinedOn,       value: user.joinDate },
-              ].map(({ label, value }) => (
-                <div
-                  key={label}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                    paddingBottom: 12,
-                    borderBottom: "1px solid #21262d",
-                  }}
-                >
-                  <span style={{ color: "#484f58", fontSize: 11 }}>{label}</span>
-                  <span style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600 }}>
-                    {value}
-                  </span>
-                </div>
-              ))}
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <h3 className="text-xs font-bold text-gray-900">
+                  {isKo ? "프로필 정보" : "Profile Details"}
+                </h3>
+              </div>
+              <div className="px-4 py-1">
+                {[
+                  { label: t.favoriteLeague, value: isKo ? user.favoriteLeagueKo : user.favoriteLeague },
+                  { label: t.favoriteTeam,   value: isKo ? user.favoriteTeamKo   : user.favoriteTeam   },
+                  { label: t.rank,           value: `${user.rankBadge} ${isKo ? user.rankLabelKo : user.rankLabel}` },
+                  { label: t.level,          value: `⚡ ${user.level}` },
+                  { label: t.joinedOn,       value: user.joinDate },
+                ].map(({ label, value }, idx, arr) => (
+                  <div
+                    key={label}
+                    className={`flex flex-col gap-0.5 py-2.5 ${idx < arr.length - 1 ? "border-b border-gray-100" : ""}`}
+                  >
+                    <span className="text-xs text-gray-400">{label}</span>
+                    <span className="text-xs font-semibold text-gray-800">{value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Quick links */}
-            <div
-              style={{
-                backgroundColor: "#161b22",
-                border: "1px solid #30363d",
-                borderRadius: 12,
-                overflow: "hidden",
-              }}
-            >
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               {[
                 { label: isKo ? "출석 체크 페이지" : "Attendance Page", href: `/${loc}/attendance`, icon: "📅" },
-                { label: isKo ? "AI 분석 보기" : "View AI Analysis",   href: `/${loc}/analysis`,   icon: "✨" },
-                { label: isKo ? "커뮤니티"       : "Community",          href: `/${loc}/community`,  icon: "💬" },
-                { label: isKo ? "계정 설정"       : "Account Settings",  href: `/${loc}/profile/settings`, icon: "⚙️" },
+                { label: isKo ? "AI 분석 보기"    : "View AI Analysis",  href: `/${loc}/analysis`,   icon: "✨" },
+                { label: isKo ? "커뮤니티"         : "Community",         href: `/${loc}/community`,  icon: "💬" },
+                { label: isKo ? "계정 설정"         : "Account Settings",  href: `/${loc}/profile/settings`, icon: "⚙️" },
               ].map(({ label, href, icon }, idx, arr) => (
                 <a
                   key={label}
                   href={href}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "12px 16px",
-                    borderBottom: idx < arr.length - 1 ? "1px solid #21262d" : "none",
-                    textDecoration: "none",
-                    transition: "background 0.15s",
-                  }}
+                  className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors no-underline ${
+                    idx < arr.length - 1 ? "border-b border-gray-100" : ""
+                  }`}
                 >
-                  <span style={{ fontSize: 16 }}>{icon}</span>
-                  <span style={{ color: "#e6edf3", fontSize: 13, fontWeight: 600 }}>
-                    {label}
-                  </span>
-                  <span style={{ color: "#484f58", fontSize: 12, marginLeft: "auto" }}>→</span>
+                  <span className="text-base">{icon}</span>
+                  <span className="text-sm font-semibold text-gray-800 flex-1">{label}</span>
+                  <span className="text-gray-400 text-sm">→</span>
                 </a>
               ))}
             </div>

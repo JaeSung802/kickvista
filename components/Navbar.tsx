@@ -20,7 +20,7 @@ export default function Navbar() {
           <a href="#" className="flex items-center gap-2 group">
             <span className="text-2xl">⚽</span>
             <span className="text-xl font-bold text-white">
-              Kick<span style={{ color: "#22c55e" }}>Vista</span>
+              Kick<span style={{ color: "#059669" }}>Vista</span>
             </span>
           </a>
 
@@ -34,7 +34,7 @@ export default function Navbar() {
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-all hover:text-white"
                 onMouseEnter={(e) => {
                   (e.target as HTMLElement).style.background = "#161b22";
-                  (e.target as HTMLElement).style.color = "#22c55e";
+                  (e.target as HTMLElement).style.color = "#059669";
                 }}
                 onMouseLeave={(e) => {
                   (e.target as HTMLElement).style.background = "transparent";
@@ -50,7 +50,7 @@ export default function Navbar() {
           <div className="flex items-center gap-3">
             <a
               href="#"
-              style={{ background: "#22c55e", color: "#0d1117" }}
+              style={{ background: "#059669", color: "#0d1117" }}
               className="hidden sm:inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
             >
               ⚡ Live Scores

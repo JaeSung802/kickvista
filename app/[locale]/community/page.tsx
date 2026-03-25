@@ -5,6 +5,7 @@ import { getServerUser } from "@/lib/auth";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
 import PostCard from "@/components/community/PostCard";
+import { TeamLogo } from "@/components/ui/TeamLogo";
 import { listPosts } from "@/lib/community/actions";
 import { listHotPosts } from "@/lib/community/hotPosts";
 import type { Metadata } from "next";
@@ -29,22 +30,24 @@ type PostCategory =
   | "tactics"
   | "highlights"
   | "predictions"
-  | "general";
+  | "general"
+  | "notice";
 
 type SortKey = "hot" | "latest" | "trending";
 
-// ─── Category metadata ─────────────────────────────────────────────────────────
+// ─── Category metadata ────────────────────────────────────────────────────────
 
 const CATEGORY_META: Record<
   PostCategory,
   { labelEn: string; labelKo: string; color: string; bg: string; border: string }
 > = {
-  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",   color: "#22c55e", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.25)"   },
-  "transfer-news":    { labelEn: "Transfer News",    labelKo: "이적 뉴스",   color: "#f59e0b", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.25)"  },
-  "tactics":          { labelEn: "Tactics",          labelKo: "전술 분석",   color: "#8b5cf6", bg: "rgba(139,92,246,0.1)",  border: "rgba(139,92,246,0.25)"  },
-  "highlights":       { labelEn: "Highlights",       labelKo: "하이라이트",  color: "#ef4444", bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.25)"   },
-  "predictions":      { labelEn: "Predictions",      labelKo: "예측",        color: "#06b6d4", bg: "rgba(6,182,212,0.1)",   border: "rgba(6,182,212,0.25)"   },
-  "general":          { labelEn: "General",          labelKo: "일반",        color: "#8b949e", bg: "rgba(139,148,158,0.1)", border: "rgba(139,148,158,0.25)" },
+  "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",  color: "#059669", bg: "#ecfdf5", border: "#a7f3d0"   },
+  "transfer-news":    { labelEn: "Transfer News",    labelKo: "이적 뉴스",  color: "#d97706", bg: "#fffbeb", border: "#fde68a"   },
+  "tactics":          { labelEn: "Tactics",          labelKo: "전술 분석",  color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe"   },
+  "highlights":       { labelEn: "Highlights",       labelKo: "하이라이트", color: "#dc2626", bg: "#fef2f2", border: "#fecaca"   },
+  "predictions":      { labelEn: "Predictions",      labelKo: "예측",       color: "#0891b2", bg: "#ecfeff", border: "#a5f3fc"   },
+  "general":          { labelEn: "General",          labelKo: "일반",       color: "#6b7280", bg: "#f9fafb", border: "#e5e7eb"   },
+  "notice":           { labelEn: "Notice",           labelKo: "공지사항",   color: "#b45309", bg: "#fefce8", border: "#fde68a"   },
 };
 
 const ALL_CATEGORIES: PostCategory[] = [
@@ -54,17 +57,23 @@ const ALL_CATEGORIES: PostCategory[] = [
 // ─── Team boards ──────────────────────────────────────────────────────────────
 
 const TEAM_BOARDS = [
-  { slug: "arsenal",      flag: "🔴", nameEn: "Arsenal",      nameKo: "아스날" },
-  { slug: "man-city",     flag: "🔵", nameEn: "Man City",      nameKo: "맨시티" },
-  { slug: "liverpool",    flag: "🔴", nameEn: "Liverpool",     nameKo: "리버풀" },
-  { slug: "chelsea",      flag: "🔵", nameEn: "Chelsea",       nameKo: "첼시" },
-  { slug: "real-madrid",  flag: "⚪", nameEn: "Real Madrid",   nameKo: "레알 마드리드" },
-  { slug: "barcelona",    flag: "🔵", nameEn: "Barcelona",     nameKo: "바르셀로나" },
-  { slug: "bayern",       flag: "🔴", nameEn: "Bayern Munich", nameKo: "바이에른" },
-  { slug: "psg",          flag: "🔵", nameEn: "PSG",           nameKo: "PSG" },
+  { slug: "arsenal",           nameEn: "Arsenal",           nameKo: "아스널" },
+  { slug: "man-city",          nameEn: "Man City",          nameKo: "맨체스터 시티" },
+  { slug: "liverpool",         nameEn: "Liverpool",         nameKo: "리버풀" },
+  { slug: "chelsea",           nameEn: "Chelsea",           nameKo: "첼시" },
+  { slug: "man-united",        nameEn: "Man United",        nameKo: "맨체스터 유나이티드" },
+  { slug: "tottenham",         nameEn: "Tottenham",         nameKo: "토트넘" },
+  { slug: "real-madrid",       nameEn: "Real Madrid",       nameKo: "레알 마드리드" },
+  { slug: "barcelona",         nameEn: "Barcelona",         nameKo: "바르셀로나" },
+  { slug: "atletico-madrid",   nameEn: "Atletico Madrid",   nameKo: "아틀레티코 마드리드" },
+  { slug: "bayern-munich",     nameEn: "Bayern Munich",     nameKo: "바이에른 뮌헨" },
+  { slug: "dortmund",          nameEn: "Dortmund",          nameKo: "보루시아 도르트문트" },
+  { slug: "inter-milan",       nameEn: "Inter Milan",       nameKo: "인터 밀란" },
+  { slug: "ac-milan",          nameEn: "AC Milan",          nameKo: "AC 밀란" },
+  { slug: "juventus",          nameEn: "Juventus",          nameKo: "유벤투스" },
 ];
 
-// ─── Labels ────────────────────────────────────────────────────────────────────
+// ─── Labels ───────────────────────────────────────────────────────────────────
 
 const labels = {
   en: {
@@ -79,8 +88,10 @@ const labels = {
     hot: "HOT",
     trending: "Trending",
     teamBoards: "Team Boards",
+    noticeBoardLabel: "Notice Board",
+    noticeBoardDesc: "Official announcements",
+    noticeViewAll: "View all notices →",
     rules: "Community Rules",
-    topContributors: "Top Contributors",
     rulesItems: [
       "Be respectful to all members",
       "No spam or self-promotion",
@@ -90,7 +101,6 @@ const labels = {
     ],
     loginCta: "Sign In to Post",
     noAuth: "Join the community — post, comment, and vote on the best football discussions.",
-    communityStats: "Community Stats",
     posts: "Posts",
     members: "Members",
     online: "Online",
@@ -109,8 +119,10 @@ const labels = {
     hot: "인기",
     trending: "트렌딩",
     teamBoards: "팀 게시판",
+    noticeBoardLabel: "공지사항",
+    noticeBoardDesc: "운영팀 공식 공지",
+    noticeViewAll: "공지 전체보기 →",
     rules: "커뮤니티 규칙",
-    topContributors: "인기 작성자",
     rulesItems: [
       "모든 회원을 존중해주세요",
       "스팸 및 홍보 금지",
@@ -120,7 +132,6 @@ const labels = {
     ],
     loginCta: "로그인하여 글쓰기",
     noAuth: "커뮤니티에 참여하여 게시글을 작성하고 댓글을 달고 최고의 축구 토론에 투표하세요.",
-    communityStats: "커뮤니티 통계",
     posts: "게시글",
     members: "회원",
     online: "접속 중",
@@ -129,31 +140,27 @@ const labels = {
   },
 };
 
-// ─── SectionHeader ────────────────────────────────────────────────────────────
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionHeader({ title, count }: { title: string; count?: number }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-      <span style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: "#22c55e", flexShrink: 0 }} />
-      <h2 style={{ color: "#e6edf3", fontSize: 16, fontWeight: 800, margin: 0 }}>
+    <div className="flex items-center gap-2.5 mb-3">
+      <span className="w-0.5 h-4 rounded-full bg-emerald-600 shrink-0" />
+      <h2 className="text-sm font-bold text-gray-800">
         {title}
         {count !== undefined && (
-          <span style={{ color: "#8b949e", fontSize: 13, fontWeight: 400, marginLeft: 8 }}>({count})</span>
+          <span className="text-gray-400 text-xs font-normal ml-1.5">({count})</span>
         )}
       </h2>
     </div>
   );
 }
 
-// ─── SidebarCard ─────────────────────────────────────────────────────────────
-
 function SidebarCard({ children, title }: { children: React.ReactNode; title: string }) {
   return (
-    <div style={{ backgroundColor: "#161b22", border: "1px solid #30363d", borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ padding: "11px 16px", borderBottom: "1px solid #21262d", backgroundColor: "#0d1117" }}>
-        <h3 style={{ color: "#e6edf3", fontSize: 12, fontWeight: 700, margin: 0, letterSpacing: "0.03em", textTransform: "uppercase" }}>
-          {title}
-        </h3>
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">{title}</h3>
       </div>
       {children}
     </div>
@@ -169,8 +176,8 @@ export default async function CommunityPage({
   params: Promise<{ locale: string }>;
   searchParams: Promise<{ category?: string; sort?: string; page?: string }>;
 }) {
-  const { locale }    = await params;
-  const sp            = await searchParams;
+  const { locale } = await params;
+  const sp         = await searchParams;
   if (!isValidLocale(locale)) notFound();
   const loc    = locale as Locale;
   const isKo   = loc === "ko";
@@ -182,12 +189,13 @@ export default async function CommunityPage({
   const activeSort     = (sp.sort as SortKey | undefined) ?? "hot";
   const activePage     = Math.max(1, parseInt(sp.page ?? "1", 10));
 
-  // Parallel data fetch: main list + hot sidebar
-  const [mainResult, trendingResult] = await Promise.all([
-    listPosts({ category: activeCategory, sort: activeSort, page: activePage, limit: 20 }),
+  const [mainR, trendingR] = await Promise.allSettled([
+    listPosts({ category: activeCategory, sort: activeSort, page: activePage, limit: 20, excludeNotice: true }),
     listHotPosts({ limit: 5 }),
   ]);
 
+  const mainResult    = mainR.status    === "fulfilled" ? mainR.value    : { posts: [], total: 0, hasMore: false };
+  const trendingResult = trendingR.status === "fulfilled" ? trendingR.value : { posts: [] };
   const { posts, total, hasMore } = mainResult;
   const trendingPosts = trendingResult.posts;
 
@@ -200,59 +208,33 @@ export default async function CommunityPage({
     { key: "trending", label: tx.sortTrending, href: activeCategory ? `/${loc}/community?category=${activeCategory}&sort=trending` : `/${loc}/community?sort=trending` },
   ];
 
-  return (
-    <>
-    <style>{`
-      .kv-trending-link:hover { background: #1c2128; }
-      .kv-team-link:hover { border-color: rgba(34,197,94,0.3) !important; color: #22c55e !important; }
-    `}</style>
-    <main style={{ background: "#0d1117", minHeight: "100vh" }}>
+  const BANNER_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_BANNER ?? "0000000000";
+  const RECT_SLOT   = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE ?? "1111111111";
 
-      {/* Page hero */}
-      <div
-        style={{
-          background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34,197,94,0.05) 0%, transparent 70%), linear-gradient(180deg, #0f1923 0%, #0d1117 100%)",
-          borderBottom: "1px solid #21262d",
-        }}
-        className="py-10"
-      >
+  return (
+    <main className="bg-gray-50 min-h-screen">
+      {/* ── Page hero ─────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                <span style={{ width: 3, height: 24, borderRadius: 2, backgroundColor: "#22c55e", flexShrink: 0 }} />
-                <h1 style={{ color: "#e6edf3", fontSize: 28, fontWeight: 900, margin: 0 }}>
-                  {tx.pageTitle}
-                </h1>
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <span className="w-0.5 h-6 rounded-full bg-emerald-600 shrink-0" />
+                <h1 className="text-2xl font-black text-gray-900">{tx.pageTitle}</h1>
               </div>
-              <p style={{ color: "#8b949e", fontSize: 14, margin: "0 0 0 13px" }}>
-                {tx.pageSubtitle}
-              </p>
+              <p className="text-sm text-gray-500 ml-3.5">{tx.pageSubtitle}</p>
             </div>
-
             {isLoggedIn ? (
               <a
                 href={`/${loc}/community/write`}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 8,
-                  padding: "10px 22px", backgroundColor: "#22c55e",
-                  color: "#0d1117", fontSize: 14, fontWeight: 700,
-                  borderRadius: 10, textDecoration: "none",
-                  boxShadow: "0 0 16px rgba(34,197,94,0.2)",
-                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors"
               >
                 ✏️ {tx.writePost}
               </a>
             ) : (
               <a
                 href={`/${loc}/auth/login`}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 8,
-                  padding: "10px 22px", backgroundColor: "rgba(34,197,94,0.1)",
-                  color: "#22c55e", fontSize: 14, fontWeight: 700,
-                  borderRadius: 10, textDecoration: "none",
-                  border: "1px solid rgba(34,197,94,0.25)",
-                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 text-sm font-bold rounded-lg border border-emerald-200 hover:bg-emerald-50 transition-colors"
               >
                 ✏️ {tx.loginCta}
               </a>
@@ -261,9 +243,9 @@ export default async function CommunityPage({
         </div>
       </div>
 
-      {/* Top ad */}
+      {/* ── Top ad ──────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-        <AdBanner slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_BANNER ?? "0000000000"} />
+        <AdBanner slot={BANNER_SLOT} />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
@@ -272,18 +254,17 @@ export default async function CommunityPage({
           {/* ── Main content (2/3) ─────────────────────────────────── */}
           <div className="lg:col-span-2 flex flex-col gap-6">
 
-            {/* Category filter + sort row */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ display: "flex", gap: 6, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2 }}>
+            {/* Category filter + sort */}
+            <div className="flex flex-col gap-2">
+              {/* Category pills */}
+              <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
                 <a
                   href={`/${loc}/community${activeSort !== "hot" ? `?sort=${activeSort}` : ""}`}
-                  style={{
-                    padding: "6px 14px", borderRadius: 8, fontSize: 13,
-                    fontWeight: 700, textDecoration: "none", flexShrink: 0,
-                    backgroundColor: !activeCategory ? "#22c55e" : "transparent",
-                    color: !activeCategory ? "#0d1117" : "#8b949e",
-                    border: !activeCategory ? "none" : "1px solid #30363d",
-                  }}
+                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    !activeCategory
+                      ? "bg-emerald-600 text-white"
+                      : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300"
+                  }`}
                 >
                   {tx.allCategories}
                 </a>
@@ -294,12 +275,11 @@ export default async function CommunityPage({
                     <a
                       key={cat}
                       href={`/${loc}/community?category=${cat}${activeSort !== "hot" ? `&sort=${activeSort}` : ""}`}
+                      className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
                       style={{
-                        padding: "6px 14px", borderRadius: 8, fontSize: 13,
-                        fontWeight: 600, textDecoration: "none", flexShrink: 0,
-                        backgroundColor: isActive ? meta.bg : "transparent",
-                        color: isActive ? meta.color : "#8b949e",
-                        border: isActive ? `1px solid ${meta.border}` : "1px solid #30363d",
+                        backgroundColor: isActive ? meta.bg : "#ffffff",
+                        color: isActive ? meta.color : "#6b7280",
+                        borderColor: isActive ? meta.border : "#e5e7eb",
                       }}
                     >
                       {isKo ? meta.labelKo : meta.labelEn}
@@ -308,21 +288,19 @@ export default async function CommunityPage({
                 })}
               </div>
 
-              <div style={{ display: "flex", gap: 4 }}>
+              {/* Sort pills */}
+              <div className="flex gap-1.5">
                 {sortOptions.map((opt) => {
-                  // hot and latest have dedicated pages; only "trending" stays on this page
                   const isActive = opt.key === "trending" && activeSort === "trending";
                   return (
                     <a
                       key={opt.key}
                       href={opt.href}
-                      style={{
-                        padding: "5px 14px", borderRadius: 7, fontSize: 12,
-                        fontWeight: 700, textDecoration: "none",
-                        backgroundColor: isActive ? "rgba(34,197,94,0.1)" : "transparent",
-                        color: isActive ? "#22c55e" : "#8b949e",
-                        border: isActive ? "1px solid rgba(34,197,94,0.25)" : "1px solid #21262d",
-                      }}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                        isActive
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                      }`}
                     >
                       {opt.label}
                     </a>
@@ -335,7 +313,7 @@ export default async function CommunityPage({
             {pinnedPosts.length > 0 && (
               <section>
                 <SectionHeader title={isKo ? "📌 고정 게시글" : "📌 Pinned"} />
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="flex flex-col gap-1.5">
                   {pinnedPosts.map((post) => {
                     const meta = CATEGORY_META[post.category];
                     return (
@@ -373,32 +351,20 @@ export default async function CommunityPage({
                 count={total}
               />
               {regularPosts.length === 0 ? (
-                <div
-                  style={{
-                    backgroundColor: "#161b22", border: "1px solid #30363d",
-                    borderRadius: 12, padding: "48px 20px", textAlign: "center",
-                  }}
-                >
-                  <span style={{ fontSize: 36 }}>⚽</span>
-                  <p style={{ color: "#8b949e", fontSize: 14, marginTop: 12 }}>
-                    {tx.noPosts}
-                  </p>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+                  <span className="text-4xl">⚽</span>
+                  <p className="text-gray-400 text-sm mt-3">{tx.noPosts}</p>
                   {isLoggedIn && (
                     <a
                       href={`/${loc}/community/write`}
-                      style={{
-                        display: "inline-block", marginTop: 16,
-                        padding: "8px 20px", backgroundColor: "#22c55e",
-                        color: "#0d1117", fontSize: 13, fontWeight: 700,
-                        borderRadius: 8, textDecoration: "none",
-                      }}
+                      className="inline-block mt-4 px-5 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors"
                     >
                       {isKo ? "첫 글 작성하기" : "Be the first to post"}
                     </a>
                   )}
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div className="flex flex-col gap-1.5">
                   {regularPosts.map((post, idx) => {
                     const meta = CATEGORY_META[post.category];
                     return (
@@ -420,11 +386,10 @@ export default async function CommunityPage({
                           views={post.viewCount}
                           isKo={isKo}
                         />
-                        {/* In-feed banner after post 4 and post 8 */}
                         {(idx === 3 || idx === 7) && regularPosts.length > idx + 1 && (
                           <AdBanner
                             key={`ad-after-${idx}`}
-                            slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_BANNER ?? "0000000000"}
+                            slot={BANNER_SLOT}
                           />
                         )}
                       </>
@@ -436,7 +401,7 @@ export default async function CommunityPage({
 
             {/* Pagination */}
             {(activePage > 1 || hasMore) && (
-              <div style={{ display: "flex", justifyContent: "center", gap: 8, paddingTop: 8 }}>
+              <div className="flex justify-center gap-2 pt-2">
                 {activePage > 1 && (
                   <a
                     href={`/${loc}/community?${new URLSearchParams({
@@ -444,11 +409,7 @@ export default async function CommunityPage({
                       ...(activeSort !== "hot" ? { sort: activeSort } : {}),
                       page: String(activePage - 1),
                     }).toString()}`}
-                    style={{
-                      padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                      backgroundColor: "transparent", color: "#8b949e",
-                      border: "1px solid #30363d", textDecoration: "none",
-                    }}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-gray-300 transition-colors"
                   >
                     ← {isKo ? "이전" : "Prev"}
                   </a>
@@ -460,11 +421,7 @@ export default async function CommunityPage({
                       ...(activeSort !== "hot" ? { sort: activeSort } : {}),
                       page: String(activePage + 1),
                     }).toString()}`}
-                    style={{
-                      padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600,
-                      backgroundColor: "rgba(34,197,94,0.1)", color: "#22c55e",
-                      border: "1px solid rgba(34,197,94,0.25)", textDecoration: "none",
-                    }}
+                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
                   >
                     {isKo ? "다음" : "Next"} →
                   </a>
@@ -472,36 +429,35 @@ export default async function CommunityPage({
               </div>
             )}
 
-            {/* Mid ad — after post list, before pagination */}
-            <AdBanner slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_BANNER ?? "0000000000"} />
+            <AdBanner slot={BANNER_SLOT} />
           </div>
 
           {/* ── Sidebar (1/3) ─────────────────────────────────────── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div className="flex flex-col gap-4">
+
+            {/* Notice Board shortcut */}
+            <a
+              href={`/${loc}/notice`}
+              className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3.5 hover:bg-amber-100 transition-colors no-underline"
+            >
+              <span className="text-2xl shrink-0">📢</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-amber-800">{tx.noticeBoardLabel}</div>
+                <div className="text-xs text-amber-600 mt-0.5">{tx.noticeBoardDesc}</div>
+              </div>
+              <span className="text-xs font-semibold text-amber-700 shrink-0">{isKo ? "보기" : "View"} →</span>
+            </a>
 
             {/* Community stats */}
-            <div
-              style={{
-                backgroundColor: "#161b22", border: "1px solid #30363d",
-                borderRadius: 12, padding: "16px",
-                display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 1,
-                overflow: "hidden",
-              }}
-            >
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm grid grid-cols-3 divide-x divide-gray-100 overflow-hidden">
               {[
                 { value: total > 0 ? String(total) : "0", label: tx.posts },
                 { value: "—", label: tx.members },
                 { value: "—", label: tx.online },
-              ].map((stat, i) => (
-                <div
-                  key={stat.label}
-                  style={{
-                    textAlign: "center", padding: "12px 8px",
-                    borderRight: i < 2 ? "1px solid #21262d" : "none",
-                  }}
-                >
-                  <div style={{ color: "#22c55e", fontSize: 18, fontWeight: 800, lineHeight: 1 }}>{stat.value}</div>
-                  <div style={{ color: "#8b949e", fontSize: 11, marginTop: 4 }}>{stat.label}</div>
+              ].map((stat) => (
+                <div key={stat.label} className="text-center py-4 px-2">
+                  <div className="text-lg font-extrabold text-emerald-600 leading-none">{stat.value}</div>
+                  <div className="text-xs text-gray-400 mt-1">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -509,56 +465,38 @@ export default async function CommunityPage({
             {/* Trending */}
             {trendingPosts.length > 0 && (
               <SidebarCard title={`🔥 ${tx.trending}`}>
-                {trendingPosts.map((p, idx) => {
-                  const catMeta = CATEGORY_META[p.category];
-                  return (
-                    <a
-                      key={p.id}
-                      href={`/${loc}/community/post/${p.id}`}
-                      className="kv-trending-link"
-                      style={{
-                        display: "block", padding: "12px 16px",
-                        borderBottom: idx < trendingPosts.length - 1 ? "1px solid #21262d" : "none",
-                        textDecoration: "none",
-                      }}
-                    >
-                      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                        <span
-                          style={{
-                            color: idx === 0 ? "#22c55e" : idx === 1 ? "#f59e0b" : "#484f58",
-                            fontSize: 16, fontWeight: 800, lineHeight: 1, flexShrink: 0, minWidth: 18,
-                          }}
-                        >
+                <div className="divide-y divide-gray-100">
+                  {trendingPosts.map((p, idx) => {
+                    const catMeta = CATEGORY_META[p.category];
+                    return (
+                      <a
+                        key={p.id}
+                        href={`/${loc}/community/post/${p.id}`}
+                        className="flex gap-3 items-start px-4 py-3 hover:bg-gray-50 transition-colors"
+                      >
+                        <span className={`text-sm font-extrabold shrink-0 mt-0.5 w-4 ${
+                          idx === 0 ? "text-emerald-600" : idx === 1 ? "text-amber-500" : "text-gray-300"
+                        }`}>
                           {idx + 1}
                         </span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div
-                            style={{
-                              color: "#e6edf3", fontSize: 13, fontWeight: 600,
-                              lineHeight: 1.4, marginBottom: 5,
-                              overflow: "hidden", display: "-webkit-box",
-                              WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const,
-                            }}
-                          >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-gray-800 leading-snug line-clamp-2 mb-1">
                             {p.title}
                           </div>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: catMeta.color }}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-semibold" style={{ color: catMeta.color }}>
                               {isKo ? catMeta.labelKo : catMeta.labelEn}
                             </span>
-                            <span style={{ color: "#8b949e", fontSize: 11 }}>👁 {p.viewCount.toLocaleString()}</span>
-                            <span style={{ color: "#8b949e", fontSize: 11 }}>▲ {p.likeCount}</span>
+                            <span className="text-[11px] text-gray-400">👁 {p.viewCount.toLocaleString()}</span>
+                            <span className="text-[11px] text-gray-400">▲ {p.likeCount}</span>
                           </div>
                         </div>
-                      </div>
-                    </a>
-                  );
-                })}
-                <div style={{ padding: "10px 16px", borderTop: "1px solid #21262d" }}>
-                  <a
-                    href={`/${loc}/community/hot`}
-                    style={{ color: "#22c55e", fontSize: 12, fontWeight: 600, textDecoration: "none" }}
-                  >
+                      </a>
+                    );
+                  })}
+                </div>
+                <div className="px-4 py-2.5 border-t border-gray-100">
+                  <a href={`/${loc}/community/hot`} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
                     {isKo ? "전체 인기글 보기 →" : "View all hot posts →"}
                   </a>
                 </div>
@@ -567,28 +505,20 @@ export default async function CommunityPage({
 
             {/* Team boards */}
             <SidebarCard title={`⚽ ${tx.teamBoards}`}>
-              <div style={{ padding: "8px 10px", display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div className="flex flex-wrap gap-1.5 p-3">
                 {TEAM_BOARDS.map((team) => (
                   <a
                     key={team.slug}
                     href={`/${loc}/team/${team.slug}`}
-                    className="kv-team-link"
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 5,
-                      padding: "5px 10px", borderRadius: 7,
-                      backgroundColor: "#0d1117", border: "1px solid #30363d",
-                      textDecoration: "none", fontSize: 12, color: "#c9d1d9", fontWeight: 500,
-                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600 font-medium hover:border-emerald-300 hover:text-emerald-700 transition-colors"
                   >
-                    {team.flag} {isKo ? team.nameKo : team.nameEn}
+                    <TeamLogo logo={undefined} name={isKo ? team.nameKo : team.nameEn} size={16} />
+                    {isKo ? team.nameKo : team.nameEn}
                   </a>
                 ))}
               </div>
-              <div style={{ padding: "10px 16px", borderTop: "1px solid #21262d" }}>
-                <a
-                  href={`/${loc}/leagues`}
-                  style={{ color: "#22c55e", fontSize: 12, fontWeight: 600, textDecoration: "none" }}
-                >
+              <div className="px-4 py-2.5 border-t border-gray-100">
+                <a href={`/${loc}/team`} className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
                   {tx.allBoards}
                 </a>
               </div>
@@ -596,39 +526,23 @@ export default async function CommunityPage({
 
             {/* Community Rules */}
             <SidebarCard title={`📋 ${tx.rules}`}>
-              <div style={{ padding: "14px 16px" }}>
-                <ol style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {tx.rulesItems.map((rule, idx) => (
-                    <li key={idx} style={{ color: "#8b949e", fontSize: 12, lineHeight: 1.5 }}>
-                      {rule}
-                    </li>
-                  ))}
-                </ol>
-              </div>
+              <ol className="list-decimal list-inside flex flex-col gap-2 px-4 py-3">
+                {tx.rulesItems.map((rule, idx) => (
+                  <li key={idx} className="text-xs text-gray-500 leading-relaxed">
+                    {rule}
+                  </li>
+                ))}
+              </ol>
             </SidebarCard>
 
-            {/* Login CTA — only if not logged in */}
+            {/* Login CTA */}
             {!isLoggedIn && (
-              <div
-                style={{
-                  backgroundColor: "#161b22", border: "1px solid rgba(34,197,94,0.2)",
-                  borderRadius: 12, padding: "20px",
-                  display: "flex", flexDirection: "column",
-                  gap: 12, textAlign: "center",
-                  background: "radial-gradient(ellipse 80% 50% at 50% 0%, rgba(34,197,94,0.05) 0%, #161b22 70%)",
-                }}
-              >
-                <span style={{ fontSize: 36 }}>⚽</span>
-                <p style={{ color: "#8b949e", fontSize: 13, margin: 0, lineHeight: 1.6 }}>
-                  {tx.noAuth}
-                </p>
+              <div className="bg-white rounded-xl border border-emerald-100 shadow-sm p-5 text-center flex flex-col gap-3">
+                <span className="text-3xl">⚽</span>
+                <p className="text-xs text-gray-500 leading-relaxed">{tx.noAuth}</p>
                 <a
                   href={`/${loc}/auth/login`}
-                  style={{
-                    display: "inline-block", padding: "10px 20px",
-                    backgroundColor: "#22c55e", color: "#0d1117",
-                    fontSize: 14, fontWeight: 700, borderRadius: 8, textDecoration: "none",
-                  }}
+                  className="inline-block px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors"
                 >
                   {tx.loginCta}
                 </a>
@@ -636,11 +550,10 @@ export default async function CommunityPage({
             )}
 
             {/* Sticky sidebar ad */}
-            <AdSidebar slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE ?? "1111111111"} />
+            <AdSidebar slot={RECT_SLOT} />
           </div>
         </div>
       </div>
     </main>
-    </>
   );
 }

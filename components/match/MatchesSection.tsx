@@ -141,18 +141,18 @@ export default function MatchesSection({ locale, matches: propMatches }: Matches
             <h2 className="text-lg font-bold text-white">{t.sectionTitle}</h2>
             <span
               className="flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "#22c55e22", color: "#22c55e" }}
+              style={{ background: "#05966922", color: "#059669" }}
             >
               <span
                 className="w-1.5 h-1.5 rounded-full inline-block live-dot"
-                style={{ background: "#22c55e" }}
+                style={{ background: "#059669" }}
               />
               {liveCount} {t.live}
             </span>
           </div>
           <a
             href={`/${locale}/matches`}
-            style={{ color: "#22c55e" }}
+            style={{ color: "#059669" }}
             className="text-sm font-medium hover:underline"
           >
             {t.viewAll}
@@ -174,7 +174,7 @@ export default function MatchesSection({ locale, matches: propMatches }: Matches
                 className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all shrink-0"
                 style={
                   isActive
-                    ? { background: "#22c55e", color: "#0d1117" }
+                    ? { background: "#059669", color: "#0d1117" }
                     : { color: "#8b949e" }
                 }
                 onMouseEnter={(e) => {
