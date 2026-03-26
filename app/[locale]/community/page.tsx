@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildCommunityMetadata } from "@/lib/seo/metadata";
@@ -380,9 +381,8 @@ export default async function CommunityPage({
                   {regularPosts.map((post, idx) => {
                     const meta = CATEGORY_META[post.category];
                     return (
-                      <>
+                      <Fragment key={post.id}>
                         <PostCard
-                          key={post.id}
                           href={`/${loc}/community/post/${post.id}`}
                           title={post.title}
                           preview={post.preview}
@@ -397,14 +397,12 @@ export default async function CommunityPage({
                           comments={post.commentCount}
                           views={post.viewCount}
                           isKo={isKo}
+                          imageUrl={post.imageUrl}
                         />
                         {(idx === 3 || idx === 7) && regularPosts.length > idx + 1 && (
-                          <AdBanner
-                            key={`ad-after-${idx}`}
-                            slot={BANNER_SLOT}
-                          />
+                          <AdBanner slot={BANNER_SLOT} />
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </div>
