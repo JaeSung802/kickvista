@@ -1,16 +1,16 @@
 /**
- * Cron endpoint: Google News RSS → Gemini AI 요약 → 커뮤니티 자동 포스팅
+ * Cron endpoint: Google News RSS → Claude AI 요약 → 커뮤니티 자동 포스팅
  * Schedule: 매일 오전 8시 KST (23:00 UTC) — vercel.json 참고
  *
  * Flow:
  *  1. rss-parser로 Google News RSS 수집 (손흥민, 토트넘, 프리미어리그)
  *  2. 기사 URL 기준 중복 확인 (community_posts.content에 링크 포함 여부)
- *  3. Gemini 1.5 Flash 8B로 한국어 축구 팬 스타일 요약 생성
+ *  3. Claude (claude-3-5-haiku-20241022)로 한국어 축구 팬 스타일 요약 생성
  *  4. community_posts 테이블에 insert
  *
  * Env vars:
  *   CRON_SECRET              – cron 인증 시크릿
- *   GEMINI_API_KEY           – Google Gemini API 키
+ *   ANTHROPIC_API_KEY        – Anthropic API 키
  *   NEWS_BOT_AUTHOR_ID       – 뉴스봇 Supabase profiles.id
  *   SUPABASE_SERVICE_ROLE_KEY – RLS 우회용 서비스 키
  */
@@ -26,84 +26,23 @@ export const maxDuration = 300;
 // ─── 설정 ────────────────────────────────────────────────────────────────────
 
 const NEWS_QUERIES: Array<{ query: string; tags: string[]; category: string }> = [
-  { query: "손흥민",          tags: ["손흥민", "토트넘", "EPL"],          category: "match-discussion" },
-  { query: "토트넘",          tags: ["토트넘", "EPL", "프리미어리그"],    category: "match-discussion" },
-  { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],    category: "transfer-news"   },
+  { query: "손흥민",           tags: ["손흥민", "토트넘", "EPL"],       category: "match-discussion" },
+  { query: "토트넘",           tags: ["토트넘", "EPL", "프리미어리그"], category: "match-discussion" },
+  { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],  category: "transfer-news"   },
 ];
 
-// 테스트 모드: 첫 번째 쿼리에서 1건만 처리
-const MAX_ITEMS_PER_QUERY = 1;
-const MAX_QUERIES = 1; // 테스트 중엔 쿼리 1개만 실행
+const MAX_ITEMS_PER_QUERY = 1; // 안정화 후 3으로 복원
+const CLAUDE_MODEL        = "claude-3-5-haiku-20241022";
+const DESC_MAX_CHARS      = 800;
 
-// gemini-1.5-flash는 이 환경 v1beta에서 404 반환 → gemini-2.0-flash 유지
-const GEMINI_MODEL = "gemini-2.0-flash";
-
-// 기사 본문 최대 전송 길이 (토큰 절약)
-const DESC_MAX_CHARS = 600;
-
-// 기사 처리 후 대기 시간 (TPM/RPM 보호)
-const GEMINI_DELAY_MS = 20_000;
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// ─── Gemini AI 요약 (Exponential Backoff 재시도) ─────────────────────────────
-
-async function callGeminiWithRetry(
-  prompt: string,
-  geminiKey: string
-): Promise<{ text: string | null; error: string; isQuotaError: boolean }> {
-  const delays = [0, 5_000, 10_000]; // 즉시 → 5초 후 → 10초 후
-
-  for (let attempt = 0; attempt < delays.length; attempt++) {
-    if (delays[attempt] > 0) {
-      console.log(`[sync-news] Gemini retry ${attempt}/${delays.length - 1} — waiting ${delays[attempt] / 1000}s`);
-      await sleep(delays[attempt]);
-    }
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      }
-    );
-
-    // 전체 응답 로깅 (디버깅용)
-    const rawBody = await res.text();
-    console.log(`[sync-news] Gemini response [${res.status}]:`, rawBody.slice(0, 400));
-
-    if (res.ok) {
-      const data = JSON.parse(rawBody) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      };
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      return { text, error: "", isQuotaError: false };
-    }
-
-    const isQuota = res.status === 429;
-    const msg = `HTTP ${res.status}: ${rawBody.slice(0, 300)}`;
-
-    // 429이 아닌 에러(400, 404 등)는 재시도 없이 즉시 반환
-    if (!isQuota) {
-      return { text: null, error: msg, isQuotaError: false };
-    }
-
-    // 마지막 시도에서도 429면 포기
-    if (attempt === delays.length - 1) {
-      return { text: null, error: msg, isQuotaError: true };
-    }
-  }
-
-  return { text: null, error: "unreachable", isQuotaError: false };
-}
+// ─── Claude AI 요약 ──────────────────────────────────────────────────────────
 
 async function generatePost(
   title: string,
   description: string,
   link: string,
-  geminiKey: string
-): Promise<{ post: { title: string; content: string } | null; error: string; isQuotaError: boolean }> {
+  anthropicKey: string
+): Promise<{ post: { title: string; content: string } | null; error: string }> {
   const prompt = `너는 KickVista 축구 커뮤니티의 뉴스 에디터야.
 아래 뉴스 기사를 한국어 축구 팬 커뮤니티 게시글로 자연스럽게 작성해줘.
 
@@ -123,20 +62,43 @@ JSON만 응답 (다른 텍스트 없이):
 {"title":"제목","content":"본문"}`;
 
   try {
-    const { text, error, isQuotaError } = await callGeminiWithRetry(prompt, geminiKey);
-    if (!text) return { post: null, error, isQuotaError };
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type":    "application/json",
+        "x-api-key":       anthropicKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model:      CLAUDE_MODEL,
+        max_tokens: 1024,
+        messages:   [{ role: "user", content: prompt }],
+      }),
+    });
+
+    const rawBody = await res.text();
+    console.log(`[sync-news] Claude response [${res.status}]:`, rawBody.slice(0, 300));
+
+    if (!res.ok) {
+      return { post: null, error: `HTTP ${res.status}: ${rawBody.slice(0, 200)}` };
+    }
+
+    const data = JSON.parse(rawBody) as {
+      content?: Array<{ type: string; text?: string }>;
+    };
+    const text = data.content?.find((b) => b.type === "text")?.text ?? "";
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { post: null, error: "JSON not found in response", isQuotaError: false };
+    if (!jsonMatch) return { post: null, error: "JSON not found in response" };
 
     const parsed = JSON.parse(jsonMatch[0]) as { title?: string; content?: string };
-    if (!parsed.title || !parsed.content) return { post: null, error: "title/content missing", isQuotaError: false };
+    if (!parsed.title || !parsed.content) return { post: null, error: "title/content missing" };
 
-    return { post: { title: parsed.title, content: parsed.content }, error: "", isQuotaError: false };
+    return { post: { title: parsed.title, content: parsed.content }, error: "" };
   } catch (err) {
     const msg = String(err);
-    console.error("[sync-news] generatePost error:", msg);
-    return { post: null, error: msg, isQuotaError: false };
+    console.error("[sync-news] Claude error:", msg);
+    return { post: null, error: msg };
   }
 }
 
@@ -149,11 +111,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) return NextResponse.json({ error: "GEMINI_API_KEY not configured." }, { status: 500 });
-
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) {
+    return NextResponse.json({ error: "ANTHROPIC_API_KEY not configured." }, { status: 500 });
+  }
   const botAuthorId = process.env.NEWS_BOT_AUTHOR_ID;
-  if (!botAuthorId) return NextResponse.json({ error: "NEWS_BOT_AUTHOR_ID not configured." }, { status: 500 });
+  if (!botAuthorId) {
+    return NextResponse.json({ error: "NEWS_BOT_AUTHOR_ID not configured." }, { status: 500 });
+  }
 
   const supabase = createAdminClient();
   const parser   = new Parser({ timeout: 10_000 });
@@ -162,21 +127,15 @@ export async function GET(request: NextRequest) {
     inserted: 0, skipped: 0, errors: 0,
     posts: [] as string[], errorMessages: [] as string[],
   };
-  let quotaExceeded = false;
 
-  outer:
-  for (const queryConfig of NEWS_QUERIES.slice(0, MAX_QUERIES)) {
-    if (quotaExceeded) break;
-
+  for (const queryConfig of NEWS_QUERIES) {
     try {
       const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(queryConfig.query)}&hl=ko&gl=KR&ceid=KR:ko`;
-      const feed = await parser.parseURL(rssUrl);
-      const items = feed.items.slice(0, MAX_ITEMS_PER_QUERY);
+      const feed   = await parser.parseURL(rssUrl);
+      const items  = feed.items.slice(0, MAX_ITEMS_PER_QUERY);
       console.log(`[sync-news] query "${queryConfig.query}" — ${items.length} items fetched`);
 
       for (const item of items) {
-        if (quotaExceeded) break outer;
-
         const link        = item.link ?? item.guid ?? "";
         const title       = item.title ?? "";
         const description = item.contentSnippet ?? item.content ?? item.summary ?? "";
@@ -195,21 +154,13 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Gemini 요약 생성 (호출 후 항상 20초 대기 — TPM/RPM 보호)
-        const { post, error: geminiError, isQuotaError } = await generatePost(title, description, link, geminiKey);
-        await sleep(GEMINI_DELAY_MS);
-
-        if (isQuotaError) {
-          quotaExceeded = true;
-          results.errors++;
-          results.errorMessages.push(`[Quota] ${geminiError}`);
-          console.error("[sync-news] quota exceeded — stopping");
-          break outer;
-        }
+        // Claude 요약 생성
+        const { post, error: claudeError } = await generatePost(title, description, link, anthropicKey);
 
         if (!post) {
           results.errors++;
-          results.errorMessages.push(`[Gemini] ${title.slice(0, 30)}: ${geminiError}`);
+          results.errorMessages.push(`[Claude] ${title.slice(0, 30)}: ${claudeError}`);
+          console.error(`[sync-news] Claude failed: ${claudeError}`);
           continue;
         }
 
@@ -243,18 +194,17 @@ export async function GET(request: NextRequest) {
   }
 
   console.log(
-    `[sync-news] done — inserted:${results.inserted} skipped:${results.skipped} errors:${results.errors} quotaExceeded:${quotaExceeded}`
+    `[sync-news] done — inserted:${results.inserted} skipped:${results.skipped} errors:${results.errors}`
   );
 
   return NextResponse.json({
-    success: true,
-    model: GEMINI_MODEL,
+    success:       true,
+    model:         CLAUDE_MODEL,
     inserted:      results.inserted,
     skipped:       results.skipped,
     errors:        results.errors,
     posts:         results.posts,
     errorMessages: results.errorMessages,
-    quotaExceeded,
     syncedAt:      new Date().toISOString(),
   });
 }
