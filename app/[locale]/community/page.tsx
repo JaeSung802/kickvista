@@ -7,9 +7,11 @@ import { buildCommunityMetadata } from "@/lib/seo/metadata";
 import { getServerUser } from "@/lib/auth";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
+import nextDynamic from "next/dynamic";
 import PostCard from "@/components/community/PostCard";
-import WorldCupWidget from "@/components/worldcup/WorldCupWidget";
-import WorldCupInfoPanel from "@/components/worldcup/WorldCupInfoPanel";
+// ssr: false — SSR 중 예외 발생 시 페이지 전체 크래시 방지
+const WorldCupWidget    = nextDynamic(() => import("@/components/worldcup/WorldCupWidget"),    { ssr: false });
+const WorldCupInfoPanel = nextDynamic(() => import("@/components/worldcup/WorldCupInfoPanel"), { ssr: false });
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { listPosts } from "@/lib/community/actions";
 import { listHotPosts } from "@/lib/community/hotPosts";
@@ -327,7 +329,7 @@ export default async function CommunityPage({
                 <SectionHeader title={isKo ? "📌 고정 게시글" : "📌 Pinned"} />
                 <div className="flex flex-col gap-1.5">
                   {pinnedPosts.map((post) => {
-                    const meta = CATEGORY_META[post.category];
+                    const meta = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
                     return (
                       <PostCard
                         key={post.id}
@@ -358,7 +360,7 @@ export default async function CommunityPage({
               <SectionHeader
                 title={
                   activeCategory
-                    ? (isKo ? CATEGORY_META[activeCategory].labelKo : CATEGORY_META[activeCategory].labelEn)
+                    ? (isKo ? (CATEGORY_META[activeCategory] ?? CATEGORY_META["general"]).labelKo : (CATEGORY_META[activeCategory] ?? CATEGORY_META["general"]).labelEn)
                     : (isKo ? "모든 게시글" : "All Posts")
                 }
                 count={total}
@@ -379,7 +381,7 @@ export default async function CommunityPage({
               ) : (
                 <div className="flex flex-col gap-1.5">
                   {regularPosts.map((post, idx) => {
-                    const meta = CATEGORY_META[post.category];
+                    const meta = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
                     return (
                       <Fragment key={post.id}>
                         <PostCard
@@ -480,7 +482,7 @@ export default async function CommunityPage({
               <SidebarCard title={`🔥 ${tx.trending}`}>
                 <div className="divide-y divide-gray-100">
                   {trendingPosts.map((p, idx) => {
-                    const catMeta = CATEGORY_META[p.category];
+                    const catMeta = CATEGORY_META[p.category] ?? CATEGORY_META["general"];
                     return (
                       <a
                         key={p.id}
