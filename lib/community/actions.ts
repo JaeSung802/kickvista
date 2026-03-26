@@ -58,8 +58,6 @@ export interface ListPostsParams {
   page?: number;
   limit?: number;
   excludeId?: string;
-  teamSlug?: string | null;
-  leagueSlug?: string | null;
   excludeNotice?: boolean;
 }
 
@@ -99,8 +97,6 @@ export async function listPosts({
   page = 1,
   limit = 20,
   excludeId,
-  teamSlug,
-  leagueSlug,
   excludeNotice = false,
 }: ListPostsParams = {}): Promise<ListPostsResult> {
   const supabase = await createClient();
@@ -112,7 +108,6 @@ export async function listPosts({
     .select(
       `id, category, title, content, tags,
        view_count, like_count, comment_count, is_pinned, is_hot, created_at,
-       team_slug, league_slug,
        author:profiles!author_id(id, nickname, total_points)`,
       { count: "exact" }
     );
@@ -123,8 +118,7 @@ export async function listPosts({
   if (category)                  query = query.eq("category", category);
   else if (excludeNotice)        query = query.neq("category", "notice");
   if (excludeId)                 query = query.neq("id", excludeId);
-  if (teamSlug)                  query = query.eq("team_slug", teamSlug);
-  if (leagueSlug)                query = query.eq("league_slug", leagueSlug);
+  // team_slug / league_slug 컬럼 없음 — 필터 제거
 
   switch (sort) {
     case "latest":
