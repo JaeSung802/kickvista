@@ -276,7 +276,7 @@ export default async function CommunityPage({
                   {tx.allCategories}
                 </a>
                 {ALL_CATEGORIES.map((cat) => {
-                  const meta     = CATEGORY_META[cat];
+                  const meta     = CATEGORY_META[cat] ?? CATEGORY_META["general"];
                   const isActive = activeCategory === cat;
                   return (
                     <a
