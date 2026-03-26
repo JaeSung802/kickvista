@@ -47,6 +47,14 @@ const NEWS_QUERIES: Array<{
   },
 ];
 
+// 쿼리당 처리할 최대 기사 수 (테스트: 1건 → 안정화 후 3건으로 복원)
+const MAX_ITEMS_PER_QUERY = 1;
+
+// Gemini 호출 간격 (ms) — 무료 티어 RPM 보호
+const GEMINI_DELAY_MS = 10_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 // ─── Gemini AI 요약 ───────────────────────────────────────────────────────────
 
 async function generatePost(
@@ -54,7 +62,7 @@ async function generatePost(
   description: string,
   link: string,
   geminiKey: string
-): Promise<{ post: { title: string; content: string } | null; error: string }> {
+): Promise<{ post: { title: string; content: string } | null; error: string; isQuotaError: boolean }> {
   try {
     const prompt = `너는 KickVista 축구 커뮤니티의 뉴스 에디터야.
 아래 뉴스 기사를 한국어 축구 팬 커뮤니티 게시글로 자연스럽게 작성해줘.
@@ -87,7 +95,7 @@ JSON만 응답 (다른 텍스트 없이):
       const errText = await res.text();
       const msg = `HTTP ${res.status}: ${errText.slice(0, 200)}`;
       console.error("[sync-news] Gemini API error:", msg);
-      return { post: null, error: msg };
+      return { post: null, error: msg, isQuotaError: res.status === 429 };
     }
 
     const data = await res.json() as {
@@ -96,15 +104,15 @@ JSON만 응답 (다른 텍스트 없이):
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { post: null, error: "JSON not found in response" };
+    if (!jsonMatch) return { post: null, error: "JSON not found in response", isQuotaError: false };
 
     const parsed = JSON.parse(jsonMatch[0]) as { title?: string; content?: string };
-    if (!parsed.title || !parsed.content) return { post: null, error: "title/content missing in parsed JSON" };
-    return { post: { title: parsed.title, content: parsed.content }, error: "" };
+    if (!parsed.title || !parsed.content) return { post: null, error: "title/content missing in parsed JSON", isQuotaError: false };
+    return { post: { title: parsed.title, content: parsed.content }, error: "", isQuotaError: false };
   } catch (err) {
     const msg = String(err);
     console.error("[sync-news] Gemini error:", msg);
-    return { post: null, error: msg };
+    return { post: null, error: msg, isQuotaError: false };
   }
 }
 
@@ -132,15 +140,21 @@ export async function GET(request: NextRequest) {
   const parser   = new Parser({ timeout: 10_000 });
 
   const results = { inserted: 0, skipped: 0, errors: 0, posts: [] as string[], errorMessages: [] as string[] };
+  let quotaExceeded = false;
 
+  outer:
   for (const queryConfig of NEWS_QUERIES) {
+    if (quotaExceeded) break;
+
     try {
       // ── 1. Google News RSS 수집 ────────────────────────────────────────────
       const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(queryConfig.query)}&hl=ko&gl=KR&ceid=KR:ko`;
       const feed = await parser.parseURL(rssUrl);
-      const items = feed.items.slice(0, 3); // 쿼리당 최대 3건
+      const items = feed.items.slice(0, MAX_ITEMS_PER_QUERY);
 
       for (const item of items) {
+        if (quotaExceeded) break outer;
+
         const link        = item.link ?? item.guid ?? "";
         const title       = item.title ?? "";
         const description = item.contentSnippet ?? item.content ?? item.summary ?? "";
@@ -159,9 +173,19 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // ── 3. Gemini로 한국어 요약 생성 (RPM 보호: 3초 간격) ─────────────────
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        const { post, error: geminiError } = await generatePost(title, description, link, geminiKey);
+        // ── 3. Gemini로 한국어 요약 생성 (10초 간격 — 무료 티어 RPM 보호) ─────
+        await sleep(GEMINI_DELAY_MS);
+        const { post, error: geminiError, isQuotaError } = await generatePost(title, description, link, geminiKey);
+
+        if (isQuotaError) {
+          // 429 발생 시 즉시 전체 루프 중단
+          quotaExceeded = true;
+          results.errors++;
+          results.errorMessages.push(`[Quota] ${geminiError}`);
+          console.error("[sync-news] 429 quota exceeded — stopping early");
+          break outer;
+        }
+
         if (!post) {
           results.errors++;
           results.errorMessages.push(`[Gemini] ${title.slice(0, 30)}: ${geminiError}`);
@@ -198,7 +222,7 @@ export async function GET(request: NextRequest) {
   }
 
   console.log(
-    `[sync-news] done — inserted:${results.inserted} skipped:${results.skipped} errors:${results.errors}`
+    `[sync-news] done — inserted:${results.inserted} skipped:${results.skipped} errors:${results.errors} quotaExceeded:${quotaExceeded}`
   );
 
   return NextResponse.json({
@@ -208,6 +232,7 @@ export async function GET(request: NextRequest) {
     errors:        results.errors,
     posts:         results.posts,
     errorMessages: results.errorMessages,
+    quotaExceeded,
     syncedAt:      new Date().toISOString(),
   });
 }
