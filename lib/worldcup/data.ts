@@ -113,13 +113,19 @@ export const KOREA_MATCHES: WCMatch[] = [
 ];
 
 // ─── D-Day 계산 유틸 ─────────────────────────────────────────────────────────
+// 2026-06-11 00:00 KST = 2026-06-10 15:00 UTC
+// 타임존 문자열 파싱 대신 UTC milliseconds 사용 (서버 환경 호환성 보장)
 
 export function calcDDay(): { label: string; days: number } {
-  const opening = new Date("2026-06-11T00:00:00+09:00"); // KST 기준
-  const now     = new Date();
-  const diffMs  = opening.getTime() - now.getTime();
-  const days    = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (days > 0)  return { label: `D-${days}`,          days };
-  if (days === 0) return { label: "D-Day",              days: 0 };
-  return          { label: `D+${Math.abs(days)}`,      days };
+  try {
+    const openingUtcMs = Date.UTC(2026, 5, 10, 15, 0, 0); // June 10 15:00 UTC
+    const diffMs = openingUtcMs - Date.now();
+    if (!isFinite(diffMs)) return { label: "D-?", days: 0 };
+    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    if (days > 0)  return { label: `D-${days}`,       days };
+    if (days === 0) return { label: "D-Day",           days: 0 };
+    return          { label: `D+${Math.abs(days)}`,   days };
+  } catch {
+    return { label: "D-?", days: 0 };
+  }
 }

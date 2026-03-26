@@ -1,6 +1,7 @@
+"use client";
 /**
  * WorldCupWidget — 커뮤니티 사이드바용 컴팩트 위젯
- * 서버 컴포넌트 (D-Day 서버 사이드 계산)
+ * 클라이언트 컴포넌트 (정적 데이터만 사용 — 서버 렌더링 예외 방지)
  */
 import { calcDDay, WORLDCUP_2026 } from "@/lib/worldcup/data";
 

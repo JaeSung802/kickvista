@@ -1,6 +1,7 @@
+"use client";
 /**
  * WorldCupInfoPanel — worldcup-2026 카테고리 선택 시 게시글 목록 상단에 표시
- * 서버 컴포넌트
+ * 클라이언트 컴포넌트 (정적 데이터만 사용 — 서버 렌더링 예외 방지)
  *
  * 데이터 업데이트: lib/worldcup/data.ts 파일을 수정하세요.
  */
