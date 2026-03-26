@@ -57,7 +57,7 @@ async function generatePost(
   gemini: GoogleGenerativeAI
 ): Promise<{ title: string; content: string } | null> {
   try {
-    const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
     const prompt = `너는 KickVista 축구 커뮤니티의 뉴스 에디터야.
 아래 뉴스 기사를 한국어 축구 팬 커뮤니티 게시글로 자연스럽게 작성해줘.
