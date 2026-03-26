@@ -16,6 +16,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import Parser from "rss-parser";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -192,6 +193,8 @@ export async function GET(request: NextRequest) {
           results.inserted++;
           results.posts.push(post.title.slice(0, 40));
           console.log(`[sync-news] ✅ inserted: ${post.title.slice(0, 40)}`);
+          // Next.js 라우터 캐시 무효화 — 커뮤니티 목록에 즉시 반영
+          revalidatePath("/[locale]/community", "page");
         }
       }
     } catch (err) {
