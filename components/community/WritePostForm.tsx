@@ -26,6 +26,7 @@ const CATEGORY_META: Record<
   "predictions":      { labelEn: "Predictions",      labelKo: "예측",        color: "#0891b2", bg: "#ecfeff", border: "#a5f3fc" },
   "general":          { labelEn: "General",          labelKo: "일반",        color: "#6b7280", bg: "#f9fafb", border: "#e5e7eb" },
   "notice":           { labelEn: "Notice",           labelKo: "공지사항",    color: "#b45309", bg: "#fefce8", border: "#fde68a" },
+  "worldcup-2026":    { labelEn: "2026 World Cup",   labelKo: "2026 월드컵", color: "#dc2626", bg: "#fef2f2", border: "#fca5a5" },
 };
 
 const BASE_CATEGORIES: PostCategory[] = [

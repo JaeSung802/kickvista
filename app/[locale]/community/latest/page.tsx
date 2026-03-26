@@ -31,7 +31,8 @@ type PostCategory =
   | "highlights"
   | "predictions"
   | "general"
-  | "notice";
+  | "notice"
+  | "worldcup-2026";
 
 // ─── Category metadata ────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ const CATEGORY_META: Record<
   "predictions":      { labelEn: "Predictions",      labelKo: "예측",        color: "#06b6d4", bg: "rgba(6,182,212,0.1)",   border: "rgba(6,182,212,0.25)"   },
   "general":          { labelEn: "General",          labelKo: "일반",        color: "#8b949e", bg: "rgba(139,148,158,0.1)", border: "rgba(139,148,158,0.25)" },
   "notice":           { labelEn: "Notice",           labelKo: "공지사항",    color: "#059669", bg: "rgba(22,163,74,0.08)",  border: "rgba(22,163,74,0.2)"    },
+  "worldcup-2026":    { labelEn: "2026 World Cup",   labelKo: "2026 월드컵", color: "#dc2626", bg: "#fef2f2",               border: "#fca5a5"                },
 };
 
 const ALL_CATEGORIES: PostCategory[] = [

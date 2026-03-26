@@ -26,6 +26,7 @@ const CATEGORY_META: Record<PostCategory, { labelKo: string; labelEn: string; co
   "predictions":      { labelKo: "예측",        labelEn: "Predict",  color: "#0891b2", bg: "#ecfeff" },
   "general":          { labelKo: "일반",        labelEn: "General",  color: "#6b7280", bg: "#f9fafb" },
   "notice":           { labelKo: "공지사항",    labelEn: "Notice",   color: "#059669", bg: "#ecfdf5" },
+  "worldcup-2026":    { labelKo: "2026 월드컵", labelEn: "2026 World Cup", color: "#dc2626", bg: "#fef2f2" },
 };
 
 function CategoryBadge({ category, locale }: { category: PostCategory; locale: Locale }) {
