@@ -31,11 +31,18 @@ const NEWS_QUERIES: Array<{ query: string; tags: string[]; category: string }> =
   { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],    category: "transfer-news"   },
 ];
 
-// 테스트 모드: 쿼리당 1건만 처리 (안정화 후 3으로 복원)
+// 테스트 모드: 첫 번째 쿼리에서 1건만 처리
 const MAX_ITEMS_PER_QUERY = 1;
+const MAX_QUERIES = 1; // 테스트 중엔 쿼리 1개만 실행
 
-// Gemini 모델 — 1.5-flash-8b: 가장 가볍고 무료 쿼터 넉넉
+// gemini-1.5-flash는 이 환경 v1beta에서 404 반환 → gemini-2.0-flash 유지
 const GEMINI_MODEL = "gemini-2.0-flash";
+
+// 기사 본문 최대 전송 길이 (토큰 절약)
+const DESC_MAX_CHARS = 600;
+
+// 기사 처리 후 대기 시간 (TPM/RPM 보호)
+const GEMINI_DELAY_MS = 20_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -101,7 +108,7 @@ async function generatePost(
 아래 뉴스 기사를 한국어 축구 팬 커뮤니티 게시글로 자연스럽게 작성해줘.
 
 [기사 제목] ${title}
-[기사 내용] ${description}
+[기사 내용] ${description.substring(0, DESC_MAX_CHARS)}
 
 작성 규칙:
 1. 제목: 한국어, 50자 이내, 이모지 1개 포함
@@ -158,7 +165,7 @@ export async function GET(request: NextRequest) {
   let quotaExceeded = false;
 
   outer:
-  for (const queryConfig of NEWS_QUERIES) {
+  for (const queryConfig of NEWS_QUERIES.slice(0, MAX_QUERIES)) {
     if (quotaExceeded) break;
 
     try {
@@ -188,8 +195,9 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // Gemini 요약 생성
+        // Gemini 요약 생성 (호출 후 항상 20초 대기 — TPM/RPM 보호)
         const { post, error: geminiError, isQuotaError } = await generatePost(title, description, link, geminiKey);
+        await sleep(GEMINI_DELAY_MS);
 
         if (isQuotaError) {
           quotaExceeded = true;
