@@ -44,6 +44,12 @@ const nextConfig: NextConfig = {
         destination: "/ko/analysis",
         permanent: false,
       },
+      // Redirect legacy opengraph-image routes (deleted files) to static OG image
+      {
+        source: "/:locale(ko|en)/opengraph-image",
+        destination: "/og-default.png",
+        permanent: true,
+      },
     ];
   },
 };
