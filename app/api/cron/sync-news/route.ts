@@ -17,7 +17,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import Parser from "rss-parser";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
@@ -54,11 +53,9 @@ async function generatePost(
   title: string,
   description: string,
   link: string,
-  gemini: GoogleGenerativeAI
+  geminiKey: string
 ): Promise<{ title: string; content: string } | null> {
   try {
-    const model = gemini.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
     const prompt = `너는 KickVista 축구 커뮤니티의 뉴스 에디터야.
 아래 뉴스 기사를 한국어 축구 팬 커뮤니티 게시글로 자연스럽게 작성해줘.
 
@@ -77,8 +74,25 @@ async function generatePost(
 JSON만 응답 (다른 텍스트 없이):
 {"title":"제목","content":"본문"}`;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      }
+    );
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("[sync-news] Gemini API error:", res.status, errText);
+      return null;
+    }
+
+    const data = await res.json() as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;
@@ -113,7 +127,6 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const gemini   = new GoogleGenerativeAI(geminiKey);
   const parser   = new Parser({ timeout: 10_000 });
 
   const results = { inserted: 0, skipped: 0, errors: 0, posts: [] as string[] };
@@ -145,7 +158,7 @@ export async function GET(request: NextRequest) {
         }
 
         // ── 3. Gemini로 한국어 요약 생성 ──────────────────────────────────────
-        const post = await generatePost(title, description, link, gemini);
+        const post = await generatePost(title, description, link, geminiKey);
         if (!post) {
           results.errors++;
           continue;
