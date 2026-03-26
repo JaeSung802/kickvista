@@ -159,7 +159,8 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // ── 3. Gemini로 한국어 요약 생성 ──────────────────────────────────────
+        // ── 3. Gemini로 한국어 요약 생성 (RPM 보호: 3초 간격) ─────────────────
+        await new Promise((resolve) => setTimeout(resolve, 3000));
         const { post, error: geminiError } = await generatePost(title, description, link, geminiKey);
         if (!post) {
           results.errors++;
