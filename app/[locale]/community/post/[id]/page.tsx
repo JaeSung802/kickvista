@@ -81,7 +81,7 @@ export default async function CommunityPostPage({
   const initialComments = commentsR.status === "fulfilled" ? commentsR.value : [];
   const relatedPosts    = relatedR.status  === "fulfilled" ? relatedR.value.posts : [];
 
-  const catMeta  = CATEGORY_META[post.category];
+  const catMeta  = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
   const catLabel = isKo ? catMeta.labelKo : catMeta.labelEn;
   const paragraphs = post.content.split("\n\n").filter(Boolean);
 
@@ -288,7 +288,7 @@ export default async function CommunityPostPage({
             </h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {relatedPosts.map((rp) => {
-                const rpCat = CATEGORY_META[rp.category];
+                const rpCat = CATEGORY_META[rp.category] ?? CATEGORY_META["general"];
                 return (
                   <a
                     key={rp.id}

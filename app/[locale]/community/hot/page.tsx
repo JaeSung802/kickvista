@@ -197,7 +197,7 @@ export default async function HotPostsPage({
               {tx.allCategories}
             </a>
             {ALL_CATEGORIES.map((cat) => {
-              const meta = CATEGORY_META[cat];
+              const meta = CATEGORY_META[cat] ?? CATEGORY_META["general"];
               const isActive = activeCategory === cat;
               return (
                 <a
@@ -234,7 +234,7 @@ export default async function HotPostsPage({
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {posts.map((post, idx) => {
                 const globalRank = (activePage - 1) * 20 + idx;
-                const meta = CATEGORY_META[post.category];
+                const meta = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
                 return (
                   <div key={post.id} style={{ display: "flex", gap: 12, alignItems: "center" }}>
                     {/* Rank number */}
