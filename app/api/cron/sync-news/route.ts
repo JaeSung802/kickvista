@@ -35,7 +35,7 @@ const NEWS_QUERIES: Array<{ query: string; tags: string[]; category: string }> =
 const MAX_ITEMS_PER_QUERY = 1;
 
 // Gemini 모델 — 1.5-flash-8b: 가장 가볍고 무료 쿼터 넉넉
-const GEMINI_MODEL = "gemini-1.5-flash-8b";
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
