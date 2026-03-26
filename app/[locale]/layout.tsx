@@ -34,11 +34,11 @@ export async function generateMetadata({
     },
     openGraph: {
       siteName: "KickVista",
-      images: [{ url: `${baseUrl}/opengraph-image`, width: 1200, height: 630 }],
+      images: [{ url: `${baseUrl}/og-default.png`, width: 1200, height: 630 }],
     },
     twitter: {
       card: "summary_large_image",
-      images: [`${baseUrl}/opengraph-image`],
+      images: [`${baseUrl}/og-default.png`],
     },
   };
 }

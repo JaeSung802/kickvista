@@ -37,8 +37,7 @@ export function buildMetadata({
       : "Live scores, standings & AI match analysis for Premier League, La Liga, Bundesliga, Serie A, Ligue 1 & Champions League";
 
   const url = `${BASE_URL}/${locale}${path}`;
-  // Falls back to the root opengraph-image.tsx route — no static file needed
-  const ogImage = imageUrl ?? `${BASE_URL}/opengraph-image`;
+  const ogImage = imageUrl ?? `${BASE_URL}/og-default.png`;
 
   return {
     title: fullTitle,
@@ -141,7 +140,7 @@ export function buildAnalysisMetadata(
     title,
     description: summary,
     path: `/analysis/${slug}`,
-    imageUrl: `${BASE_URL}/opengraph-image`,
+    imageUrl: `${BASE_URL}/og-default.png`,
   });
 }
 
@@ -202,6 +201,6 @@ export function buildPostMetadata(
     title,
     description,
     path,
-    imageUrl: `${BASE_URL}/opengraph-image`,
+    imageUrl: `${BASE_URL}/og-default.png`,
   });
 }
