@@ -5,7 +5,7 @@
  * Flow:
  *  1. rss-parser로 Google News RSS 수집 (손흥민, 토트넘, 프리미어리그)
  *  2. 기사 URL 기준 중복 확인 (community_posts.content에 링크 포함 여부)
- *  3. Claude (claude-3-5-haiku-20241022)로 한국어 축구 팬 스타일 요약 생성
+ *  3. Claude (claude-haiku-4-5-20251001)로 한국어 축구 팬 스타일 요약 생성
  *  4. community_posts 테이블에 insert
  *
  * Env vars:
@@ -32,7 +32,7 @@ const NEWS_QUERIES: Array<{ query: string; tags: string[]; category: string }> =
 ];
 
 const MAX_ITEMS_PER_QUERY = 1; // 안정화 후 3으로 복원
-const CLAUDE_MODEL        = "claude-3-5-haiku-20241022";
+const CLAUDE_MODEL        = "claude-haiku-4-5-20251001";
 const DESC_MAX_CHARS      = 800;
 
 // ─── Claude AI 요약 ──────────────────────────────────────────────────────────
