@@ -117,6 +117,9 @@ export async function listPosts({
       { count: "exact" }
     );
 
+  // RLS 우회 보조 필터 — admin.sql의 visible-read 정책이 적용 안 될 경우 대비
+  query = query.eq("is_hidden", false).is("deleted_at", null);
+
   if (category)                  query = query.eq("category", category);
   else if (excludeNotice)        query = query.neq("category", "notice");
   if (excludeId)                 query = query.neq("id", excludeId);
@@ -141,6 +144,7 @@ export async function listPosts({
   const { data, count, error } = await query;
 
   if (error || !data) {
+    console.error("[listPosts] query error:", error?.message, error?.details, error?.hint);
     return { posts: [], total: 0, page, pageSize: limit, hasMore: false };
   }
 
