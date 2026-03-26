@@ -1,12 +1,12 @@
 /**
  * Cron endpoint: Google News RSS → Claude AI 요약 → 커뮤니티 자동 포스팅
- * Schedule: 매일 오전 8시 KST (23:00 UTC) — vercel.json 참고
+ * Schedule: 매시 정각 (0 * * * *) — vercel.json 참고
  *
  * Flow:
  *  1. rss-parser로 Google News RSS 수집 (손흥민, 토트넘, 프리미어리그)
  *  2. 기사 URL 기준 중복 확인 (community_posts.content에 링크 포함 여부)
  *  3. Claude (claude-haiku-4-5-20251001)로 한국어 축구 팬 스타일 요약 생성
- *  4. community_posts 테이블에 insert
+ *  4. community_posts 테이블에 insert (image_url 포함)
  *
  * Env vars:
  *   CRON_SECRET              – cron 인증 시크릿
@@ -41,7 +41,6 @@ const DESC_MAX_CHARS      = 800;
 async function generatePost(
   title: string,
   description: string,
-  link: string,
   anthropicKey: string
 ): Promise<{ post: { title: string; content: string } | null; error: string }> {
   const prompt = `너는 KickVista 축구 커뮤니티의 뉴스 에디터야.
@@ -53,11 +52,7 @@ async function generatePost(
 작성 규칙:
 1. 제목: 한국어, 50자 이내, 이모지 1개 포함
 2. 본문: 핵심 내용 3~4문단 (총 250~350자), 열정적이고 자연스러운 팬 커뮤니티 어조
-3. 본문 마지막에 반드시 이 문구 추가:
-
----
-*이 소식은 AI를 통해 실시간으로 수집 및 요약되었습니다.*
-[기사 원문 보기](${link})
+3. 출처나 AI 관련 문구 없이 팬이 직접 쓴 글처럼 마무리
 
 JSON만 응답 (다른 텍스트 없이):
 {"title":"제목","content":"본문"}`;
@@ -112,6 +107,30 @@ JSON만 응답 (다른 텍스트 없이):
   }
 }
 
+// ─── RSS 이미지 URL 추출 ──────────────────────────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractImageUrl(item: any): string | null {
+  // enclosure 태그 (일부 RSS 피드)
+  if (item.enclosure?.url && typeof item.enclosure.url === "string") {
+    return item.enclosure.url;
+  }
+  // <media:content url="..."> 태그 (Google News 등)
+  const mediaContent = item["media:content"];
+  if (mediaContent) {
+    const url = Array.isArray(mediaContent)
+      ? mediaContent[0]?.["$"]?.url
+      : mediaContent?.["$"]?.url;
+    if (url && typeof url === "string") return url;
+  }
+  // content/description HTML에서 첫 번째 img src 추출
+  const html = item.content ?? item["content:encoded"] ?? "";
+  const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  if (imgMatch?.[1]) return imgMatch[1];
+
+  return null;
+}
+
 // ─── Cron handler ─────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
@@ -131,7 +150,12 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const parser   = new Parser({ timeout: 10_000 });
+  const parser   = new Parser({
+    timeout: 10_000,
+    customFields: {
+      item: [["media:content", "media:content"]],
+    },
+  });
 
   const results = {
     inserted: 0, skipped: 0, errors: 0,
@@ -164,8 +188,12 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        // 이미지 URL 추출
+        const imageUrl = extractImageUrl(item);
+        console.log(`[sync-news] image: ${imageUrl ?? "none"} — ${title.slice(0, 30)}`);
+
         // Claude 요약 생성
-        const { post, error: claudeError } = await generatePost(title, description, link, anthropicKey);
+        const { post, error: claudeError } = await generatePost(title, description, anthropicKey);
 
         if (!post) {
           results.errors++;
@@ -181,6 +209,7 @@ export async function GET(request: NextRequest) {
           title:     post.title.slice(0, 120),
           content:   post.content,
           tags:      [...queryConfig.tags, "AI뉴스", "자동포스팅"],
+          image_url: imageUrl,
           is_hot:    false,
           is_pinned: false,
         });

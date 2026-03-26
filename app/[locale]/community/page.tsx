@@ -335,6 +335,7 @@ export default async function CommunityPage({
                         comments={post.commentCount}
                         views={post.viewCount}
                         isKo={isKo}
+                        imageUrl={post.imageUrl}
                       />
                     );
                   })}

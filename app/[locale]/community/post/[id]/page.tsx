@@ -198,6 +198,21 @@ export default async function CommunityPostPage({
             </div>
           </div>
 
+          {/* Hero image */}
+          {post.imageUrl && (
+            <div style={{ padding: "0 28px 4px" }}>
+              <img
+                src={post.imageUrl}
+                alt={post.title}
+                style={{
+                  width: "100%", maxHeight: 360, objectFit: "cover",
+                  borderRadius: 10, border: "1px solid #f3f4f6",
+                }}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            </div>
+          )}
+
           {/* Post body */}
           <div style={{ padding: "0 28px 28px", borderTop: "1px solid #f3f4f6" }}>
             <div style={{ paddingTop: 24, display: "flex", flexDirection: "column", gap: 20 }}>

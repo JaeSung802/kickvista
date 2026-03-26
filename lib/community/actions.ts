@@ -79,6 +79,7 @@ export interface PostListItem {
   isHot: boolean;
   createdAt: string;
   timeAgo: string;
+  imageUrl: string | null;
   teamSlug: string | null;
   leagueSlug: string | null;
 }
@@ -106,7 +107,7 @@ export async function listPosts({
   let query: any = supabase
     .from("community_posts")
     .select(
-      `id, category, title, content, tags,
+      `id, category, title, content, tags, image_url,
        view_count, like_count, comment_count, is_pinned, is_hot, created_at,
        author:profiles!author_id(id, nickname, total_points)`,
       { count: "exact" }
@@ -164,6 +165,7 @@ export async function listPosts({
       isHot:        row.is_hot        ?? false,
       createdAt:    row.created_at,
       timeAgo:      relativeTime(row.created_at),
+      imageUrl:     row.image_url     ?? null,
       teamSlug:     row.team_slug     ?? null,
       leagueSlug:   row.league_slug   ?? null,
     };
@@ -240,6 +242,7 @@ export interface PostDetail {
   isHot: boolean;
   createdAt: string;
   isLikedByUser: boolean;
+  imageUrl: string | null;
 }
 
 export async function getPost(id: string): Promise<PostDetail | null> {
@@ -249,7 +252,7 @@ export async function getPost(id: string): Promise<PostDetail | null> {
   const { data, error } = await supabase
     .from("community_posts")
     .select(
-      `id, category, title, content, tags,
+      `id, category, title, content, tags, image_url,
        view_count, like_count, comment_count, is_pinned, is_hot, created_at,
        author:profiles!author_id(id, nickname, total_points)`
     )
@@ -300,6 +303,7 @@ export async function getPost(id: string): Promise<PostDetail | null> {
     isHot:        row.is_hot        ?? false,
     createdAt:    row.created_at,
     isLikedByUser,
+    imageUrl:     row.image_url     ?? null,
   };
 }
 
