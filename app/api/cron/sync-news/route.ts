@@ -26,20 +26,55 @@ export const maxDuration = 300;
 
 // ─── 설정 ────────────────────────────────────────────────────────────────────
 
-const NEWS_QUERIES: Array<{ query: string; tags: string[]; category: string }> = [
-  { query: "손흥민",           tags: ["손흥민", "토트넘", "EPL"],           category: "match-discussion" },
-  { query: "토트넘",           tags: ["토트넘", "EPL", "프리미어리그"],     category: "match-discussion" },
-  { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],      category: "transfer-news"   },
-  { query: "2026 월드컵",      tags: ["월드컵", "2026", "북중미", "FIFA"], category: "worldcup-2026"   },
+interface NewsQuery {
+  query:    string;
+  tags:     string[];
+  category: string;
+  maxItems?: number; // 미지정 시 MAX_ITEMS_PER_QUERY 사용
+}
+
+const NEWS_QUERIES: NewsQuery[] = [
+  // EPL
+  { query: "손흥민",           tags: ["손흥민", "토트넘", "EPL"],               category: "match-discussion" },
+  { query: "토트넘",           tags: ["토트넘", "EPL", "프리미어리그"],         category: "match-discussion" },
+  { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],          category: "transfer-news"   },
+  // 월드컵 — 한국 우선
+  { query: "대한민국 월드컵",   tags: ["대한민국", "월드컵", "2026", "국대"],   category: "worldcup-2026", maxItems: 3 },
+  { query: "손흥민 월드컵",     tags: ["손흥민", "월드컵", "2026"],             category: "worldcup-2026", maxItems: 2 },
+  { query: "홍명보",            tags: ["홍명보", "감독", "국가대표"],            category: "worldcup-2026", maxItems: 2 },
+  // 월드컵 일반
+  { query: "2026 월드컵",      tags: ["월드컵", "2026", "북중미", "FIFA"],     category: "worldcup-2026", maxItems: 2 },
 ];
 
-// 월드컵 관련 키워드 — 제목/설명에 포함되면 worldcup-2026으로 오버라이드
+// ─── 카테고리 / 태그 감지 ────────────────────────────────────────────────────
+
+// 월드컵 키워드 — 다른 쿼리에서 감지되면 worldcup-2026으로 오버라이드
 const WORLDCUP_KEYWORDS = ["월드컵", "world cup", "worldcup", "북중미", "2026 fifa", "월드컵 예선", "월드컵 본선"];
+
+// 한국 관련 키워드 — 감지 시 [KOR] 접두어 추가
+const KOREA_KEYWORDS = ["대한민국", "태극전사", "홍명보", "한국 축구", "한국대표", "국가대표팀", "korea national", "korean team", "손흥민 국대"];
 
 function resolveCategory(defaultCategory: string, title: string, description: string): string {
   const haystack = `${title} ${description}`.toLowerCase();
   if (WORLDCUP_KEYWORDS.some((kw) => haystack.includes(kw))) return "worldcup-2026";
   return defaultCategory;
+}
+
+function isKoreanRelated(title: string, description: string): boolean {
+  const haystack = `${title} ${description}`.toLowerCase();
+  return KOREA_KEYWORDS.some((kw) => haystack.includes(kw.toLowerCase()));
+}
+
+// ─── D-Day 계산 ──────────────────────────────────────────────────────────────
+
+const WORLDCUP_OPENING = new Date("2026-06-11T00:00:00+09:00"); // KST 기준
+
+function getDDayPrefix(): string {
+  const diffMs  = WORLDCUP_OPENING.getTime() - Date.now();
+  const days    = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (days > 0)   return `[D-${days}]`;
+  if (days === 0)  return `[D-Day]`;
+  return `[D+${Math.abs(days)}]`;
 }
 
 const MAX_ITEMS_PER_QUERY = 3; // 키워드당 3건, 총 최대 9건
@@ -176,7 +211,7 @@ export async function GET(request: NextRequest) {
     try {
       const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(queryConfig.query)}&hl=ko&gl=KR&ceid=KR:ko`;
       const feed   = await parser.parseURL(rssUrl);
-      const items  = feed.items.slice(0, MAX_ITEMS_PER_QUERY);
+      const items  = feed.items.slice(0, queryConfig.maxItems ?? MAX_ITEMS_PER_QUERY);
       console.log(`[sync-news] query "${queryConfig.query}" — ${items.length} items fetched`);
 
       for (const item of items) {
@@ -215,15 +250,22 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        // 제목 접두어 조립
+        const isKorea    = isKoreanRelated(title, description);
+        const ddayPrefix = category === "worldcup-2026" ? `${getDDayPrefix()} ` : "";
+        const korPrefix  = isKorea ? "[KOR] " : "";
+        const finalTitle = `${ddayPrefix}${korPrefix}${post.title}`.slice(0, 120);
+
         // DB insert
         const { error: dbError } = await supabase.from("community_posts").insert({
           author_id: botAuthorId,
           category,
-          title:     post.title.slice(0, 120),
+          title:     finalTitle,
           content:   post.content,
           tags:      [
             ...queryConfig.tags,
             ...(category === "worldcup-2026" ? ["월드컵", "2026"] : []),
+            ...(isKorea ? ["대한민국", "태극전사"] : []),
             "AI뉴스", "자동포스팅",
           ],
           image_url: imageUrl,

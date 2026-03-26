@@ -7,6 +7,8 @@ import { getServerUser } from "@/lib/auth";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
 import PostCard from "@/components/community/PostCard";
+import WorldCupWidget from "@/components/worldcup/WorldCupWidget";
+import WorldCupInfoPanel from "@/components/worldcup/WorldCupInfoPanel";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { listPosts } from "@/lib/community/actions";
 import { listHotPosts } from "@/lib/community/hotPosts";
@@ -313,6 +315,11 @@ export default async function CommunityPage({
               </div>
             </div>
 
+            {/* 월드컵 정보 패널 — worldcup-2026 탭 선택 시 표시 */}
+            {activeCategory === "worldcup-2026" && (
+              <WorldCupInfoPanel isKo={isKo} />
+            )}
+
             {/* Pinned posts */}
             {pinnedPosts.length > 0 && (
               <section>
@@ -452,6 +459,9 @@ export default async function CommunityPage({
               </div>
               <span className="text-xs font-semibold text-amber-700 shrink-0">{isKo ? "보기" : "View"} →</span>
             </a>
+
+            {/* 월드컵 D-Day 위젯 */}
+            <WorldCupWidget locale={loc} isKo={isKo} />
 
             {/* Community stats */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm grid grid-cols-3 divide-x divide-gray-100 overflow-hidden">
