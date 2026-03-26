@@ -88,10 +88,19 @@ JSON만 응답 (다른 텍스트 없이):
     };
     const text = data.content?.find((b) => b.type === "text")?.text ?? "";
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    // JSON 블록 추출 — Claude가 코드펜스(```json ... ```)로 감싸는 경우도 처리
+    const jsonMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) ??
+                      text.match(/(\{[\s\S]*\})/);
     if (!jsonMatch) return { post: null, error: "JSON not found in response" };
 
-    const parsed = JSON.parse(jsonMatch[0]) as { title?: string; content?: string };
+    let parsed: { title?: string; content?: string };
+    try {
+      parsed = JSON.parse(jsonMatch[1] ?? jsonMatch[0]) as { title?: string; content?: string };
+    } catch {
+      // 제어 문자 제거 후 재시도
+      const cleaned = (jsonMatch[1] ?? jsonMatch[0]).replace(/[\x00-\x1F\x7F]/g, " ");
+      parsed = JSON.parse(cleaned) as { title?: string; content?: string };
+    }
     if (!parsed.title || !parsed.content) return { post: null, error: "title/content missing" };
 
     return { post: { title: parsed.title, content: parsed.content }, error: "" };
