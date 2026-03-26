@@ -22,6 +22,11 @@ export async function createClient() {
           }
         },
       },
+      // Next.js App Router의 fetch 데이터 캐시를 우회 — DB 변경 즉시 반영
+      global: {
+        fetch: (url: RequestInfo | URL, options?: RequestInit) =>
+          fetch(url, { ...options, cache: "no-store" }),
+      },
     }
   );
 }
