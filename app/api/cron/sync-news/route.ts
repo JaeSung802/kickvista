@@ -27,10 +27,20 @@ export const maxDuration = 300;
 // ─── 설정 ────────────────────────────────────────────────────────────────────
 
 const NEWS_QUERIES: Array<{ query: string; tags: string[]; category: string }> = [
-  { query: "손흥민",           tags: ["손흥민", "토트넘", "EPL"],       category: "match-discussion" },
-  { query: "토트넘",           tags: ["토트넘", "EPL", "프리미어리그"], category: "match-discussion" },
-  { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],  category: "transfer-news"   },
+  { query: "손흥민",           tags: ["손흥민", "토트넘", "EPL"],           category: "match-discussion" },
+  { query: "토트넘",           tags: ["토트넘", "EPL", "프리미어리그"],     category: "match-discussion" },
+  { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],      category: "transfer-news"   },
+  { query: "2026 월드컵",      tags: ["월드컵", "2026", "북중미", "FIFA"], category: "worldcup-2026"   },
 ];
+
+// 월드컵 관련 키워드 — 제목/설명에 포함되면 worldcup-2026으로 오버라이드
+const WORLDCUP_KEYWORDS = ["월드컵", "world cup", "worldcup", "북중미", "2026 fifa", "월드컵 예선", "월드컵 본선"];
+
+function resolveCategory(defaultCategory: string, title: string, description: string): string {
+  const haystack = `${title} ${description}`.toLowerCase();
+  if (WORLDCUP_KEYWORDS.some((kw) => haystack.includes(kw))) return "worldcup-2026";
+  return defaultCategory;
+}
 
 const MAX_ITEMS_PER_QUERY = 3; // 키워드당 3건, 총 최대 9건
 const CLAUDE_MODEL        = "claude-haiku-4-5-20251001";
@@ -192,6 +202,9 @@ export async function GET(request: NextRequest) {
         const imageUrl = extractImageUrl(item);
         console.log(`[sync-news] image: ${imageUrl ?? "none"} — ${title.slice(0, 30)}`);
 
+        // 카테고리 결정 (월드컵 키워드 감지 시 오버라이드)
+        const category = resolveCategory(queryConfig.category, title, description);
+
         // Claude 요약 생성
         const { post, error: claudeError } = await generatePost(title, description, anthropicKey);
 
@@ -205,10 +218,14 @@ export async function GET(request: NextRequest) {
         // DB insert
         const { error: dbError } = await supabase.from("community_posts").insert({
           author_id: botAuthorId,
-          category:  queryConfig.category,
+          category,
           title:     post.title.slice(0, 120),
           content:   post.content,
-          tags:      [...queryConfig.tags, "AI뉴스", "자동포스팅"],
+          tags:      [
+            ...queryConfig.tags,
+            ...(category === "worldcup-2026" ? ["월드컵", "2026"] : []),
+            "AI뉴스", "자동포스팅",
+          ],
           image_url: imageUrl,
           is_hot:    false,
           is_pinned: false,

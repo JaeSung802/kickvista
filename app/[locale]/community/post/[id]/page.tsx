@@ -24,6 +24,7 @@ const CATEGORY_META: Record<
   "predictions":      { labelEn: "Predictions",      labelKo: "예측",       color: "#06b6d4", bg: "rgba(6,182,212,0.1)"   },
   "general":          { labelEn: "General",          labelKo: "일반",       color: "#8b949e", bg: "rgba(139,148,158,0.1)" },
   "notice":           { labelEn: "Notice",           labelKo: "공지사항",   color: "#059669", bg: "rgba(22,163,74,0.08)"  },
+  "worldcup-2026":    { labelEn: "2026 World Cup",   labelKo: "2026 월드컵", color: "#dc2626", bg: "rgba(220,38,38,0.08)"  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

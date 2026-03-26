@@ -5,7 +5,8 @@ export type PostCategory =
   | "highlights"
   | "predictions"
   | "general"
-  | "notice";
+  | "notice"
+  | "worldcup-2026";
 
 export interface PostAuthor {
   id: string;
