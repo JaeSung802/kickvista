@@ -30,7 +30,7 @@ const CATEGORY_META: Record<PostCategory, { labelKo: string; labelEn: string; co
 };
 
 function CategoryBadge({ category, locale }: { category: PostCategory; locale: Locale }) {
-  const meta = CATEGORY_META[category];
+  const meta = CATEGORY_META[category] ?? CATEGORY_META["general"];
   return (
     <span
       className="inline-block text-xs font-semibold rounded px-1.5 py-0.5 shrink-0"

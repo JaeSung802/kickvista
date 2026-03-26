@@ -240,7 +240,7 @@ export default async function TeamCommunityPage({
                 {isKo ? "전체" : "All"}
               </a>
               {ALL_CATEGORIES.map((cat) => {
-                const meta = CATEGORY_META[cat];
+                const meta = CATEGORY_META[cat] ?? CATEGORY_META["general"];
                 const isActive = activeCategory === cat;
                 return (
                   <a
@@ -300,7 +300,7 @@ export default async function TeamCommunityPage({
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {pinnedPosts.map((post) => {
-                  const meta = CATEGORY_META[post.category];
+                  const meta = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
                   return (
                     <PostCard
                       key={post.id}
@@ -331,7 +331,7 @@ export default async function TeamCommunityPage({
               <span style={{ width: 3, height: 18, borderRadius: 2, backgroundColor: "#059669", flexShrink: 0 }} />
               <h2 style={{ color: "#111827", fontSize: 16, fontWeight: 800, margin: 0 }}>
                 {activeCategory
-                  ? (isKo ? CATEGORY_META[activeCategory].labelKo : CATEGORY_META[activeCategory].labelEn)
+                  ? (isKo ? (CATEGORY_META[activeCategory] ?? CATEGORY_META["general"]).labelKo : (CATEGORY_META[activeCategory] ?? CATEGORY_META["general"]).labelEn)
                   : (isKo ? `${teamName} 게시글` : `${teamName} Posts`)}
                 <span style={{ color: "#6b7280", fontSize: 13, fontWeight: 400, marginLeft: 8 }}>({total})</span>
               </h2>
@@ -367,7 +367,7 @@ export default async function TeamCommunityPage({
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {regularPosts.map((post) => {
-                  const meta = CATEGORY_META[post.category];
+                  const meta = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
                   return (
                     <PostCard
                       key={post.id}

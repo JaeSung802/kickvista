@@ -21,7 +21,7 @@ import { TeamLogo } from "@/components/ui/TeamLogo";
 import { getLiveSquad } from "@/lib/football/squads";
 import SquadSection from "@/components/teams/SquadSection";
 
-type PostCategory = "match-discussion" | "transfer-news" | "tactics" | "highlights" | "predictions" | "general" | "notice";
+type PostCategory = "match-discussion" | "transfer-news" | "tactics" | "highlights" | "predictions" | "general" | "notice" | "worldcup-2026";
 
 const CATEGORY_META: Record<PostCategory, { labelEn: string; labelKo: string; color: string; bg: string; border: string }> = {
   "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",  color: "#059669", bg: "#ecfdf5", border: "#a7f3d0" },
@@ -31,6 +31,7 @@ const CATEGORY_META: Record<PostCategory, { labelEn: string; labelKo: string; co
   "predictions":      { labelEn: "Predictions",      labelKo: "예측",       color: "#0891b2", bg: "#ecfeff", border: "#a5f3fc" },
   "general":          { labelEn: "General",          labelKo: "일반",       color: "#6b7280", bg: "#f9fafb", border: "#e5e7eb" },
   "notice":           { labelEn: "Notice",           labelKo: "공지사항",   color: "#059669", bg: "#ecfdf5", border: "#a7f3d0" },
+  "worldcup-2026":    { labelEn: "2026 World Cup",   labelKo: "2026 월드컵", color: "#dc2626", bg: "#fef2f2", border: "#fca5a5" },
 };
 
 const FORM_BG: Record<string, string> = {
@@ -410,7 +411,7 @@ export default async function TeamPage({
               ) : (
                 <div className="flex flex-col gap-2">
                   {latestPosts.posts.map((post) => {
-                    const meta = CATEGORY_META[post.category as PostCategory];
+                    const meta = CATEGORY_META[post.category as PostCategory] ?? CATEGORY_META["general"];
                     return (
                       <PostCard
                         key={post.id}

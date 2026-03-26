@@ -102,7 +102,7 @@ const labels = {
   },
 };
 
-type PostCategory = "match-discussion" | "transfer-news" | "tactics" | "highlights" | "predictions" | "general" | "notice";
+type PostCategory = "match-discussion" | "transfer-news" | "tactics" | "highlights" | "predictions" | "general" | "notice" | "worldcup-2026";
 
 const CATEGORY_META: Record<PostCategory, { labelEn: string; labelKo: string; color: string; bg: string; border: string }> = {
   "match-discussion": { labelEn: "Match Discussion", labelKo: "경기 토론",   color: "#059669", bg: "rgba(34,197,94,0.1)",   border: "rgba(34,197,94,0.25)"   },
@@ -112,6 +112,7 @@ const CATEGORY_META: Record<PostCategory, { labelEn: string; labelKo: string; co
   "predictions":      { labelEn: "Predictions",      labelKo: "예측",        color: "#06b6d4", bg: "rgba(6,182,212,0.1)",   border: "rgba(6,182,212,0.25)"   },
   "general":          { labelEn: "General",          labelKo: "일반",        color: "#8b949e", bg: "rgba(139,148,158,0.1)", border: "rgba(139,148,158,0.25)" },
   "notice":           { labelEn: "Notice",           labelKo: "공지사항",    color: "#059669", bg: "rgba(22,163,74,0.08)",  border: "rgba(22,163,74,0.2)"    },
+  "worldcup-2026":    { labelEn: "2026 World Cup",   labelKo: "2026 월드컵", color: "#dc2626", bg: "rgba(220,38,38,0.08)",  border: "rgba(220,38,38,0.25)"   },
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -432,7 +433,7 @@ export default async function LeagueOverviewPage({
               ) : (
                 <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm divide-y divide-gray-100">
                   {communityResult.posts.map((post) => {
-                    const catMeta = CATEGORY_META[post.category as PostCategory];
+                    const catMeta = CATEGORY_META[post.category as PostCategory] ?? CATEGORY_META["general"];
                     return (
                       <PostCard
                         key={post.id}
