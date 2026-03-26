@@ -75,7 +75,7 @@ JSON만 응답 (다른 텍스트 없이):
 {"title":"제목","content":"본문"}`;
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         headers: { "content-type": "application/json" },
