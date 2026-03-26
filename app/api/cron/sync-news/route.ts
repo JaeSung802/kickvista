@@ -54,7 +54,7 @@ async function generatePost(
   description: string,
   link: string,
   geminiKey: string
-): Promise<{ title: string; content: string } | null> {
+): Promise<{ post: { title: string; content: string } | null; error: string }> {
   try {
     const prompt = `너는 KickVista 축구 커뮤니티의 뉴스 에디터야.
 아래 뉴스 기사를 한국어 축구 팬 커뮤니티 게시글로 자연스럽게 작성해줘.
@@ -85,8 +85,9 @@ JSON만 응답 (다른 텍스트 없이):
 
     if (!res.ok) {
       const errText = await res.text();
-      console.error("[sync-news] Gemini API error:", res.status, errText);
-      return null;
+      const msg = `HTTP ${res.status}: ${errText.slice(0, 200)}`;
+      console.error("[sync-news] Gemini API error:", msg);
+      return { post: null, error: msg };
     }
 
     const data = await res.json() as {
@@ -95,14 +96,15 @@ JSON만 응답 (다른 텍스트 없이):
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
+    if (!jsonMatch) return { post: null, error: "JSON not found in response" };
 
     const parsed = JSON.parse(jsonMatch[0]) as { title?: string; content?: string };
-    if (!parsed.title || !parsed.content) return null;
-    return { title: parsed.title, content: parsed.content };
+    if (!parsed.title || !parsed.content) return { post: null, error: "title/content missing in parsed JSON" };
+    return { post: { title: parsed.title, content: parsed.content }, error: "" };
   } catch (err) {
-    console.error("[sync-news] Gemini error:", err);
-    return null;
+    const msg = String(err);
+    console.error("[sync-news] Gemini error:", msg);
+    return { post: null, error: msg };
   }
 }
 
@@ -129,7 +131,7 @@ export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
   const parser   = new Parser({ timeout: 10_000 });
 
-  const results = { inserted: 0, skipped: 0, errors: 0, posts: [] as string[] };
+  const results = { inserted: 0, skipped: 0, errors: 0, posts: [] as string[], errorMessages: [] as string[] };
 
   for (const queryConfig of NEWS_QUERIES) {
     try {
@@ -158,9 +160,10 @@ export async function GET(request: NextRequest) {
         }
 
         // ── 3. Gemini로 한국어 요약 생성 ──────────────────────────────────────
-        const post = await generatePost(title, description, link, geminiKey);
+        const { post, error: geminiError } = await generatePost(title, description, link, geminiKey);
         if (!post) {
           results.errors++;
+          results.errorMessages.push(`[Gemini] ${title.slice(0, 30)}: ${geminiError}`);
           continue;
         }
 
@@ -168,7 +171,7 @@ export async function GET(request: NextRequest) {
         const { error: dbError } = await supabase.from("community_posts").insert({
           author_id: botAuthorId,
           category:  queryConfig.category,
-          title:     post.title,
+          title:     post.title.slice(0, 120),
           content:   post.content,
           tags:      [...queryConfig.tags, "AI뉴스", "자동포스팅"],
           is_hot:    false,
@@ -178,6 +181,7 @@ export async function GET(request: NextRequest) {
         if (dbError) {
           console.error("[sync-news] DB error:", dbError.message);
           results.errors++;
+          results.errorMessages.push(`[DB] ${dbError.message}`);
         } else {
           results.inserted++;
           results.posts.push(post.title.slice(0, 40));
@@ -185,8 +189,10 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (err) {
-      console.error(`[sync-news] query "${queryConfig.query}" failed:`, String(err));
+      const msg = String(err);
+      console.error(`[sync-news] query "${queryConfig.query}" failed:`, msg);
       results.errors++;
+      results.errorMessages.push(`[RSS:${queryConfig.query}] ${msg}`);
     }
   }
 
@@ -195,11 +201,12 @@ export async function GET(request: NextRequest) {
   );
 
   return NextResponse.json({
-    success:   true,
-    inserted:  results.inserted,
-    skipped:   results.skipped,
-    errors:    results.errors,
-    posts:     results.posts,
-    syncedAt:  new Date().toISOString(),
+    success:       true,
+    inserted:      results.inserted,
+    skipped:       results.skipped,
+    errors:        results.errors,
+    posts:         results.posts,
+    errorMessages: results.errorMessages,
+    syncedAt:      new Date().toISOString(),
   });
 }
