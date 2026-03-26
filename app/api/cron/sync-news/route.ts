@@ -31,7 +31,7 @@ const NEWS_QUERIES: Array<{ query: string; tags: string[]; category: string }> =
   { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],  category: "transfer-news"   },
 ];
 
-const MAX_ITEMS_PER_QUERY = 1; // 안정화 후 3으로 복원
+const MAX_ITEMS_PER_QUERY = 3; // 키워드당 3건, 총 최대 9건
 const CLAUDE_MODEL        = "claude-haiku-4-5-20251001";
 const DESC_MAX_CHARS      = 800;
 
