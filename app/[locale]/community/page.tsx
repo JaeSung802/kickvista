@@ -7,11 +7,9 @@ import { buildCommunityMetadata } from "@/lib/seo/metadata";
 import { getServerUser } from "@/lib/auth";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
-import nextDynamic from "next/dynamic";
 import PostCard from "@/components/community/PostCard";
-// ssr: false — SSR 중 예외 발생 시 페이지 전체 크래시 방지
-const WorldCupWidget    = nextDynamic(() => import("@/components/worldcup/WorldCupWidget"),    { ssr: false });
-const WorldCupInfoPanel = nextDynamic(() => import("@/components/worldcup/WorldCupInfoPanel"), { ssr: false });
+// ssr:false dynamic import는 Client Component 안에서만 가능 — WorldCupLoaders에서 담당
+import { WorldCupWidgetDynamic as WorldCupWidget, WorldCupInfoPanelDynamic as WorldCupInfoPanel } from "@/components/worldcup/WorldCupLoaders";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { listPosts } from "@/lib/community/actions";
 import { listHotPosts } from "@/lib/community/hotPosts";
