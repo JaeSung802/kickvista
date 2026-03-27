@@ -38,12 +38,11 @@ const NEWS_QUERIES: NewsQuery[] = [
   { query: "손흥민",           tags: ["손흥민", "토트넘", "EPL"],               category: "match-discussion" },
   { query: "토트넘",           tags: ["토트넘", "EPL", "프리미어리그"],         category: "match-discussion" },
   { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],          category: "transfer-news"   },
-  // 월드컵 — 한국 우선
-  { query: "대한민국 월드컵",   tags: ["대한민국", "월드컵", "2026", "국대"],   category: "worldcup-2026", maxItems: 3 },
-  { query: "손흥민 월드컵",     tags: ["손흥민", "월드컵", "2026"],             category: "worldcup-2026", maxItems: 2 },
-  { query: "홍명보",            tags: ["홍명보", "감독", "국가대표"],            category: "worldcup-2026", maxItems: 2 },
-  // 월드컵 일반
-  { query: "2026 월드컵",      tags: ["월드컵", "2026", "북중미", "FIFA"],     category: "worldcup-2026", maxItems: 2 },
+  // 월드컵 — 한국 우선 (Google News에서 실제 결과가 나오는 단순 쿼리 사용)
+  { query: "한국 국가대표",     tags: ["대한민국", "월드컵", "국대"],           category: "worldcup-2026", maxItems: 3 },
+  { query: "월드컵 2026",       tags: ["월드컵", "2026", "FIFA"],               category: "worldcup-2026", maxItems: 3 },
+  { query: "홍명보 감독",       tags: ["홍명보", "감독", "국가대표"],            category: "worldcup-2026", maxItems: 2 },
+  { query: "FIFA 월드컵",       tags: ["월드컵", "2026", "북중미", "FIFA"],     category: "worldcup-2026", maxItems: 2 },
 ];
 
 // ─── 카테고리 / 태그 감지 ────────────────────────────────────────────────────
@@ -103,6 +102,9 @@ JSON만 응답 (다른 텍스트 없이):
 {"title":"제목","content":"본문"}`;
 
   try {
+    const controller = new AbortController();
+    const timeoutId  = setTimeout(() => controller.abort(), 25_000); // 25초 타임아웃
+
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -115,7 +117,9 @@ JSON만 응답 (다른 텍스트 없이):
         max_tokens: 1024,
         messages:   [{ role: "user", content: prompt }],
       }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     const rawBody = await res.text();
     console.log(`[sync-news] Claude response [${res.status}]:`, rawBody.slice(0, 300));

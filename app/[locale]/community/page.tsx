@@ -365,8 +365,12 @@ export default async function CommunityPage({
               />
               {regularPosts.length === 0 ? (
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-                  <span className="text-4xl">⚽</span>
-                  <p className="text-gray-400 text-sm mt-3">{tx.noPosts}</p>
+                  <span className="text-4xl">{activeCategory === "worldcup-2026" ? "🏆" : "⚽"}</span>
+                  <p className="text-gray-400 text-sm mt-3">
+                    {activeCategory === "worldcup-2026"
+                      ? (isKo ? "월드컵 관련 글을 준비 중입니다. 잠시 후 다시 확인해주세요!" : "World Cup posts are being prepared. Check back soon!")
+                      : tx.noPosts}
+                  </p>
                   {isLoggedIn && (
                     <a
                       href={`/${loc}/community/write`}
