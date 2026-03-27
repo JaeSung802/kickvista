@@ -49,6 +49,13 @@ export function sportsTeamJsonLd({
   };
 }
 
+function fixtureEventStatus(status: Fixture["status"]): string {
+  if (status === "PST") return "https://schema.org/EventPostponed";
+  if (status === "CANC" || status === "SUSP") return "https://schema.org/EventCancelled";
+  if (status === "FT" || status === "AET" || status === "PEN") return "https://schema.org/EventScheduled";
+  return "https://schema.org/EventScheduled";
+}
+
 export function sportsEventJsonLd(fixture: Fixture, locale: Locale) {
   const score =
     fixture.homeScore !== undefined
@@ -59,9 +66,21 @@ export function sportsEventJsonLd(fixture: Fixture, locale: Locale) {
     "@type": "SportsEvent",
     "name": `${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`,
     "startDate": fixture.date,
+    "eventStatus": fixtureEventStatus(fixture.status),
+    "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
     "location": fixture.venue
       ? { "@type": "Place", "name": fixture.venue }
-      : undefined,
+      : { "@type": "Place", "name": "TBD" },
+    "image": `${BASE_URL}/og-default.png`,
+    "organizer": {
+      "@type": "Organization",
+      "name": "KickVista",
+      "url": BASE_URL,
+    },
+    "performer": [
+      { "@type": "SportsTeam", "name": fixture.homeTeam.name },
+      { "@type": "SportsTeam", "name": fixture.awayTeam.name },
+    ],
     "homeTeam": { "@type": "SportsTeam", "name": fixture.homeTeam.name },
     "awayTeam": { "@type": "SportsTeam", "name": fixture.awayTeam.name },
     "url": `${BASE_URL}/${locale}/match/${fixture.id}`,
