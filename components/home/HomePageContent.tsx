@@ -111,13 +111,14 @@ function MatchRow({ match, locale }: { match: MatchViewModel; locale: Locale }) 
 // ─── Community post row ───────────────────────────────────────────────────────
 
 const CATEGORY_META: Record<string, { labelKo: string; labelEn: string; color: string; bg: string }> = {
-  "match-discussion": { labelKo: "경기 토론",  labelEn: "Match",    color: "#059669", bg: "#ecfdf5" },
-  "transfer-news":    { labelKo: "이적 뉴스",  labelEn: "Transfer", color: "#d97706", bg: "#fffbeb" },
-  "tactics":          { labelKo: "전술 분석",  labelEn: "Tactics",  color: "#7c3aed", bg: "#f5f3ff" },
-  "highlights":       { labelKo: "하이라이트", labelEn: "Clips",    color: "#dc2626", bg: "#fef2f2" },
-  "predictions":      { labelKo: "예측",       labelEn: "Predict",  color: "#0891b2", bg: "#ecfeff" },
-  "general":          { labelKo: "일반",       labelEn: "General",  color: "#6b7280", bg: "#f9fafb" },
-  "notice":           { labelKo: "공지사항",   labelEn: "Notice",   color: "#059669", bg: "#ecfdf5" },
+  "match-discussion": { labelKo: "경기 토론",   labelEn: "Match",         color: "#059669", bg: "#ecfdf5" },
+  "transfer-news":    { labelKo: "이적 뉴스",   labelEn: "Transfer",      color: "#d97706", bg: "#fffbeb" },
+  "tactics":          { labelKo: "전술 분석",   labelEn: "Tactics",       color: "#7c3aed", bg: "#f5f3ff" },
+  "highlights":       { labelKo: "하이라이트",  labelEn: "Clips",         color: "#dc2626", bg: "#fef2f2" },
+  "predictions":      { labelKo: "예측",        labelEn: "Predict",       color: "#0891b2", bg: "#ecfeff" },
+  "general":          { labelKo: "일반",        labelEn: "General",       color: "#6b7280", bg: "#f9fafb" },
+  "notice":           { labelKo: "공지사항",    labelEn: "Notice",        color: "#059669", bg: "#ecfdf5" },
+  "worldcup-2026":    { labelKo: "2026 월드컵", labelEn: "2026 World Cup", color: "#dc2626", bg: "#fef2f2" },
 };
 
 function PostRow({ post, locale }: { post: PostListItem; locale: Locale }) {
