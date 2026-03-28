@@ -6,7 +6,7 @@
  * 데이터 업데이트: lib/worldcup/data.ts 파일을 수정하세요.
  */
 import { useState } from "react";
-import { calcDDay, KOREA_MATCHES, WC_GROUPS, WORLDCUP_2026 } from "@/lib/worldcup/data";
+import { calcDDay, WC_GROUPS, WC_SCHEDULE, WORLDCUP_2026 } from "@/lib/worldcup/data";
 
 interface Props {
   isKo: boolean;
@@ -18,7 +18,12 @@ export default function WorldCupInfoPanel({ isKo }: Props) {
   const { label } = calcDDay();
   const [activeGroupId, setActiveGroupId] = useState(KOREA_GROUP_ID);
 
-  const activeGroup = WC_GROUPS.find((g) => g.id === activeGroupId) ?? WC_GROUPS[0];
+  const activeGroup   = WC_GROUPS.find((g) => g.id === activeGroupId) ?? WC_GROUPS[0];
+  const groupSchedule = WC_SCHEDULE[activeGroupId] ?? [];
+
+  const round1 = groupSchedule.filter((m) => m.round === 1);
+  const round2 = groupSchedule.filter((m) => m.round === 2);
+  const round3 = groupSchedule.filter((m) => m.round === 3);
 
   return (
     <div className="rounded-xl border border-red-100 overflow-hidden bg-white shadow-sm">
@@ -46,7 +51,7 @@ export default function WorldCupInfoPanel({ isKo }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
         {/* 조별 순위 */}
         <div className="p-4">
           <div className="flex items-center gap-1.5 mb-3">
@@ -58,8 +63,7 @@ export default function WorldCupInfoPanel({ isKo }: Props) {
 
           {/* 그룹 탭 */}
           <div
-            className="flex gap-1 mb-3 overflow-x-auto pb-1"
-            style={{ scrollbarWidth: "none" }}
+            className="flex flex-wrap gap-1 mb-3"
           >
             {WC_GROUPS.map((group) => {
               const isActive  = group.id === activeGroupId;
@@ -70,7 +74,7 @@ export default function WorldCupInfoPanel({ isKo }: Props) {
                   onClick={() => setActiveGroupId(group.id)}
                   className="shrink-0 relative"
                   style={{
-                    padding:         "3px 9px",
+                    padding:         "3px 7px",
                     borderRadius:    "6px",
                     fontSize:        "11px",
                     fontWeight:      isActive ? 800 : 600,
@@ -142,60 +146,78 @@ export default function WorldCupInfoPanel({ isKo }: Props) {
         </div>
 
         {/* 경기 일정 */}
-        <div className="p-4">
+        <div className="p-4 overflow-y-auto" style={{ maxHeight: "420px" }}>
           <div className="flex items-center gap-1.5 mb-3">
             <span className="w-0.5 h-4 rounded-full bg-red-500 shrink-0" />
             <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-              {isKo ? "🇰🇷 대한민국 경기 일정" : "🇰🇷 Korea Schedule"}
+              {isKo ? `${activeGroupId}조 경기 일정` : `Group ${activeGroupId} Schedule`}
             </h3>
           </div>
 
-          <div className="flex flex-col gap-2">
-            {KOREA_MATCHES.map((match) => {
-              const isHomeKorea = match.homeTeamEn === "Korea Republic";
-              return (
-                <div
-                  key={match.id}
-                  className="bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] text-gray-400 font-medium">
-                      {match.date} · {match.timeKst}
-                    </span>
-                    {match.status === "live" && (
-                      <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">
-                        LIVE
-                      </span>
-                    )}
-                    {match.status === "finished" && (
-                      <span className="text-[10px] text-gray-400">종료</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className={`flex items-center gap-1.5 flex-1 ${isHomeKorea ? "font-bold" : ""}`}>
-                      <span className="text-base">{match.homeFlag}</span>
-                      <span className={`text-xs ${isHomeKorea ? "text-red-700" : "text-gray-700"}`}>
-                        {isKo ? match.homeTeamKo : match.homeTeamEn}
-                      </span>
-                    </div>
-                    <div className="text-xs font-black text-gray-400 shrink-0 w-10 text-center">
-                      {match.status === "finished" || match.status === "live"
-                        ? `${match.homeScore ?? 0} : ${match.awayScore ?? 0}`
-                        : "vs"}
-                    </div>
-                    <div className={`flex items-center gap-1.5 flex-1 justify-end ${!isHomeKorea ? "font-bold" : ""}`}>
-                      <span className={`text-xs ${!isHomeKorea ? "text-red-700" : "text-gray-700"}`}>
-                        {isKo ? match.awayTeamKo : match.awayTeamEn}
-                      </span>
-                      <span className="text-base">{match.awayFlag}</span>
-                    </div>
-                  </div>
-                  <div className="text-[10px] text-gray-400 mt-1 text-center">
-                    📍 {isKo ? match.venueKo : match.venueEn}
+          <div className="flex flex-col gap-3">
+            {[
+              { label: isKo ? "1차전" : "Round 1", matches: round1 },
+              { label: isKo ? "2차전" : "Round 2", matches: round2 },
+              { label: isKo ? "3차전" : "Round 3", matches: round3 },
+            ].map(({ label: roundLabel, matches }) =>
+              matches.length > 0 ? (
+                <div key={roundLabel}>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                    {roundLabel}
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {matches.map((match, i) => {
+                      const isKoreaMatch =
+                        match.homeKo === "대한민국" || match.awayKo === "대한민국";
+                      return (
+                        <div
+                          key={i}
+                          className="rounded-lg px-3 py-2 border"
+                          style={{
+                            background: isKoreaMatch ? "#fef2f2" : "#f9fafb",
+                            border:     isKoreaMatch ? "1px solid #fca5a5" : "1px solid #f3f4f6",
+                          }}
+                        >
+                          <div className="text-[10px] text-gray-400 mb-1">
+                            {match.dateLabel} · {match.timeKst} KST
+                          </div>
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1 flex-1">
+                              <span className="text-sm">{match.homeFlag}</span>
+                              <span
+                                className="text-xs truncate"
+                                style={{
+                                  fontWeight: match.homeKo === "대한민국" ? 800 : 600,
+                                  color:      match.homeKo === "대한민국" ? "#b91c1c" : "#374151",
+                                }}
+                              >
+                                {isKo ? match.homeKo : match.homeKo}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-black text-gray-400 shrink-0">vs</span>
+                            <div className="flex items-center gap-1 flex-1 justify-end">
+                              <span
+                                className="text-xs truncate"
+                                style={{
+                                  fontWeight: match.awayKo === "대한민국" ? 800 : 600,
+                                  color:      match.awayKo === "대한민국" ? "#b91c1c" : "#374151",
+                                }}
+                              >
+                                {isKo ? match.awayKo : match.awayKo}
+                              </span>
+                              <span className="text-sm">{match.awayFlag}</span>
+                            </div>
+                          </div>
+                          <div className="text-[10px] text-gray-400 mt-0.5 text-center">
+                            📍 {match.venueKo}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              );
-            })}
+              ) : null
+            )}
           </div>
           <p className="text-[10px] text-gray-400 mt-2">
             {isKo ? "* 일정 확정 후 업데이트 예정" : "* Will update after schedule confirmed"}
