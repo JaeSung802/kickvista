@@ -46,7 +46,7 @@ export default function WorldCupInfoPanel({ isKo }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
+      <div className="grid grid-cols-1 sm:grid-cols-[3fr_2fr] divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
         {/* 조별 순위 */}
         <div className="p-4">
           <div className="flex items-center gap-1.5 mb-3">
