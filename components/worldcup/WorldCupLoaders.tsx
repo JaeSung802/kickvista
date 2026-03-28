@@ -14,3 +14,8 @@ export const WorldCupInfoPanelDynamic = dynamic(
   () => import("./WorldCupInfoPanel"),
   { ssr: false }
 );
+
+export const WorldCupGroupsDynamic = dynamic(
+  () => import("./WorldCupGroups"),
+  { ssr: false }
+);

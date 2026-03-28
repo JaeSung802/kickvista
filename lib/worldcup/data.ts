@@ -112,6 +112,132 @@ export const KOREA_MATCHES: WCMatch[] = [
   },
 ];
 
+// ─── 전체 조편성 ──────────────────────────────────────────────────────────────
+// ⚠️ 대진 확정 후 각 조 teams 배열을 실제 데이터로 업데이트하세요.
+
+export interface WCGroupTeam {
+  nameKo: string;
+  nameEn: string;
+  flag:   string;
+  isKorea?: boolean;
+}
+
+export interface WCGroup {
+  id:    string; // "A" ~ "L"
+  teams: WCGroupTeam[];
+}
+
+export const WC_GROUPS: WCGroup[] = [
+  {
+    id: "A",
+    teams: [
+      { nameKo: "멕시코",            nameEn: "Mexico",           flag: "🇲🇽" },
+      { nameKo: "남아프리카공화국",   nameEn: "South Africa",     flag: "🇿🇦" },
+      { nameKo: "대한민국",          nameEn: "Korea Republic",   flag: "🇰🇷", isKorea: true },
+      { nameKo: "유럽 플레이오프 D", nameEn: "UEFA Playoff D",   flag: "🏳️" },
+    ],
+  },
+  {
+    id: "B",
+    teams: [
+      { nameKo: "미국",    nameEn: "USA",       flag: "🇺🇸" },
+      { nameKo: "파나마",  nameEn: "Panama",    flag: "🇵🇦" },
+      { nameKo: "미정",    nameEn: "TBD",       flag: "🏳️" },
+      { nameKo: "미정",    nameEn: "TBD",       flag: "🏳️" },
+    ],
+  },
+  {
+    id: "C",
+    teams: [
+      { nameKo: "캐나다",  nameEn: "Canada",    flag: "🇨🇦" },
+      { nameKo: "모로코",  nameEn: "Morocco",   flag: "🇲🇦" },
+      { nameKo: "미정",    nameEn: "TBD",       flag: "🏳️" },
+      { nameKo: "미정",    nameEn: "TBD",       flag: "🏳️" },
+    ],
+  },
+  {
+    id: "D",
+    teams: [
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+    ],
+  },
+  {
+    id: "E",
+    teams: [
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+    ],
+  },
+  {
+    id: "F",
+    teams: [
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+    ],
+  },
+  {
+    id: "G",
+    teams: [
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+    ],
+  },
+  {
+    id: "H",
+    teams: [
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+    ],
+  },
+  {
+    id: "I",
+    teams: [
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+    ],
+  },
+  {
+    id: "J",
+    teams: [
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+    ],
+  },
+  {
+    id: "K",
+    teams: [
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+    ],
+  },
+  {
+    id: "L",
+    teams: [
+      { nameKo: "잉글랜드", nameEn: "England",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+      { nameKo: "크로아티아", nameEn: "Croatia", flag: "🇭🇷" },
+      { nameKo: "가나",      nameEn: "Ghana",   flag: "🇬🇭" },
+      { nameKo: "파나마",    nameEn: "Panama",  flag: "🇵🇦" },
+    ],
+  },
+];
+
 // ─── D-Day 계산 유틸 ─────────────────────────────────────────────────────────
 // 2026-06-11 00:00 KST = 2026-06-10 15:00 UTC
 // 타임존 문자열 파싱 대신 UTC milliseconds 사용 (서버 환경 호환성 보장)
