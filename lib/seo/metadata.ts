@@ -144,19 +144,37 @@ export function buildAnalysisMetadata(
   });
 }
 
-// ─── buildCommunityMetadata ───────────────────────────────────────────────────
+// ─── buildWorldCupMetadata ────────────────────────────────────────────────────
 
-export function buildCommunityMetadata(locale: Locale): Metadata {
+export function buildWorldCupMetadata(locale: Locale): Metadata {
   return buildMetadata({
     locale,
     title:
       locale === "ko"
-        ? "축구 커뮤니티 — 토론 & 포럼"
-        : "Football Community — Discussion & Forums",
+        ? "2026 FIFA 북중미 월드컵 — 조편성 · 대한민국 경기 일정 · 뉴스"
+        : "2026 FIFA World Cup — Groups, Korea Schedule & News",
     description:
       locale === "ko"
-        ? "킥비스타 커뮤니티에서 축구 팬들과 경기 토론, 뉴스, 이적 루머를 나누세요."
-        : "Join the KickVista community to discuss matches, transfers, tactics and the latest football news.",
+        ? "2026 FIFA 북중미 월드컵 A조 조편성과 대한민국 경기 일정을 확인하세요. 손흥민·홍명보호 실시간 뉴스와 팬 토론을 킥비스타에서."
+        : "2026 FIFA World Cup group draw and Korea Republic match schedule on KickVista. Live news, analysis and fan discussions.",
+    path: "/community?category=worldcup-2026",
+  });
+}
+
+// ─── buildCommunityMetadata ───────────────────────────────────────────────────
+
+export function buildCommunityMetadata(locale: Locale, category?: string): Metadata {
+  if (category === "worldcup-2026") return buildWorldCupMetadata(locale);
+  return buildMetadata({
+    locale,
+    title:
+      locale === "ko"
+        ? "축구 커뮤니티 — 경기 토론 · 이적 뉴스 · 월드컵 소식"
+        : "Football Community — Match Discussion, Transfer News & World Cup",
+    description:
+      locale === "ko"
+        ? "킥비스타 커뮤니티에서 2026 월드컵, 손흥민·토트넘 뉴스, 경기 토론, 이적 루머를 나누세요."
+        : "Join KickVista to discuss 2026 World Cup, Tottenham, Premier League transfers, tactics and the latest football news.",
     path: "/community",
   });
 }

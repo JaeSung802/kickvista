@@ -19,16 +19,19 @@ export default function WorldCupGroups({ isKo }: Props) {
   const activeGroup = WC_GROUPS.find((g) => g.id === activeId) ?? WC_GROUPS[0];
 
   return (
-    <div className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm">
+    <section
+      aria-label={isKo ? "2026 FIFA 월드컵 조편성" : "2026 FIFA World Cup Group Draw"}
+      className="rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm"
+    >
       {/* 헤더 */}
       <div
         className="px-4 py-3 flex items-center gap-2"
         style={{ background: "linear-gradient(90deg, #7f1d1d 0%, #dc2626 100%)" }}
       >
-        <span className="text-lg">🗺️</span>
-        <span className="text-white text-sm font-black tracking-wide">
+        <span className="text-lg" aria-hidden="true">🗺️</span>
+        <h2 className="text-white text-sm font-black tracking-wide m-0">
           {isKo ? "2026 월드컵 조편성" : "2026 World Cup Groups"}
-        </span>
+        </h2>
       </div>
 
       {/* 탭 */}
@@ -91,7 +94,7 @@ export default function WorldCupGroups({ isKo }: Props) {
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 

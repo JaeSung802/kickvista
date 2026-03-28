@@ -64,6 +64,56 @@ function isKoreanRelated(title: string, description: string): boolean {
   return KOREA_KEYWORDS.some((kw) => haystack.includes(kw.toLowerCase()));
 }
 
+// ─── SEO 키워드 접두어 & 슬러그 ───────────────────────────────────────────────
+
+/**
+ * 태그·카테고리 기반으로 제목 앞에 붙일 SEO 키워드를 반환합니다.
+ * 예: [월드컵], [손흥민], [이적]
+ */
+const TAG_KEYWORD_PRIORITY: [string, string][] = [
+  // [태그 값,  노출 키워드]  — 순서 = 우선순위
+  ["손흥민",        "손흥민"],
+  ["홍명보",        "홍명보"],
+  ["토트넘",        "토트넘"],
+  ["이적",          "이적"],
+  ["프리미어리그",  "EPL"],
+  ["월드컵",        "월드컵"],
+  ["FIFA",          "월드컵"],
+];
+
+function getKeywordPrefix(category: string, tags: string[]): string {
+  if (category === "worldcup-2026") return "[월드컵] ";
+  if (category === "transfer-news") return "[이적] ";
+  for (const [tag, label] of TAG_KEYWORD_PRIORITY) {
+    if (tags.includes(tag)) return `[${label}] `;
+  }
+  return "";
+}
+
+/**
+ * 제목 → SEO 친화적 URL 슬러그 변환
+ * - 대괄호 접두어 제거 ([D-XX], [KOR] 등)
+ * - 이모지 제거
+ * - 한글·영숫자·하이픈만 허용
+ *
+ * 사용 예: "손흥민-토트넘-2-1-승리"
+ *
+ * ⚠️  DB에 slug 컬럼 추가 후 아래 insert 부분의 주석을 해제하세요:
+ *    ALTER TABLE community_posts ADD COLUMN slug TEXT;
+ *    CREATE UNIQUE INDEX ON community_posts (slug);
+ */
+export function titleToSlug(title: string): string {
+  return title
+    .replace(/\[[^\]]*\]/g, "")                              // [D-XX], [KOR] 등 제거
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "") // 이모지 제거
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\uAC00-\uD7A3-]/gu, "")                    // 한글 + 영숫자 + 하이픈만 허용
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80);
+}
+
 // ─── D-Day 계산 ──────────────────────────────────────────────────────────────
 
 const WORLDCUP_OPENING = new Date("2026-06-11T00:00:00+09:00"); // KST 기준
@@ -262,11 +312,14 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // 제목 접두어 조립
+        // 제목 접두어 조립: [키워드] [D-XX] [KOR] AI제목
         const isKorea    = isKoreanRelated(title, description);
+        const kwPrefix   = getKeywordPrefix(category, queryConfig.tags);
         const ddayPrefix = category === "worldcup-2026" ? `${getDDayPrefix()} ` : "";
-        const korPrefix  = isKorea ? "[KOR] " : "";
-        const finalTitle = `${ddayPrefix}${korPrefix}${post.title}`.slice(0, 120);
+        // worldcup 카테고리는 kwPrefix([월드컵])로 커버되므로 [KOR] 중복 생략
+        const korPrefix  = isKorea && category !== "worldcup-2026" ? "[KOR] " : "";
+        const finalTitle = `${kwPrefix}${ddayPrefix}${korPrefix}${post.title}`.slice(0, 120);
+        const slug       = titleToSlug(finalTitle); // DB migration 후 사용: slug 컬럼에 저장
 
         // DB insert
         const { error: dbError } = await supabase.from("community_posts").insert({

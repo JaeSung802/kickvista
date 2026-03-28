@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
-import { websiteJsonLd } from "@/lib/seo/jsonld";
+import { websiteJsonLd, koreaScheduleJsonLd } from "@/lib/seo/jsonld";
+import { isWorldCupVisible } from "@/lib/worldcup/visibility";
 import { queryHomeMatches, queryStandings } from "@/lib/football/query";
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
 
@@ -31,7 +32,17 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   if (!isValidLocale(locale)) return {};
-  return buildMetadata({ locale: locale as Locale });
+  const loc = locale as Locale;
+  if (isWorldCupVisible()) {
+    return buildMetadata({
+      locale: loc,
+      description:
+        loc === "ko"
+          ? "2026 FIFA 북중미 월드컵 조편성·대한민국 경기 일정, 라이브 스코어, 순위표, AI 경기 분석 — 킥비스타"
+          : "2026 FIFA World Cup groups & Korea schedule, live scores, standings and AI match analysis — KickVista",
+    });
+  }
+  return buildMetadata({ locale: loc });
 }
 
 // ─── Async data fetcher (runs inside Suspense) ────────────────────────────────
@@ -132,8 +143,9 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   if (!isValidLocale(locale)) notFound();
-  const loc = locale as Locale;
-  const jsonLd = websiteJsonLd(loc);
+  const loc        = locale as Locale;
+  const jsonLd     = websiteJsonLd(loc);
+  const wcJsonLds  = isWorldCupVisible() ? koreaScheduleJsonLd(loc) : [];
 
   return (
     <>
@@ -141,6 +153,13 @@ export default async function HomePage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {wcJsonLds.map((ld, i) => (
+        <script
+          key={`wc-${i}`}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
+        />
+      ))}
       {/* Renders instantly — no data dependency */}
       <HeroSection locale={loc} />
       <QuickLinksBar locale={loc} />

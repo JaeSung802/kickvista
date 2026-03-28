@@ -19,12 +19,15 @@ import type { Metadata } from "next";
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ category?: string }>;
 }): Promise<Metadata> {
-  const { locale } = await params;
+  const { locale }   = await params;
+  const { category } = await searchParams;
   if (!isValidLocale(locale)) return {};
-  return buildCommunityMetadata(locale as Locale);
+  return buildCommunityMetadata(locale as Locale, category);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

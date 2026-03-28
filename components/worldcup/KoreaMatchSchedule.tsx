@@ -22,16 +22,19 @@ export default function KoreaMatchSchedule({ isKo }: Props) {
   );
 
   return (
-    <div className="rounded-xl overflow-hidden border border-red-100 bg-white shadow-sm">
+    <section
+      aria-label={isKo ? "대한민국 2026 월드컵 경기 일정" : "Korea Republic 2026 World Cup Schedule"}
+      className="rounded-xl overflow-hidden border border-red-100 bg-white shadow-sm"
+    >
       {/* 헤더 */}
       <div
         className="px-4 py-3 flex items-center gap-2"
         style={{ background: "linear-gradient(90deg, #7f1d1d 0%, #dc2626 100%)" }}
       >
-        <span className="text-lg">🇰🇷</span>
-        <span className="text-white text-sm font-black tracking-wide">
+        <span className="text-lg" aria-hidden="true">🇰🇷</span>
+        <h2 className="text-white text-sm font-black tracking-wide m-0">
           {isKo ? "대한민국 경기 일정" : "Korea Republic Schedule"}
-        </span>
+        </h2>
       </div>
 
       {/* 경기 목록 */}
@@ -99,6 +102,6 @@ export default function KoreaMatchSchedule({ isKo }: Props) {
           {isKo ? "* 모든 시간은 한국 표준시 (KST) 기준" : "* All times in Korea Standard Time (KST)"}
         </p>
       </div>
-    </div>
+    </section>
   );
 }
