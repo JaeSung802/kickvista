@@ -5,14 +5,20 @@
  *
  * 데이터 업데이트: lib/worldcup/data.ts 파일을 수정하세요.
  */
-import { calcDDay, KOREA_GROUP, KOREA_MATCHES, WORLDCUP_2026 } from "@/lib/worldcup/data";
+import { useState } from "react";
+import { calcDDay, KOREA_MATCHES, WC_GROUPS, WORLDCUP_2026 } from "@/lib/worldcup/data";
 
 interface Props {
   isKo: boolean;
 }
 
+const KOREA_GROUP_ID = "A";
+
 export default function WorldCupInfoPanel({ isKo }: Props) {
   const { label } = calcDDay();
+  const [activeGroupId, setActiveGroupId] = useState(KOREA_GROUP_ID);
+
+  const activeGroup = WC_GROUPS.find((g) => g.id === activeGroupId) ?? WC_GROUPS[0];
 
   return (
     <div className="rounded-xl border border-red-100 overflow-hidden bg-white shadow-sm">
@@ -46,12 +52,56 @@ export default function WorldCupInfoPanel({ isKo }: Props) {
           <div className="flex items-center gap-1.5 mb-3">
             <span className="w-0.5 h-4 rounded-full bg-red-500 shrink-0" />
             <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-              {isKo
-                ? `대한민국 ${KOREA_GROUP.groupName}`
-                : `Korea Group ${KOREA_GROUP.groupId}`}
+              {isKo ? "조별 순위" : "Group Standings"}
             </h3>
           </div>
 
+          {/* 그룹 탭 */}
+          <div
+            className="flex gap-1 mb-3 overflow-x-auto pb-1"
+            style={{ scrollbarWidth: "none" }}
+          >
+            {WC_GROUPS.map((group) => {
+              const isActive  = group.id === activeGroupId;
+              const hasKorea  = group.teams.some((t) => t.isKorea);
+              return (
+                <button
+                  key={group.id}
+                  onClick={() => setActiveGroupId(group.id)}
+                  className="shrink-0 relative"
+                  style={{
+                    padding:         "3px 9px",
+                    borderRadius:    "6px",
+                    fontSize:        "11px",
+                    fontWeight:      isActive ? 800 : 600,
+                    border:          isActive ? "1.5px solid #dc2626" : "1.5px solid #e5e7eb",
+                    backgroundColor: isActive ? "#dc2626" : "#f9fafb",
+                    color:           isActive ? "#fff" : "#6b7280",
+                    cursor:          "pointer",
+                    transition:      "all 0.1s ease",
+                  }}
+                >
+                  {group.id}
+                  {hasKorea && !isActive && (
+                    <span
+                      style={{
+                        position:     "absolute",
+                        top:          "-3px",
+                        right:        "-3px",
+                        width:        "6px",
+                        height:       "6px",
+                        borderRadius: "50%",
+                        background:   "#f59e0b",
+                        border:       "1.5px solid #fff",
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 팀 테이블 */}
           <table className="w-full text-xs">
             <thead>
               <tr className="text-gray-400 border-b border-gray-100">
@@ -64,33 +114,30 @@ export default function WorldCupInfoPanel({ isKo }: Props) {
               </tr>
             </thead>
             <tbody>
-              {KOREA_GROUP.standings.map((team, idx) => {
-                const isKorea = team.teamEn === "Korea Republic";
-                return (
-                  <tr
-                    key={idx}
-                    className={`border-b border-gray-50 ${isKorea ? "bg-red-50" : ""}`}
-                  >
-                    <td className="py-1.5 flex items-center gap-1.5">
-                      <span>{team.flag}</span>
-                      <span className={`font-medium ${isKorea ? "text-red-700 font-bold" : "text-gray-700"}`}>
-                        {isKo ? team.teamKo : team.teamEn}
-                      </span>
-                    </td>
-                    <td className="text-center text-gray-500">{team.played}</td>
-                    <td className="text-center text-gray-500">{team.won}</td>
-                    <td className="text-center text-gray-500">{team.drawn}</td>
-                    <td className="text-center text-gray-500">{team.lost}</td>
-                    <td className={`text-center font-black ${isKorea ? "text-red-600" : "text-gray-700"}`}>
-                      {team.points}
-                    </td>
-                  </tr>
-                );
-              })}
+              {activeGroup.teams.map((team, idx) => (
+                <tr
+                  key={idx}
+                  className={`border-b border-gray-50 ${team.isKorea ? "bg-red-50" : ""}`}
+                >
+                  <td className="py-1.5 flex items-center gap-1.5">
+                    <span>{team.flag}</span>
+                    <span className={`font-medium ${team.isKorea ? "text-red-700 font-bold" : "text-gray-700"}`}>
+                      {isKo ? team.nameKo : team.nameEn}
+                    </span>
+                  </td>
+                  <td className="text-center text-gray-400">0</td>
+                  <td className="text-center text-gray-400">0</td>
+                  <td className="text-center text-gray-400">0</td>
+                  <td className="text-center text-gray-400">0</td>
+                  <td className={`text-center font-black ${team.isKorea ? "text-red-600" : "text-gray-700"}`}>
+                    0
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
           <p className="text-[10px] text-gray-400 mt-2">
-            {isKo ? "* 대진 확정 후 업데이트 예정" : "* Will update after group draw"}
+            {isKo ? "* 경기 시작 후 순위가 업데이트돼요" : "* Standings update after matches begin"}
           </p>
         </div>
 
