@@ -45,13 +45,15 @@ interface TrendingSectionProps {
   locale: "ko" | "en";
 }
 
-const CATEGORY_LABELS: Record<PostCategory, { en: string; ko: string; color: string }> = {
-  "match-discussion": { en: "Match",     ko: "경기",   color: "#059669" },
-  "transfer-news":    { en: "Transfer",  ko: "이적",   color: "#60a5fa" },
-  "tactics":          { en: "Tactics",   ko: "전술",   color: "#a78bfa" },
-  "highlights":       { en: "Highlights",ko: "하이라이트", color: "#fb923c" },
-  "predictions":      { en: "Predict",   ko: "예측",   color: "#facc15" },
-  "general":          { en: "General",   ko: "자유",   color: "#9ca3af" },
+const CATEGORY_LABELS: Record<string, { en: string; ko: string; color: string }> = {
+  "match-discussion": { en: "Match",      ko: "경기",      color: "#059669" },
+  "transfer-news":    { en: "Transfer",   ko: "이적",      color: "#60a5fa" },
+  "tactics":          { en: "Tactics",    ko: "전술",      color: "#a78bfa" },
+  "highlights":       { en: "Highlights", ko: "하이라이트", color: "#fb923c" },
+  "predictions":      { en: "Predict",    ko: "예측",      color: "#facc15" },
+  "general":          { en: "General",    ko: "자유",      color: "#9ca3af" },
+  "notice":           { en: "Notice",     ko: "공지사항",   color: "#059669" },
+  "worldcup-2026":    { en: "World Cup",  ko: "2026 월드컵", color: "#dc2626" },
 };
 
 const RANK_COLORS: Record<number, string> = {
@@ -111,7 +113,7 @@ export default function TrendingSection({ posts, locale }: TrendingSectionProps)
         {sorted.map((post, idx) => {
           const rank = idx + 1;
           const rankColor = RANK_COLORS[rank] ?? "#8b949e";
-          const cat = CATEGORY_LABELS[post.category];
+          const cat = CATEGORY_LABELS[post.category] ?? CATEGORY_LABELS["general"];
           const title = locale === "ko" && post.titleKo ? post.titleKo : post.title;
           const href = `/${locale}/community/post/${post.id}`;
 
