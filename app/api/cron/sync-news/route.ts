@@ -85,21 +85,26 @@ const DESC_MAX_CHARS      = 800;
 async function generatePost(
   title: string,
   description: string,
-  anthropicKey: string
+  anthropicKey: string,
+  articleUrl: string
 ): Promise<{ post: { title: string; content: string } | null; error: string }> {
-  const prompt = `너는 KickVista 축구 커뮤니티의 뉴스 에디터야.
-아래 뉴스 기사를 한국어 축구 팬 커뮤니티 게시글로 자연스럽게 작성해줘.
+  const prompt = `너는 KickVista 축구 커뮤니티의 열정적인 뉴스 에디터야.
+아래 뉴스 기사를 읽고, 축구 팬들이 즐겁게 읽을 수 있는 커뮤니티 게시글로 작성해줘.
 
 [기사 제목] ${title}
 [기사 내용] ${description.substring(0, DESC_MAX_CHARS)}
 
 작성 규칙:
 1. 제목: 한국어, 50자 이내, 이모지 1개 포함
-2. 본문: 핵심 내용 3~4문단 (총 250~350자), 열정적이고 자연스러운 팬 커뮤니티 어조
-3. 출처나 AI 관련 문구 없이 팬이 직접 쓴 글처럼 마무리
+2. 말투: 딱딱한 설명조가 아닌 정중하고 친근한 '해요체'로 작성해요. (예: "~했네요!", "~라고 하더라고요", "정말 기대되지 않나요?")
+3. 본문: 핵심 내용 3~4문단 (총 250~350자). 단순 요약을 넘어 팬으로서의 솔직한 리액션과 기대감을 자연스럽게 섞어줘요.
+4. 마무리: 본문 마지막 줄에 딱 한 줄, 아래 형식으로 원문 링크를 넣어줘요:
+   [기사 원문 보기](${title.slice(0, 10)}...)
+   — 단, URL은 절대 임의로 만들지 말고 반드시 content 필드의 맨 마지막 줄에 마크다운 링크 플레이스홀더로만 남겨줘: [기사 원문 보기](ARTICLE_URL)
+5. "이 소식은 AI를 통해" 또는 출처·AI 관련 문구는 절대 포함하지 마세요.
 
 JSON만 응답 (다른 텍스트 없이):
-{"title":"제목","content":"본문"}`;
+{"title":"제목","content":"본문 ... [기사 원문 보기](ARTICLE_URL)"}`;
 
   try {
     const controller = new AbortController();
@@ -148,7 +153,10 @@ JSON만 응답 (다른 텍스트 없이):
     }
     if (!parsed.title || !parsed.content) return { post: null, error: "title/content missing" };
 
-    return { post: { title: parsed.title, content: parsed.content }, error: "" };
+    // ARTICLE_URL 플레이스홀더를 실제 기사 URL로 교체
+    const content = parsed.content.replace("ARTICLE_URL", articleUrl);
+
+    return { post: { title: parsed.title, content }, error: "" };
   } catch (err) {
     const msg = String(err);
     console.error("[sync-news] Claude error:", msg);
@@ -245,7 +253,7 @@ export async function GET(request: NextRequest) {
         const category = resolveCategory(queryConfig.category, title, description);
 
         // Claude 요약 생성
-        const { post, error: claudeError } = await generatePost(title, description, anthropicKey);
+        const { post, error: claudeError } = await generatePost(title, description, anthropicKey, link);
 
         if (!post) {
           results.errors++;
