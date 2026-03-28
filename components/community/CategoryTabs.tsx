@@ -6,7 +6,9 @@ type PostCategory =
   | "tactics"
   | "highlights"
   | "predictions"
-  | "general";
+  | "general"
+  | "notice"
+  | "worldcup-2026";
 
 type CategoryOrAll = PostCategory | "all";
 
@@ -25,12 +27,14 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { key: "all",              label: "All",              labelKo: "전체" },
+  { key: "worldcup-2026",    label: "2026 World Cup",   labelKo: "2026 월드컵" },
   { key: "match-discussion", label: "Match Discussion", labelKo: "경기 토론" },
   { key: "transfer-news",    label: "Transfer News",    labelKo: "이적 소식" },
   { key: "tactics",          label: "Tactics",          labelKo: "전술 분석" },
   { key: "highlights",       label: "Highlights",       labelKo: "하이라이트" },
   { key: "predictions",      label: "Predictions",      labelKo: "예측" },
   { key: "general",          label: "General",          labelKo: "자유 게시판" },
+  { key: "notice",           label: "Notice",           labelKo: "공지사항" },
 ];
 
 export default function CategoryTabs({ selected, onChange, locale, counts }: CategoryTabsProps) {
