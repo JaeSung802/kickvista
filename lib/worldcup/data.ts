@@ -57,25 +57,13 @@ export const KOREA_GROUP: {
   groupName:  string;
   standings:  WCTeamStanding[];
 } = {
-  groupId:   "?",           // 예: "B" — 확정 후 변경
-  groupName: "대한민국 조", // 예: "B조" — 확정 후 변경
+  groupId:   "A",
+  groupName: "A조",
   standings: [
-    {
-      teamKo: "대한민국", teamEn: "Korea Republic", flag: "🇰🇷",
-      played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0,
-    },
-    {
-      teamKo: "미정", teamEn: "TBD", flag: "🏳️",
-      played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0,
-    },
-    {
-      teamKo: "미정", teamEn: "TBD", flag: "🏳️",
-      played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0,
-    },
-    {
-      teamKo: "미정", teamEn: "TBD", flag: "🏳️",
-      played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0,
-    },
+    { teamKo: "멕시코",            teamEn: "Mexico",          flag: "🇲🇽", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
+    { teamKo: "남아프리카공화국",   teamEn: "South Africa",    flag: "🇿🇦", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
+    { teamKo: "대한민국",          teamEn: "Korea Republic",  flag: "🇰🇷", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
+    { teamKo: "유럽 PO D",         teamEn: "UEFA Playoff D",  flag: "🇪🇺", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
   ],
 };
 
@@ -131,109 +119,109 @@ export const WC_GROUPS: WCGroup[] = [
   {
     id: "A",
     teams: [
-      { nameKo: "멕시코",            nameEn: "Mexico",           flag: "🇲🇽" },
-      { nameKo: "남아프리카공화국",   nameEn: "South Africa",     flag: "🇿🇦" },
-      { nameKo: "대한민국",          nameEn: "Korea Republic",   flag: "🇰🇷", isKorea: true },
-      { nameKo: "유럽 플레이오프 D", nameEn: "UEFA Playoff D",   flag: "🏳️" },
+      { nameKo: "멕시코",          nameEn: "Mexico",          flag: "🇲🇽" },
+      { nameKo: "남아프리카공화국", nameEn: "South Africa",    flag: "🇿🇦" },
+      { nameKo: "대한민국",        nameEn: "Korea Republic",  flag: "🇰🇷", isKorea: true },
+      { nameKo: "유럽 PO D",       nameEn: "UEFA Playoff D",  flag: "🇪🇺" },
     ],
   },
   {
     id: "B",
     teams: [
-      { nameKo: "미국",    nameEn: "USA",       flag: "🇺🇸" },
-      { nameKo: "파나마",  nameEn: "Panama",    flag: "🇵🇦" },
-      { nameKo: "미정",    nameEn: "TBD",       flag: "🏳️" },
-      { nameKo: "미정",    nameEn: "TBD",       flag: "🏳️" },
+      { nameKo: "캐나다",    nameEn: "Canada",          flag: "🇨🇦" },
+      { nameKo: "유럽 PO A", nameEn: "UEFA Playoff A",  flag: "🇪🇺" },
+      { nameKo: "카타르",    nameEn: "Qatar",            flag: "🇶🇦" },
+      { nameKo: "스위스",    nameEn: "Switzerland",      flag: "🇨🇭" },
     ],
   },
   {
     id: "C",
     teams: [
-      { nameKo: "캐나다",  nameEn: "Canada",    flag: "🇨🇦" },
-      { nameKo: "모로코",  nameEn: "Morocco",   flag: "🇲🇦" },
-      { nameKo: "미정",    nameEn: "TBD",       flag: "🏳️" },
-      { nameKo: "미정",    nameEn: "TBD",       flag: "🏳️" },
+      { nameKo: "브라질",    nameEn: "Brazil",      flag: "🇧🇷" },
+      { nameKo: "모로코",    nameEn: "Morocco",     flag: "🇲🇦" },
+      { nameKo: "아이티",    nameEn: "Haiti",       flag: "🇭🇹" },
+      { nameKo: "스코틀랜드", nameEn: "Scotland",   flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
     ],
   },
   {
     id: "D",
     teams: [
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "미국",      nameEn: "USA",             flag: "🇺🇸" },
+      { nameKo: "파라과이",  nameEn: "Paraguay",        flag: "🇵🇾" },
+      { nameKo: "호주",      nameEn: "Australia",       flag: "🇦🇺" },
+      { nameKo: "유럽 PO C", nameEn: "UEFA Playoff C",  flag: "🇪🇺" },
     ],
   },
   {
     id: "E",
     teams: [
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "독일",        nameEn: "Germany",       flag: "🇩🇪" },
+      { nameKo: "퀴라소",      nameEn: "Curaçao",       flag: "🇨🇼" },
+      { nameKo: "코트디부아르", nameEn: "Ivory Coast",   flag: "🇨🇮" },
+      { nameKo: "에콰도르",    nameEn: "Ecuador",       flag: "🇪🇨" },
     ],
   },
   {
     id: "F",
     teams: [
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "네덜란드",  nameEn: "Netherlands",     flag: "🇳🇱" },
+      { nameKo: "일본",      nameEn: "Japan",           flag: "🇯🇵" },
+      { nameKo: "유럽 PO B", nameEn: "UEFA Playoff B",  flag: "🇪🇺" },
+      { nameKo: "튀니지",    nameEn: "Tunisia",         flag: "🇹🇳" },
     ],
   },
   {
     id: "G",
     teams: [
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "벨기에",   nameEn: "Belgium",     flag: "🇧🇪" },
+      { nameKo: "이집트",   nameEn: "Egypt",       flag: "🇪🇬" },
+      { nameKo: "이란",     nameEn: "Iran",        flag: "🇮🇷" },
+      { nameKo: "뉴질랜드", nameEn: "New Zealand", flag: "🇳🇿" },
     ],
   },
   {
     id: "H",
     teams: [
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "스페인",        nameEn: "Spain",         flag: "🇪🇸" },
+      { nameKo: "카보베르데",    nameEn: "Cape Verde",    flag: "🇨🇻" },
+      { nameKo: "사우디아라비아", nameEn: "Saudi Arabia", flag: "🇸🇦" },
+      { nameKo: "우루과이",      nameEn: "Uruguay",       flag: "🇺🇾" },
     ],
   },
   {
     id: "I",
     teams: [
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "프랑스",      nameEn: "France",       flag: "🇫🇷" },
+      { nameKo: "세네갈",      nameEn: "Senegal",      flag: "🇸🇳" },
+      { nameKo: "FIFA PO 2",   nameEn: "FIFA Playoff 2", flag: "🏳️" },
+      { nameKo: "노르웨이",    nameEn: "Norway",       flag: "🇳🇴" },
     ],
   },
   {
     id: "J",
     teams: [
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "아르헨티나", nameEn: "Argentina", flag: "🇦🇷" },
+      { nameKo: "알제리",     nameEn: "Algeria",   flag: "🇩🇿" },
+      { nameKo: "오스트리아", nameEn: "Austria",   flag: "🇦🇹" },
+      { nameKo: "요르단",     nameEn: "Jordan",    flag: "🇯🇴" },
     ],
   },
   {
     id: "K",
     teams: [
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
-      { nameKo: "미정", nameEn: "TBD", flag: "🏳️" },
+      { nameKo: "포르투갈",    nameEn: "Portugal",       flag: "🇵🇹" },
+      { nameKo: "FIFA PO 1",   nameEn: "FIFA Playoff 1", flag: "🏳️" },
+      { nameKo: "우즈베키스탄", nameEn: "Uzbekistan",    flag: "🇺🇿" },
+      { nameKo: "콜롬비아",    nameEn: "Colombia",       flag: "🇨🇴" },
     ],
   },
   {
     id: "L",
     teams: [
-      { nameKo: "잉글랜드", nameEn: "England",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
-      { nameKo: "크로아티아", nameEn: "Croatia", flag: "🇭🇷" },
-      { nameKo: "가나",      nameEn: "Ghana",   flag: "🇬🇭" },
-      { nameKo: "파나마",    nameEn: "Panama",  flag: "🇵🇦" },
+      { nameKo: "잉글랜드",   nameEn: "England",  flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+      { nameKo: "크로아티아", nameEn: "Croatia",  flag: "🇭🇷" },
+      { nameKo: "가나",       nameEn: "Ghana",    flag: "🇬🇭" },
+      { nameKo: "파나마",     nameEn: "Panama",   flag: "🇵🇦" },
     ],
   },
 ];
