@@ -19,6 +19,8 @@ import AdSidebar from "@/components/ads/AdSidebar";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { LeagueLogo } from "@/components/ui/LeagueLogo";
 import StandingsMiniClient from "./StandingsMiniClient";
+import { WorldCupGroupsDynamic, KoreaMatchScheduleDynamic } from "@/components/worldcup/WorldCupLoaders";
+import { isWorldCupVisible } from "@/lib/worldcup/visibility";
 
 export type StandingsMap = Partial<Record<string, StandingRowViewModel[]>>;
 
@@ -401,6 +403,7 @@ export default function HomePageContent({
   const liveMatches  = matches.filter((m) => m.status === "live");
   const otherMatches = matches.filter((m) => m.status !== "live");
   const leagueGroups = groupMatchesByLeague([...liveMatches, ...otherMatches], locale);
+  const showWorldCup = isWorldCupVisible();
 
   return (
     <>
@@ -418,6 +421,18 @@ export default function HomePageContent({
 
             {/* ── LEFT — main content (2/3) ── */}
             <div className="lg:col-span-2 flex flex-col gap-6">
+
+              {/* World Cup Group Standings — 기간 한정 노출 */}
+              {showWorldCup && (
+                <section>
+                  <SectionHeader
+                    title={isKo ? "🏆 2026 월드컵 조편성" : "🏆 2026 World Cup Groups"}
+                    href={`/${locale}/community?category=worldcup-2026`}
+                    linkLabel={isKo ? "월드컵 커뮤니티" : "WC Community"}
+                  />
+                  <WorldCupGroupsDynamic isKo={isKo} />
+                </section>
+              )}
 
               {/* Today's Matches — grouped by league */}
               <section id="matches">
@@ -534,6 +549,9 @@ export default function HomePageContent({
 
             {/* ── RIGHT — sidebar (1/3) ── */}
             <div className="flex flex-col gap-5">
+
+              {/* Korea Match Schedule — 기간 한정 노출 */}
+              {showWorldCup && <KoreaMatchScheduleDynamic isKo={isKo} />}
 
               {/* League standings mini */}
               <StandingsMiniClient standingsData={standingsData} locale={locale} />

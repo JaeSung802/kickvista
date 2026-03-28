@@ -4,6 +4,7 @@
  */
 import { useState } from "react";
 import { WC_GROUPS, type WCGroupTeam } from "@/lib/worldcup/data";
+import { isWorldCupVisible } from "@/lib/worldcup/visibility";
 
 interface Props {
   isKo: boolean;
@@ -12,6 +13,8 @@ interface Props {
 const KOREA_GROUP_ID = "A";
 
 export default function WorldCupGroups({ isKo }: Props) {
+  if (!isWorldCupVisible()) return null;
+
   const [activeId, setActiveId] = useState(KOREA_GROUP_ID);
   const activeGroup = WC_GROUPS.find((g) => g.id === activeId) ?? WC_GROUPS[0];
 

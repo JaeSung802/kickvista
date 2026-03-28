@@ -19,3 +19,8 @@ export const WorldCupGroupsDynamic = dynamic(
   () => import("./WorldCupGroups"),
   { ssr: false }
 );
+
+export const KoreaMatchScheduleDynamic = dynamic(
+  () => import("./KoreaMatchSchedule"),
+  { ssr: false }
+);
