@@ -9,7 +9,7 @@ import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
 import PostCard from "@/components/community/PostCard";
 // ssr:false dynamic import는 Client Component 안에서만 가능 — WorldCupLoaders에서 담당
-import { WorldCupWidgetDynamic as WorldCupWidget, WorldCupInfoPanelDynamic as WorldCupInfoPanel } from "@/components/worldcup/WorldCupLoaders";
+import { WorldCupWidgetDynamic as WorldCupWidget, WorldCupInfoPanelDynamic as WorldCupInfoPanel, WorldCupGroupsDynamic as WorldCupGroups } from "@/components/worldcup/WorldCupLoaders";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { listPosts } from "@/lib/community/actions";
 import { listHotPosts } from "@/lib/community/hotPosts";
@@ -316,9 +316,12 @@ export default async function CommunityPage({
               </div>
             </div>
 
-            {/* 월드컵 정보 패널 — worldcup-2026 탭 선택 시 표시 */}
+            {/* 월드컵 정보 패널 + 조편성 — worldcup-2026 탭 선택 시 표시 */}
             {activeCategory === "worldcup-2026" && (
-              <WorldCupInfoPanel isKo={isKo} />
+              <div className="flex flex-col gap-4">
+                <WorldCupInfoPanel isKo={isKo} />
+                <WorldCupGroups isKo={isKo} />
+              </div>
             )}
 
             {/* Pinned posts */}
