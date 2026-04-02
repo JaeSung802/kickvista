@@ -63,7 +63,7 @@ export const KOREA_GROUP: {
     { teamKo: "멕시코",            teamEn: "Mexico",          flag: "🇲🇽", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
     { teamKo: "남아프리카공화국",   teamEn: "South Africa",    flag: "🇿🇦", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
     { teamKo: "대한민국",          teamEn: "Korea Republic",  flag: "🇰🇷", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
-    { teamKo: "유럽 PO D",         teamEn: "UEFA Playoff D",  flag: "🇪🇺", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
+    { teamKo: "체코",              teamEn: "Czech Republic",  flag: "🇨🇿", played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0, points: 0 },
   ],
 };
 
@@ -122,16 +122,16 @@ export const WC_GROUPS: WCGroup[] = [
       { nameKo: "멕시코",          nameEn: "Mexico",          flag: "🇲🇽" },
       { nameKo: "남아프리카공화국", nameEn: "South Africa",    flag: "🇿🇦" },
       { nameKo: "대한민국",        nameEn: "Korea Republic",  flag: "🇰🇷", isKorea: true },
-      { nameKo: "유럽 PO D",       nameEn: "UEFA Playoff D",  flag: "🇪🇺" },
+      { nameKo: "체코",            nameEn: "Czech Republic",  flag: "🇨🇿" },
     ],
   },
   {
     id: "B",
     teams: [
-      { nameKo: "캐나다",    nameEn: "Canada",          flag: "🇨🇦" },
-      { nameKo: "유럽 PO A", nameEn: "UEFA Playoff A",  flag: "🇪🇺" },
-      { nameKo: "카타르",    nameEn: "Qatar",            flag: "🇶🇦" },
-      { nameKo: "스위스",    nameEn: "Switzerland",      flag: "🇨🇭" },
+      { nameKo: "캐나다",   nameEn: "Canada",                flag: "🇨🇦" },
+      { nameKo: "카타르",   nameEn: "Qatar",                 flag: "🇶🇦" },
+      { nameKo: "스위스",   nameEn: "Switzerland",           flag: "🇨🇭" },
+      { nameKo: "보스니아", nameEn: "Bosnia and Herzegovina", flag: "🇧🇦" },
     ],
   },
   {
@@ -149,7 +149,7 @@ export const WC_GROUPS: WCGroup[] = [
       { nameKo: "미국",      nameEn: "USA",             flag: "🇺🇸" },
       { nameKo: "파라과이",  nameEn: "Paraguay",        flag: "🇵🇾" },
       { nameKo: "호주",      nameEn: "Australia",       flag: "🇦🇺" },
-      { nameKo: "유럽 PO C", nameEn: "UEFA Playoff C",  flag: "🇪🇺" },
+      { nameKo: "튀르키예",  nameEn: "Turkey",           flag: "🇹🇷" },
     ],
   },
   {
@@ -164,10 +164,10 @@ export const WC_GROUPS: WCGroup[] = [
   {
     id: "F",
     teams: [
-      { nameKo: "네덜란드",  nameEn: "Netherlands",     flag: "🇳🇱" },
-      { nameKo: "일본",      nameEn: "Japan",           flag: "🇯🇵" },
-      { nameKo: "유럽 PO B", nameEn: "UEFA Playoff B",  flag: "🇪🇺" },
-      { nameKo: "튀니지",    nameEn: "Tunisia",         flag: "🇹🇳" },
+      { nameKo: "네덜란드", nameEn: "Netherlands", flag: "🇳🇱" },
+      { nameKo: "일본",     nameEn: "Japan",       flag: "🇯🇵" },
+      { nameKo: "튀니지",   nameEn: "Tunisia",     flag: "🇹🇳" },
+      { nameKo: "스웨덴",   nameEn: "Sweden",      flag: "🇸🇪" },
     ],
   },
   {
@@ -191,10 +191,10 @@ export const WC_GROUPS: WCGroup[] = [
   {
     id: "I",
     teams: [
-      { nameKo: "프랑스",      nameEn: "France",       flag: "🇫🇷" },
-      { nameKo: "세네갈",      nameEn: "Senegal",      flag: "🇸🇳" },
-      { nameKo: "FIFA PO 2",   nameEn: "FIFA Playoff 2", flag: "🏳️" },
-      { nameKo: "노르웨이",    nameEn: "Norway",       flag: "🇳🇴" },
+      { nameKo: "프랑스",   nameEn: "France",   flag: "🇫🇷" },
+      { nameKo: "세네갈",   nameEn: "Senegal",  flag: "🇸🇳" },
+      { nameKo: "노르웨이", nameEn: "Norway",   flag: "🇳🇴" },
+      { nameKo: "이라크",   nameEn: "Iraq",     flag: "🇮🇶" },
     ],
   },
   {
@@ -209,10 +209,10 @@ export const WC_GROUPS: WCGroup[] = [
   {
     id: "K",
     teams: [
-      { nameKo: "포르투갈",    nameEn: "Portugal",       flag: "🇵🇹" },
-      { nameKo: "FIFA PO 1",   nameEn: "FIFA Playoff 1", flag: "🏳️" },
-      { nameKo: "우즈베키스탄", nameEn: "Uzbekistan",    flag: "🇺🇿" },
-      { nameKo: "콜롬비아",    nameEn: "Colombia",       flag: "🇨🇴" },
+      { nameKo: "포르투갈",     nameEn: "Portugal",  flag: "🇵🇹" },
+      { nameKo: "우즈베키스탄", nameEn: "Uzbekistan", flag: "🇺🇿" },
+      { nameKo: "콜롬비아",    nameEn: "Colombia",   flag: "🇨🇴" },
+      { nameKo: "DR 콩고",     nameEn: "DR Congo",   flag: "🇨🇩" },
     ],
   },
   {
@@ -242,19 +242,19 @@ export interface WCScheduleMatch {
 export const WC_SCHEDULE: Record<string, WCScheduleMatch[]> = {
   A: [
     { dateLabel: "6/12 (금)", timeKst: "04:00", homeKo: "멕시코",          homeFlag: "🇲🇽", awayKo: "남아프리카공화국", awayFlag: "🇿🇦", venueKo: "멕시코시티",  round: 1 },
-    { dateLabel: "6/12 (금)", timeKst: "11:00", homeKo: "대한민국",         homeFlag: "🇰🇷", awayKo: "유럽 PO D",       awayFlag: "🇪🇺", venueKo: "과달라하라",  round: 1 },
-    { dateLabel: "6/19 (금)", timeKst: "01:00", homeKo: "유럽 PO D",        homeFlag: "🇪🇺", awayKo: "남아프리카공화국", awayFlag: "🇿🇦", venueKo: "애틀랜타",   round: 2 },
+    { dateLabel: "6/12 (금)", timeKst: "11:00", homeKo: "대한민국",         homeFlag: "🇰🇷", awayKo: "체코",            awayFlag: "🇨🇿", venueKo: "과달라하라",  round: 1 },
+    { dateLabel: "6/19 (금)", timeKst: "01:00", homeKo: "체코",             homeFlag: "🇨🇿", awayKo: "남아프리카공화국", awayFlag: "🇿🇦", venueKo: "애틀랜타",   round: 2 },
     { dateLabel: "6/19 (금)", timeKst: "10:00", homeKo: "멕시코",           homeFlag: "🇲🇽", awayKo: "대한민국",        awayFlag: "🇰🇷", venueKo: "과달라하라",  round: 2 },
-    { dateLabel: "6/25 (목)", timeKst: "10:00", homeKo: "유럽 PO D",        homeFlag: "🇪🇺", awayKo: "멕시코",          awayFlag: "🇲🇽", venueKo: "멕시코시티",  round: 3 },
+    { dateLabel: "6/25 (목)", timeKst: "10:00", homeKo: "체코",             homeFlag: "🇨🇿", awayKo: "멕시코",          awayFlag: "🇲🇽", venueKo: "멕시코시티",  round: 3 },
     { dateLabel: "6/25 (목)", timeKst: "10:00", homeKo: "남아프리카공화국", homeFlag: "🇿🇦", awayKo: "대한민국",        awayFlag: "🇰🇷", venueKo: "몬테레이",   round: 3 },
   ],
   B: [
-    { dateLabel: "6/13 (토)", timeKst: "04:00", homeKo: "캐나다",   homeFlag: "🇨🇦", awayKo: "유럽 PO A", awayFlag: "🇪🇺", venueKo: "토론토",       round: 1 },
-    { dateLabel: "6/14 (일)", timeKst: "04:00", homeKo: "카타르",   homeFlag: "🇶🇦", awayKo: "스위스",   awayFlag: "🇨🇭", venueKo: "샌프란시스코", round: 1 },
-    { dateLabel: "6/19 (금)", timeKst: "04:00", homeKo: "스위스",   homeFlag: "🇨🇭", awayKo: "유럽 PO A", awayFlag: "🇪🇺", venueKo: "로스앤젤레스", round: 2 },
-    { dateLabel: "6/19 (금)", timeKst: "07:00", homeKo: "캐나다",   homeFlag: "🇨🇦", awayKo: "카타르",   awayFlag: "🇶🇦", venueKo: "밴쿠버",       round: 2 },
-    { dateLabel: "6/25 (목)", timeKst: "04:00", homeKo: "스위스",   homeFlag: "🇨🇭", awayKo: "캐나다",   awayFlag: "🇨🇦", venueKo: "밴쿠버",       round: 3 },
-    { dateLabel: "6/25 (목)", timeKst: "04:00", homeKo: "유럽 PO A", homeFlag: "🇪🇺", awayKo: "카타르",  awayFlag: "🇶🇦", venueKo: "시애틀",       round: 3 },
+    { dateLabel: "6/13 (토)", timeKst: "04:00", homeKo: "캐나다",  homeFlag: "🇨🇦", awayKo: "보스니아", awayFlag: "🇧🇦", venueKo: "토론토",       round: 1 },
+    { dateLabel: "6/14 (일)", timeKst: "04:00", homeKo: "카타르",  homeFlag: "🇶🇦", awayKo: "스위스",  awayFlag: "🇨🇭", venueKo: "샌프란시스코", round: 1 },
+    { dateLabel: "6/19 (금)", timeKst: "04:00", homeKo: "스위스",  homeFlag: "🇨🇭", awayKo: "보스니아", awayFlag: "🇧🇦", venueKo: "로스앤젤레스", round: 2 },
+    { dateLabel: "6/19 (금)", timeKst: "07:00", homeKo: "캐나다",  homeFlag: "🇨🇦", awayKo: "카타르",  awayFlag: "🇶🇦", venueKo: "밴쿠버",       round: 2 },
+    { dateLabel: "6/25 (목)", timeKst: "04:00", homeKo: "스위스",  homeFlag: "🇨🇭", awayKo: "캐나다",  awayFlag: "🇨🇦", venueKo: "밴쿠버",       round: 3 },
+    { dateLabel: "6/25 (목)", timeKst: "04:00", homeKo: "보스니아", homeFlag: "🇧🇦", awayKo: "카타르",  awayFlag: "🇶🇦", venueKo: "시애틀",       round: 3 },
   ],
   C: [
     { dateLabel: "6/14 (일)", timeKst: "07:00", homeKo: "브라질",    homeFlag: "🇧🇷", awayKo: "모로코",    awayFlag: "🇲🇦", venueKo: "뉴욕",       round: 1 },
@@ -266,10 +266,10 @@ export const WC_SCHEDULE: Record<string, WCScheduleMatch[]> = {
   ],
   D: [
     { dateLabel: "6/13 (토)", timeKst: "10:00", homeKo: "미국",      homeFlag: "🇺🇸", awayKo: "파라과이",   awayFlag: "🇵🇾", venueKo: "로스앤젤레스", round: 1 },
-    { dateLabel: "6/14 (일)", timeKst: "13:00", homeKo: "호주",      homeFlag: "🇦🇺", awayKo: "유럽 PO C",  awayFlag: "🇪🇺", venueKo: "밴쿠버",       round: 1 },
-    { dateLabel: "6/20 (토)", timeKst: "04:00", homeKo: "미국",      homeFlag: "🇺🇸", awayKo: "호주",       awayFlag: "🇦🇺", venueKo: "시애틀",       round: 2 },
-    { dateLabel: "6/20 (토)", timeKst: "13:00", homeKo: "유럽 PO C", homeFlag: "🇪🇺", awayKo: "파라과이",   awayFlag: "🇵🇾", venueKo: "샌프란시스코", round: 2 },
-    { dateLabel: "6/26 (금)", timeKst: "11:00", homeKo: "유럽 PO C", homeFlag: "🇪🇺", awayKo: "미국",       awayFlag: "🇺🇸", venueKo: "로스앤젤레스", round: 3 },
+    { dateLabel: "6/14 (일)", timeKst: "13:00", homeKo: "호주",    homeFlag: "🇦🇺", awayKo: "튀르키예", awayFlag: "🇹🇷", venueKo: "밴쿠버",       round: 1 },
+    { dateLabel: "6/20 (토)", timeKst: "04:00", homeKo: "미국",    homeFlag: "🇺🇸", awayKo: "호주",    awayFlag: "🇦🇺", venueKo: "시애틀",       round: 2 },
+    { dateLabel: "6/20 (토)", timeKst: "13:00", homeKo: "튀르키예", homeFlag: "🇹🇷", awayKo: "파라과이", awayFlag: "🇵🇾", venueKo: "샌프란시스코", round: 2 },
+    { dateLabel: "6/26 (금)", timeKst: "11:00", homeKo: "튀르키예", homeFlag: "🇹🇷", awayKo: "미국",    awayFlag: "🇺🇸", venueKo: "로스앤젤레스", round: 3 },
     { dateLabel: "6/26 (금)", timeKst: "11:00", homeKo: "파라과이",  homeFlag: "🇵🇾", awayKo: "호주",       awayFlag: "🇦🇺", venueKo: "샌프란시스코", round: 3 },
   ],
   E: [
@@ -282,10 +282,10 @@ export const WC_SCHEDULE: Record<string, WCScheduleMatch[]> = {
   ],
   F: [
     { dateLabel: "6/15 (월)", timeKst: "05:00", homeKo: "네덜란드",  homeFlag: "🇳🇱", awayKo: "일본",      awayFlag: "🇯🇵", venueKo: "댈러스",    round: 1 },
-    { dateLabel: "6/15 (월)", timeKst: "11:00", homeKo: "유럽 PO B", homeFlag: "🇪🇺", awayKo: "튀니지",    awayFlag: "🇹🇳", venueKo: "몬테레이",  round: 1 },
-    { dateLabel: "6/21 (일)", timeKst: "02:00", homeKo: "네덜란드",  homeFlag: "🇳🇱", awayKo: "유럽 PO B", awayFlag: "🇪🇺", venueKo: "휴스턴",    round: 2 },
-    { dateLabel: "6/21 (일)", timeKst: "13:00", homeKo: "튀니지",    homeFlag: "🇹🇳", awayKo: "일본",      awayFlag: "🇯🇵", venueKo: "몬테레이",  round: 2 },
-    { dateLabel: "6/26 (금)", timeKst: "08:00", homeKo: "일본",      homeFlag: "🇯🇵", awayKo: "유럽 PO B", awayFlag: "🇪🇺", venueKo: "댈러스",    round: 3 },
+    { dateLabel: "6/15 (월)", timeKst: "11:00", homeKo: "스웨덴",   homeFlag: "🇸🇪", awayKo: "튀니지",  awayFlag: "🇹🇳", venueKo: "몬테레이",  round: 1 },
+    { dateLabel: "6/21 (일)", timeKst: "02:00", homeKo: "네덜란드", homeFlag: "🇳🇱", awayKo: "스웨덴",  awayFlag: "🇸🇪", venueKo: "휴스턴",    round: 2 },
+    { dateLabel: "6/21 (일)", timeKst: "13:00", homeKo: "튀니지",   homeFlag: "🇹🇳", awayKo: "일본",    awayFlag: "🇯🇵", venueKo: "몬테레이",  round: 2 },
+    { dateLabel: "6/26 (금)", timeKst: "08:00", homeKo: "일본",     homeFlag: "🇯🇵", awayKo: "스웨덴",  awayFlag: "🇸🇪", venueKo: "댈러스",    round: 3 },
     { dateLabel: "6/26 (금)", timeKst: "08:00", homeKo: "튀니지",    homeFlag: "🇹🇳", awayKo: "네덜란드",  awayFlag: "🇳🇱", venueKo: "캔자스시티", round: 3 },
   ],
   G: [
@@ -306,11 +306,11 @@ export const WC_SCHEDULE: Record<string, WCScheduleMatch[]> = {
   ],
   I: [
     { dateLabel: "6/17 (수)", timeKst: "04:00", homeKo: "프랑스",    homeFlag: "🇫🇷", awayKo: "세네갈",    awayFlag: "🇸🇳", venueKo: "뉴욕",       round: 1 },
-    { dateLabel: "6/17 (수)", timeKst: "07:00", homeKo: "FIFA PO 2", homeFlag: "🏳️", awayKo: "노르웨이",  awayFlag: "🇳🇴", venueKo: "보스턴",     round: 1 },
-    { dateLabel: "6/23 (화)", timeKst: "06:00", homeKo: "프랑스",    homeFlag: "🇫🇷", awayKo: "FIFA PO 2", awayFlag: "🏳️", venueKo: "필라델피아", round: 2 },
-    { dateLabel: "6/23 (화)", timeKst: "09:00", homeKo: "노르웨이",  homeFlag: "🇳🇴", awayKo: "세네갈",    awayFlag: "🇸🇳", venueKo: "뉴욕",       round: 2 },
-    { dateLabel: "6/27 (토)", timeKst: "04:00", homeKo: "노르웨이",  homeFlag: "🇳🇴", awayKo: "프랑스",    awayFlag: "🇫🇷", venueKo: "보스턴",     round: 3 },
-    { dateLabel: "6/27 (토)", timeKst: "04:00", homeKo: "세네갈",    homeFlag: "🇸🇳", awayKo: "FIFA PO 2", awayFlag: "🏳️", venueKo: "토론토",     round: 3 },
+    { dateLabel: "6/17 (수)", timeKst: "07:00", homeKo: "이라크",  homeFlag: "🇮🇶", awayKo: "노르웨이", awayFlag: "🇳🇴", venueKo: "보스턴",     round: 1 },
+    { dateLabel: "6/23 (화)", timeKst: "06:00", homeKo: "프랑스",  homeFlag: "🇫🇷", awayKo: "이라크",  awayFlag: "🇮🇶", venueKo: "필라델피아", round: 2 },
+    { dateLabel: "6/23 (화)", timeKst: "09:00", homeKo: "노르웨이", homeFlag: "🇳🇴", awayKo: "세네갈",  awayFlag: "🇸🇳", venueKo: "뉴욕",       round: 2 },
+    { dateLabel: "6/27 (토)", timeKst: "04:00", homeKo: "노르웨이", homeFlag: "🇳🇴", awayKo: "프랑스",  awayFlag: "🇫🇷", venueKo: "보스턴",     round: 3 },
+    { dateLabel: "6/27 (토)", timeKst: "04:00", homeKo: "세네갈",  homeFlag: "🇸🇳", awayKo: "이라크",  awayFlag: "🇮🇶", venueKo: "토론토",     round: 3 },
   ],
   J: [
     { dateLabel: "6/17 (수)", timeKst: "10:00", homeKo: "아르헨티나", homeFlag: "🇦🇷", awayKo: "알제리",   awayFlag: "🇩🇿", venueKo: "캔자스시티", round: 1 },
@@ -321,12 +321,12 @@ export const WC_SCHEDULE: Record<string, WCScheduleMatch[]> = {
     { dateLabel: "6/28 (일)", timeKst: "11:00", homeKo: "요르단",    homeFlag: "🇯🇴", awayKo: "아르헨티나", awayFlag: "🇦🇷", venueKo: "댈러스",   round: 3 },
   ],
   K: [
-    { dateLabel: "6/18 (목)", timeKst: "02:00", homeKo: "포르투갈",    homeFlag: "🇵🇹", awayKo: "FIFA PO 1",  awayFlag: "🏳️", venueKo: "휴스턴",    round: 1 },
-    { dateLabel: "6/18 (목)", timeKst: "11:00", homeKo: "우즈베키스탄", homeFlag: "🇺🇿", awayKo: "콜롬비아",   awayFlag: "🇨🇴", venueKo: "멕시코시티", round: 1 },
-    { dateLabel: "6/24 (수)", timeKst: "02:00", homeKo: "포르투갈",    homeFlag: "🇵🇹", awayKo: "우즈베키스탄", awayFlag: "🇺🇿", venueKo: "휴스턴",    round: 2 },
-    { dateLabel: "6/24 (수)", timeKst: "11:00", homeKo: "콜롬비아",    homeFlag: "🇨🇴", awayKo: "FIFA PO 1",  awayFlag: "🏳️", venueKo: "과달라하라", round: 2 },
-    { dateLabel: "6/28 (일)", timeKst: "08:30", homeKo: "콜롬비아",    homeFlag: "🇨🇴", awayKo: "포르투갈",   awayFlag: "🇵🇹", venueKo: "마이애미",  round: 3 },
-    { dateLabel: "6/28 (일)", timeKst: "08:30", homeKo: "FIFA PO 1",   homeFlag: "🏳️", awayKo: "우즈베키스탄", awayFlag: "🇺🇿", venueKo: "애틀랜타",  round: 3 },
+    { dateLabel: "6/18 (목)", timeKst: "02:00", homeKo: "포르투갈",     homeFlag: "🇵🇹", awayKo: "DR 콩고",    awayFlag: "🇨🇩", venueKo: "휴스턴",    round: 1 },
+    { dateLabel: "6/18 (목)", timeKst: "11:00", homeKo: "우즈베키스탄", homeFlag: "🇺🇿", awayKo: "콜롬비아",  awayFlag: "🇨🇴", venueKo: "멕시코시티", round: 1 },
+    { dateLabel: "6/24 (수)", timeKst: "02:00", homeKo: "포르투갈",     homeFlag: "🇵🇹", awayKo: "우즈베키스탄", awayFlag: "🇺🇿", venueKo: "휴스턴",    round: 2 },
+    { dateLabel: "6/24 (수)", timeKst: "11:00", homeKo: "콜롬비아",     homeFlag: "🇨🇴", awayKo: "DR 콩고",   awayFlag: "🇨🇩", venueKo: "과달라하라", round: 2 },
+    { dateLabel: "6/28 (일)", timeKst: "08:30", homeKo: "콜롬비아",     homeFlag: "🇨🇴", awayKo: "포르투갈",  awayFlag: "🇵🇹", venueKo: "마이애미",  round: 3 },
+    { dateLabel: "6/28 (일)", timeKst: "08:30", homeKo: "DR 콩고",      homeFlag: "🇨🇩", awayKo: "우즈베키스탄", awayFlag: "🇺🇿", venueKo: "애틀랜타",  round: 3 },
   ],
   L: [
     { dateLabel: "6/18 (목)", timeKst: "05:00", homeKo: "잉글랜드",   homeFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", awayKo: "크로아티아", awayFlag: "🇭🇷", venueKo: "댈러스",    round: 1 },
