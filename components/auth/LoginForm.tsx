@@ -52,19 +52,6 @@ export default function LoginForm({ locale }: { locale: "ko" | "en" }) {
   const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-
-  async function handleGoogleSignIn() {
-    setLoading(true);
-    setError(null);
-    await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${baseUrl}/api/auth/callback?next=/${locale}`,
-      },
-    });
-    // Browser will redirect — no need to setLoading(false)
-  }
 
   async function handleEmailSignIn(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -136,44 +123,6 @@ export default function LoginForm({ locale }: { locale: "ko" | "en" }) {
               {error}
             </div>
           )}
-
-          {/* Social logins */}
-          <div className="flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors disabled:opacity-60"
-            >
-              <svg width="18" height="18" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.2l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.8 13.3l7.9 6.1C12.6 13 17.9 9.5 24 9.5z"/>
-                <path fill="#4285F4" d="M46.6 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8C43.8 37.3 46.6 31.4 46.6 24.5z"/>
-                <path fill="#FBBC05" d="M10.7 28.6A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.6L2.4 13.3A23.9 23.9 0 0 0 0 24c0 3.8.9 7.4 2.4 10.7l8.3-6.1z"/>
-                <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.7l-7.5-5.8C30.3 38.4 27.3 39.5 24 39.5c-6.1 0-11.3-4.1-13.2-9.7l-7.8 6C6.6 43.3 14.7 48 24 48z"/>
-              </svg>
-              {t.googleSignIn}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                setError(locale === "ko" ? "카카오 로그인은 준비 중입니다." : "Kakao sign-in coming soon.")
-              }
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-colors"
-              style={{ backgroundColor: "#FEE500", color: "#3c1e1e" }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#3c1e1e">
-                <path d="M12 3C6.48 3 2 6.69 2 11.23c0 2.94 1.79 5.53 4.5 7.07l-1.14 4.2c-.1.37.3.67.64.47L11 20.15c.33.04.66.06 1 .06 5.52 0 10-3.69 10-8.23C22 6.69 17.52 3 12 3z"/>
-              </svg>
-              {t.kakaoSignIn}
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400">{t.orContinueWith}</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
 
           {/* Email form */}
           <form className="flex flex-col gap-4" onSubmit={handleEmailSignIn}>
