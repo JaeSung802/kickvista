@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Metadata } from "next";
 
 export async function generateMetadata({
@@ -41,6 +42,8 @@ export default async function AdminDashboardPage({
     deletedPosts: 0,
     deletedComments: 0,
     totalUsers: 0,
+    verifiedUsers: 0,
+    unverifiedUsers: 0,
     totalModerators: 0,
     totalAdmins: 0,
   };
@@ -57,6 +60,18 @@ export default async function AdminDashboardPage({
       if (filter) q = filter(q);
       const { count: c } = await q;
       return c ?? 0;
+    }
+
+    // Fetch auth verification stats via admin client
+    let verifiedUsers = 0;
+    let unverifiedUsers = 0;
+    try {
+      const adminClient = createAdminClient();
+      const { data: { users: authUsers } } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      verifiedUsers = authUsers.filter((u) => !!u.email_confirmed_at).length;
+      unverifiedUsers = authUsers.filter((u) => !u.email_confirmed_at).length;
+    } catch {
+      // Service role key not set — skip verification stats
     }
 
     const [
@@ -86,7 +101,8 @@ export default async function AdminDashboardPage({
       totalPosts, totalComments,
       hiddenPosts, hiddenComments,
       deletedPosts, deletedComments,
-      totalUsers, totalModerators, totalAdmins,
+      totalUsers, verifiedUsers, unverifiedUsers,
+      totalModerators, totalAdmins,
     };
   } catch {
     // Non-fatal — show zeros
@@ -132,8 +148,20 @@ export default async function AdminDashboardPage({
     {
       label: isKo ? "전체 사용자" : "Total Users",
       value: stats.totalUsers,
-      color: "#059669",
+      color: "#6b7280",
       icon: "👥",
+    },
+    {
+      label: isKo ? "이메일 인증 완료" : "Verified",
+      value: stats.verifiedUsers,
+      color: "#059669",
+      icon: "✅",
+    },
+    {
+      label: isKo ? "미인증 가입자" : "Unverified",
+      value: stats.unverifiedUsers,
+      color: "#ef4444",
+      icon: "⚠️",
     },
     {
       label: isKo ? "모더레이터" : "Moderators",
@@ -144,7 +172,7 @@ export default async function AdminDashboardPage({
     {
       label: isKo ? "관리자" : "Admins",
       value: stats.totalAdmins,
-      color: "#059669",
+      color: "#ef4444",
       icon: "⭐",
     },
   ];
@@ -176,7 +204,7 @@ export default async function AdminDashboardPage({
       <div className="bg-white border-b border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2.5">
-            <span className="w-0.5 h-6 rounded-full bg-emerald-600 shrink-0" />
+            <span className="w-0.5 h-6 rounded-full bg-red-500 shrink-0" />
             <h1 className="text-xl font-black text-gray-900">{isKo ? "대시보드" : "Dashboard"}</h1>
           </div>
           <p className="text-sm text-gray-500 mt-1 ml-3.5">
@@ -204,7 +232,7 @@ export default async function AdminDashboardPage({
         {/* Quick links */}
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <span className="w-0.5 h-4 rounded-full bg-emerald-600 shrink-0" />
+            <span className="w-0.5 h-4 rounded-full bg-red-500 shrink-0" />
             <h2 className="text-base font-bold text-gray-900">{isKo ? "빠른 이동" : "Quick Actions"}</h2>
           </div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">

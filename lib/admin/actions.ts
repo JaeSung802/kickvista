@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerUser } from "@/lib/auth";
 import { getServerRole, canModerate, isAdmin } from "./roles";
 import { revalidatePath } from "next/cache";
@@ -207,6 +208,30 @@ export async function updateUserRole(
     revalidatePath("/[locale]/admin/users", "page");
   } catch {
     // Guard already logged
+  }
+}
+
+/** Resend the email confirmation link to an unverified user. */
+export async function resendVerificationEmail(userId: string): Promise<void> {
+  try {
+    await assertAdmin();
+    const adminClient = createAdminClient();
+
+    const { data: { user } } = await adminClient.auth.admin.getUserById(userId);
+    if (!user?.email || user.email_confirmed_at) return;
+
+    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/resend`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      },
+      body: JSON.stringify({ type: "signup", email: user.email }),
+    });
+
+    revalidatePath("/[locale]/admin/users", "page");
+  } catch {
+    // Non-fatal
   }
 }
 
