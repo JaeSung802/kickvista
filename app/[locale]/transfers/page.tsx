@@ -142,7 +142,7 @@ const MOCK_TRANSFERS: TransferItem[] = [
   {
     id: 9,  player: "Florian Wirtz 🇩🇪",  playerKo: "플로리안 비르츠 🇩🇪",
     fromTeam: "Bayer Leverkusen", fromTeamKo: "바이어 레버쿠젠", fromFlag: "🇩🇪",
-    toTeam:   "Real Madrid",    toTeamKo:   "레알 마드리드",    toFlag:   "🇪🇸",
+    toTeam:   "Liverpool",      toTeamKo:   "리버풀",           toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     fee: "€150M", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
     date: "2026-03-30", age: 22, nationality: "Germany", nationalityKo: "독일",
     position: "MID", positionKo: "미드필더", source: "Fabrizio Romano",
