@@ -68,23 +68,25 @@ interface TransferItem {
 }
 
 const MOCK_TRANSFERS: TransferItem[] = [
-  // ── 확정 ────────────────────────────────────────────────────────────────
+  // ── 2026-04-02 ──────────────────────────────────────────────────────────
   {
-    id: 1,  player: "Heung-Min Son 🇰🇷",   playerKo: "손흥민 🇰🇷",
-    fromTeam: "Tottenham",      fromTeamKo: "토트넘",           fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    toTeam:   "LAFC",           toTeamKo:   "LAFC",             toFlag:   "🇺🇸",
-    fee: "Free", status: "confirmed", window: "Summer 2025", windowKo: "2025 여름",
-    date: "2025-07-01", age: 33, nationality: "South Korea", nationalityKo: "대한민국",
-    position: "FWD", positionKo: "공격수", source: "Sky Sports",
+    id: 1,  player: "Erling Haaland 🇳🇴",  playerKo: "얼링 홀란드 🇳🇴",
+    fromTeam: "Man City",       fromTeamKo: "맨체스터 시티",    fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    toTeam:   "Real Madrid",    toTeamKo:   "레알 마드리드",    toFlag:   "🇪🇸",
+    fee: "€250M", status: "imminent", window: "Summer 2026", windowKo: "2026 여름",
+    date: "2026-04-02", age: 25, nationality: "Norway", nationalityKo: "노르웨이",
+    position: "FWD", positionKo: "공격수", source: "Marca",
   },
   {
-    id: 2,  player: "Kim Min-jae 🇰🇷",    playerKo: "김민재 🇰🇷",
-    fromTeam: "Bayern Munich",  fromTeamKo: "바이에른 뮌헨",    fromFlag: "🇩🇪",
-    toTeam:   "Man United",     toTeamKo:   "맨체스터 유나이티드", toFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fee: "€55M", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-04-01", age: 29, nationality: "South Korea", nationalityKo: "대한민국",
-    position: "DEF", positionKo: "수비수", source: "David Ornstein",
+    id: 2,  player: "Vinicius Jr 🇧🇷",     playerKo: "비니시우스 주니오르 🇧🇷",
+    fromTeam: "Real Madrid",    fromTeamKo: "레알 마드리드",    fromFlag: "🇪🇸",
+    toTeam:   "Al Nassr",       toTeamKo:   "알나스르",         toFlag:   "🇸🇦",
+    fee: "€300M+", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
+    date: "2026-04-02", age: 25, nationality: "Brazil", nationalityKo: "브라질",
+    position: "FWD", positionKo: "공격수", source: "Marca",
   },
+
+  // ── 2026-04-01 ──────────────────────────────────────────────────────────
   {
     id: 3,  player: "Bukayo Saka 🏴󠁧󠁢󠁥󠁮󠁧󠁿",  playerKo: "부카요 사카 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     fromTeam: "Arsenal",        fromTeamKo: "아스날",           fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
@@ -94,41 +96,7 @@ const MOCK_TRANSFERS: TransferItem[] = [
     position: "FWD", positionKo: "공격수", source: "David Ornstein",
   },
   {
-    id: 4,  player: "Florian Wirtz 🇩🇪",  playerKo: "플로리안 비르츠 🇩🇪",
-    fromTeam: "Bayer Leverkusen", fromTeamKo: "바이어 레버쿠젠", fromFlag: "🇩🇪",
-    toTeam:   "Real Madrid",    toTeamKo:   "레알 마드리드",    toFlag:   "🇪🇸",
-    fee: "€150M", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-03-30", age: 22, nationality: "Germany", nationalityKo: "독일",
-    position: "MID", positionKo: "미드필더", source: "Fabrizio Romano",
-  },
-  {
-    id: 5,  player: "Phil Foden 🏴󠁧󠁢󠁥󠁮󠁧󠁿",   playerKo: "필 포든 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fromTeam: "Man City",       fromTeamKo: "맨체스터 시티",    fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    toTeam:   "Man City",       toTeamKo:   "맨체스터 시티",    toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fee: "Extension", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-03-28", age: 25, nationality: "England", nationalityKo: "잉글랜드",
-    position: "MID", positionKo: "미드필더", source: "Sky Sports",
-  },
-  {
-    id: 6,  player: "Marcus Rashford 🏴󠁧󠁢󠁥󠁮󠁧󠁿", playerKo: "마커스 래쉬포드 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fromTeam: "Aston Villa",    fromTeamKo: "애스턴 빌라",      fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    toTeam:   "Aston Villa",    toTeamKo:   "애스턴 빌라",      toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fee: "€35M", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-03-25", age: 28, nationality: "England", nationalityKo: "잉글랜드",
-    position: "FWD", positionKo: "공격수", source: "BBC Sport",
-  },
-
-  // ── 임박 ────────────────────────────────────────────────────────────────
-  {
-    id: 7,  player: "Erling Haaland 🇳🇴",  playerKo: "얼링 홀란드 🇳🇴",
-    fromTeam: "Man City",       fromTeamKo: "맨체스터 시티",    fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    toTeam:   "Real Madrid",    toTeamKo:   "레알 마드리드",    toFlag:   "🇪🇸",
-    fee: "€250M", status: "imminent", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-04-02", age: 25, nationality: "Norway", nationalityKo: "노르웨이",
-    position: "FWD", positionKo: "공격수", source: "Marca",
-  },
-  {
-    id: 8,  player: "Lee Kang-in 🇰🇷",     playerKo: "이강인 🇰🇷",
+    id: 4,  player: "Lee Kang-in 🇰🇷",     playerKo: "이강인 🇰🇷",
     fromTeam: "Paris SG",       fromTeamKo: "파리 생제르맹",    fromFlag: "🇫🇷",
     toTeam:   "Arsenal",        toTeamKo:   "아스날",           toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     fee: "€70M", status: "imminent", window: "Summer 2026", windowKo: "2026 여름",
@@ -136,62 +104,102 @@ const MOCK_TRANSFERS: TransferItem[] = [
     position: "MID", positionKo: "미드필더", source: "David Ornstein",
   },
   {
-    id: 9,  player: "Pedri 🇪🇸",            playerKo: "페드리 🇪🇸",
-    fromTeam: "Barcelona",      fromTeamKo: "바르셀로나",       fromFlag: "🇪🇸",
-    toTeam:   "Liverpool",      toTeamKo:   "리버풀",           toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fee: "€90M", status: "imminent", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-03-31", age: 23, nationality: "Spain", nationalityKo: "스페인",
-    position: "MID", positionKo: "미드필더", source: "Fabrizio Romano",
-  },
-
-  // ── 루머 ────────────────────────────────────────────────────────────────
-  {
-    id: 10, player: "Vinicius Jr 🇧🇷",     playerKo: "비니시우스 주니오르 🇧🇷",
-    fromTeam: "Real Madrid",    fromTeamKo: "레알 마드리드",    fromFlag: "🇪🇸",
-    toTeam:   "Al Nassr",       toTeamKo:   "알나스르",         toFlag:   "🇸🇦",
-    fee: "€300M+", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-04-02", age: 25, nationality: "Brazil", nationalityKo: "브라질",
-    position: "FWD", positionKo: "공격수", source: "Marca",
+    id: 5,  player: "Kim Min-jae 🇰🇷",    playerKo: "김민재 🇰🇷",
+    fromTeam: "Bayern Munich",  fromTeamKo: "바이에른 뮌헨",    fromFlag: "🇩🇪",
+    toTeam:   "Man United",     toTeamKo:   "맨체스터 유나이티드", toFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    fee: "€55M", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
+    date: "2026-04-01", age: 29, nationality: "South Korea", nationalityKo: "대한민국",
+    position: "DEF", positionKo: "수비수", source: "David Ornstein",
   },
   {
-    id: 11, player: "Jude Bellingham 🏴󠁧󠁢󠁥󠁮󠁧󠁿", playerKo: "주드 벨링엄 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    id: 6,  player: "Jude Bellingham 🏴󠁧󠁢󠁥󠁮󠁧󠁿", playerKo: "주드 벨링엄 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     fromTeam: "Real Madrid",    fromTeamKo: "레알 마드리드",    fromFlag: "🇪🇸",
     toTeam:   "Man City",       toTeamKo:   "맨체스터 시티",    toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     fee: "€180M", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
     date: "2026-04-01", age: 22, nationality: "England", nationalityKo: "잉글랜드",
     position: "MID", positionKo: "미드필더", source: "The Athletic",
   },
+
+  // ── 2026-03-31 ──────────────────────────────────────────────────────────
   {
-    id: 12, player: "Victor Osimhen 🇳🇬",  playerKo: "빅터 오시멘 🇳🇬",
+    id: 7,  player: "Pedri 🇪🇸",            playerKo: "페드리 🇪🇸",
+    fromTeam: "Barcelona",      fromTeamKo: "바르셀로나",       fromFlag: "🇪🇸",
+    toTeam:   "Liverpool",      toTeamKo:   "리버풀",           toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    fee: "€90M", status: "imminent", window: "Summer 2026", windowKo: "2026 여름",
+    date: "2026-03-31", age: 23, nationality: "Spain", nationalityKo: "스페인",
+    position: "MID", positionKo: "미드필더", source: "Fabrizio Romano",
+  },
+  {
+    id: 8,  player: "Victor Osimhen 🇳🇬",  playerKo: "빅터 오시멘 🇳🇬",
     fromTeam: "Galatasaray",    fromTeamKo: "갈라타사라이",     fromFlag: "🇹🇷",
     toTeam:   "Chelsea",        toTeamKo:   "첼시",             toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     fee: "€75M", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
     date: "2026-03-31", age: 27, nationality: "Nigeria", nationalityKo: "나이지리아",
     position: "FWD", positionKo: "공격수", source: "Sky Sports",
   },
+
+  // ── 2026-03-30 ──────────────────────────────────────────────────────────
   {
-    id: 13, player: "Gavi 🇪🇸",             playerKo: "가비 🇪🇸",
+    id: 9,  player: "Florian Wirtz 🇩🇪",  playerKo: "플로리안 비르츠 🇩🇪",
+    fromTeam: "Bayer Leverkusen", fromTeamKo: "바이어 레버쿠젠", fromFlag: "🇩🇪",
+    toTeam:   "Real Madrid",    toTeamKo:   "레알 마드리드",    toFlag:   "🇪🇸",
+    fee: "€150M", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
+    date: "2026-03-30", age: 22, nationality: "Germany", nationalityKo: "독일",
+    position: "MID", positionKo: "미드필더", source: "Fabrizio Romano",
+  },
+  {
+    id: 10, player: "Gavi 🇪🇸",             playerKo: "가비 🇪🇸",
     fromTeam: "Barcelona",      fromTeamKo: "바르셀로나",       fromFlag: "🇪🇸",
     toTeam:   "Bayern Munich",  toTeamKo:   "바이에른 뮌헨",    toFlag:   "🇩🇪",
     fee: "€80M", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
     date: "2026-03-30", age: 21, nationality: "Spain", nationalityKo: "스페인",
     position: "MID", positionKo: "미드필더", source: "Bild",
   },
+
+  // ── 2026-03-28 ──────────────────────────────────────────────────────────
   {
-    id: 14, player: "Lamine Yamal 🇪🇸",    playerKo: "라민 야말 🇪🇸",
+    id: 11, player: "Phil Foden 🏴󠁧󠁢󠁥󠁮󠁧󠁿",   playerKo: "필 포든 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    fromTeam: "Man City",       fromTeamKo: "맨체스터 시티",    fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    toTeam:   "Man City",       toTeamKo:   "맨체스터 시티",    toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    fee: "Extension", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
+    date: "2026-03-28", age: 25, nationality: "England", nationalityKo: "잉글랜드",
+    position: "MID", positionKo: "미드필더", source: "Sky Sports",
+  },
+  {
+    id: 12, player: "Lamine Yamal 🇪🇸",    playerKo: "라민 야말 🇪🇸",
     fromTeam: "Barcelona",      fromTeamKo: "바르셀로나",       fromFlag: "🇪🇸",
     toTeam:   "Man City",       toTeamKo:   "맨체스터 시티",    toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     fee: "€200M", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
     date: "2026-03-28", age: 18, nationality: "Spain", nationalityKo: "스페인",
     position: "FWD", positionKo: "공격수", source: "The Athletic",
   },
+
+  // ── 2026-03-25 ──────────────────────────────────────────────────────────
   {
-    id: 15, player: "Rodri 🇪🇸",           playerKo: "로드리 🇪🇸",
+    id: 13, player: "Marcus Rashford 🏴󠁧󠁢󠁥󠁮󠁧󠁿", playerKo: "마커스 래쉬포드 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    fromTeam: "Aston Villa",    fromTeamKo: "애스턴 빌라",      fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    toTeam:   "Aston Villa",    toTeamKo:   "애스턴 빌라",      toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    fee: "€35M", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
+    date: "2026-03-25", age: 28, nationality: "England", nationalityKo: "잉글랜드",
+    position: "FWD", positionKo: "공격수", source: "BBC Sport",
+  },
+  {
+    id: 14, player: "Rodri 🇪🇸",           playerKo: "로드리 🇪🇸",
     fromTeam: "Man City",       fromTeamKo: "맨체스터 시티",    fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
     toTeam:   "Barcelona",      toTeamKo:   "바르셀로나",       toFlag:   "🇪🇸",
     fee: "Free", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
     date: "2026-03-25", age: 29, nationality: "Spain", nationalityKo: "스페인",
     position: "MID", positionKo: "미드필더", source: "Marca",
+  },
+
+  // ── 2025-07-01 ──────────────────────────────────────────────────────────
+  {
+    id: 15, player: "Heung-Min Son 🇰🇷",   playerKo: "손흥민 🇰🇷",
+    fromTeam: "Tottenham",      fromTeamKo: "토트넘",           fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    toTeam:   "LAFC",           toTeamKo:   "LAFC",             toFlag:   "🇺🇸",
+    fee: "Free", status: "confirmed", window: "Summer 2025", windowKo: "2025 여름",
+    date: "2025-07-01", age: 33, nationality: "South Korea", nationalityKo: "대한민국",
+    position: "FWD", positionKo: "공격수", source: "Sky Sports",
   },
 ];
 
