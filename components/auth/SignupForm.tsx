@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const labels = {
@@ -20,6 +20,10 @@ const labels = {
     weak: "Weak", fair: "Fair", strong: "Strong",
     errorNickname: "Nickname must be 3–20 characters.",
     errorPasswordShort: "Password must be at least 8 characters.",
+    errorNicknameTaken: "This nickname is already taken.",
+    nicknameChecking: "Checking…",
+    nicknameAvailable: "Available!",
+    nicknameTaken: "Already taken.",
     successTitle: "Check your inbox!",
     successBody: "We sent a confirmation link to",
     successNote: "Click the link in the email to complete your registration.",
@@ -41,6 +45,10 @@ const labels = {
     weak: "약함", fair: "보통", strong: "강함",
     errorNickname: "닉네임은 3~20자여야 합니다.",
     errorPasswordShort: "비밀번호는 8자 이상이어야 합니다.",
+    errorNicknameTaken: "이미 사용 중인 닉네임입니다.",
+    nicknameChecking: "확인 중…",
+    nicknameAvailable: "사용 가능한 닉네임입니다.",
+    nicknameTaken: "이미 사용 중입니다.",
     successTitle: "인증 메일이 발송되었습니다.",
     successBody: "아래 주소로 인증 링크를 보냈습니다:",
     successNote: "메일함의 링크를 클릭하여 가입을 완료해주세요.",
@@ -77,11 +85,40 @@ export default function SignupForm({ locale }: { locale: "ko" | "en" }) {
   const [error, setError] = useState<string | null>(null);
   const [successEmail, setSuccessEmail] = useState<string | null>(null);
 
+  // "idle" | "checking" | "available" | "taken"
+  const [nicknameStatus, setNicknameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const supabase = createClient();
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
   const strength = getPasswordStrength(password);
   const meta = strength > 0 ? STRENGTH_META[strength as 1 | 2 | 3] : null;
+
+  // Debounced nickname duplicate check
+  useEffect(() => {
+    const trimmed = nickname.trim();
+    if (trimmed.length < 3 || trimmed.length > 20) {
+      setNicknameStatus("idle");
+      return;
+    }
+
+    setNicknameStatus("checking");
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("nickname", trimmed)
+        .maybeSingle();
+      setNicknameStatus(data ? "taken" : "available");
+    }, 500);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [nickname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleEmailSignUp(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -91,12 +128,29 @@ export default function SignupForm({ locale }: { locale: "ko" | "en" }) {
       setError(t.errorNickname);
       return;
     }
+    if (nicknameStatus === "taken") {
+      setError(t.errorNicknameTaken);
+      return;
+    }
     if (password.length < 8) {
       setError(t.errorPasswordShort);
       return;
     }
 
     setLoading(true);
+
+    // Final duplicate guard (in case debounce hasn't resolved yet)
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("nickname", nickname.trim())
+      .maybeSingle();
+    if (existing) {
+      setError(t.errorNicknameTaken);
+      setLoading(false);
+      setNicknameStatus("taken");
+      return;
+    }
 
     const { error: signUpError } = await supabase.auth.signUp({
       email,
@@ -245,14 +299,31 @@ export default function SignupForm({ locale }: { locale: "ko" | "en" }) {
                 required
                 minLength={3}
                 maxLength={20}
-                className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100 transition-colors"
+                className={`w-full px-3.5 py-2.5 bg-gray-50 border rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none transition-colors ${
+                  nicknameStatus === "taken"
+                    ? "border-red-400 focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                    : nicknameStatus === "available"
+                    ? "border-emerald-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    : "border-gray-200 focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                }`}
               />
-              <span className="text-[11px] text-gray-400">{t.nicknameHint}</span>
+              {nicknameStatus === "checking" && (
+                <span className="text-[11px] text-gray-400">{t.nicknameChecking}</span>
+              )}
+              {nicknameStatus === "available" && (
+                <span className="text-[11px] text-emerald-600 font-semibold">✓ {t.nicknameAvailable}</span>
+              )}
+              {nicknameStatus === "taken" && (
+                <span className="text-[11px] text-red-500 font-semibold">✗ {t.nicknameTaken}</span>
+              )}
+              {nicknameStatus === "idle" && (
+                <span className="text-[11px] text-gray-400">{t.nicknameHint}</span>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || nicknameStatus === "taken" || nicknameStatus === "checking"}
               className="w-full py-3 text-white text-sm font-bold rounded-xl transition-colors disabled:opacity-60 mt-1"
               style={{ backgroundColor: loading ? "#f87171" : "#ef4444" }}
             >
