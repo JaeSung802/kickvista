@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const labels = {
@@ -31,9 +31,10 @@ const labels = {
 export default function ForgotPasswordPage({
   params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }>;
 }) {
-  const locale = (params.locale === "en" ? "en" : "ko") as "ko" | "en";
+  const { locale: rawLocale } = use(params);
+  const locale = (rawLocale === "en" ? "en" : "ko") as "ko" | "en";
   const t = labels[locale];
 
   const [email, setEmail] = useState("");
