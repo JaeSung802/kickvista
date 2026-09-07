@@ -30,7 +30,15 @@ export async function generateMetadata({
 
 // ─── Async data fetcher (runs inside Suspense) ────────────────────────────────
 
-async function HomeContent({ locale }: { locale: Locale }) {
+async function HomeContent({
+  locale,
+  dateFilter,
+  viewFilter,
+}: {
+  locale: Locale;
+  dateFilter?: string;
+  viewFilter?: string;
+}) {
   // allSettled: a slow or failing API (standings, hot posts) never blocks the
   // rest of the page — each result is checked individually.
   const [
@@ -69,6 +77,8 @@ async function HomeContent({ locale }: { locale: Locale }) {
       matches={fixturesToMatches(fixtures, locale)}
       standingsData={standingsData}
       hotPosts={hotPosts}
+      dateFilter={dateFilter}
+      viewFilter={viewFilter}
     />
   );
 }
@@ -133,10 +143,13 @@ function HomeContentSkeleton() {
 
 export default async function HomePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ date?: string; view?: string }>;
 }) {
   const { locale } = await params;
+  const { date, view } = await searchParams;
   if (!isValidLocale(locale)) notFound();
   const loc    = locale as Locale;
   const jsonLd = websiteJsonLd(loc);
@@ -153,7 +166,7 @@ export default async function HomePage({
       </div>
       {/* Data-dependent section streams in behind the skeleton */}
       <Suspense fallback={<HomeContentSkeleton />}>
-        <HomeContent locale={loc} />
+        <HomeContent locale={loc} dateFilter={date} viewFilter={view} />
       </Suspense>
     </>
   );

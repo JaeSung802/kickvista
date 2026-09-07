@@ -26,6 +26,8 @@ interface HomePageContentProps {
   matches: MatchViewModel[];
   standingsData: StandingsMap;
   hotPosts: PostListItem[];
+  dateFilter?: string;
+  viewFilter?: string;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -385,6 +387,94 @@ export function QuickLinksBar({ locale }: { locale: Locale }) {
   );
 }
 
+// ─── Date + LIVE filter bar ───────────────────────────────────────────────────
+
+function MatchFilterBar({
+  dates,
+  liveCount,
+  activeDate,
+  activeView,
+  locale,
+  basePath,
+}: {
+  dates: string[];
+  liveCount: number;
+  activeDate: string | undefined;
+  activeView: string | undefined;
+  locale: Locale;
+  basePath: string;
+}) {
+  const isKo = locale === "ko";
+  const isLiveView = activeView === "live";
+  const today = kstToday();
+
+  function buildUrl(date?: string, view?: string) {
+    const qs = new URLSearchParams();
+    if (date) qs.set("date", date);
+    if (view) qs.set("view", view);
+    const q = qs.toString();
+    return q ? `${basePath}?${q}` : basePath;
+  }
+
+  function dateLabel(dateKey: string) {
+    const diffDays = Math.round(
+      (new Date(dateKey).getTime() - new Date(today).getTime()) / 86400000
+    );
+    if (diffDays === 0) return isKo ? "오늘" : "Today";
+    if (diffDays === 1) return isKo ? "내일" : "Tomorrow";
+    if (diffDays === 2) return isKo ? "모레" : "Day after";
+    return formatDateLabel(dateKey, locale, false);
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pb-2">
+      <a
+        href={buildUrl(undefined, isLiveView ? "live" : undefined)}
+        className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+          !activeDate
+            ? "bg-emerald-600 text-white border-emerald-600"
+            : "bg-white text-gray-500 border-gray-200 hover:border-emerald-400 hover:text-emerald-600"
+        }`}
+      >
+        {isKo ? "전체" : "All"}
+      </a>
+
+      {dates.slice(0, 3).map((d) => (
+        <a
+          key={d}
+          href={buildUrl(d, isLiveView ? "live" : undefined)}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+            activeDate === d
+              ? "bg-emerald-600 text-white border-emerald-600"
+              : "bg-white text-gray-500 border-gray-200 hover:border-emerald-400 hover:text-emerald-600"
+          }`}
+        >
+          {dateLabel(d)}
+        </a>
+      ))}
+
+      {(liveCount > 0 || isLiveView) && <span className="w-px h-4 bg-gray-200 mx-0.5 shrink-0" />}
+
+      {(liveCount > 0 || isLiveView) && (
+        <a
+          href={buildUrl(activeDate, isLiveView ? undefined : "live")}
+          className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-colors ${
+            isLiveView
+              ? "bg-red-600 text-white border-red-600"
+              : "bg-white text-red-500 border-red-200 hover:border-red-400"
+          }`}
+        >
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
+          </span>
+          {liveCount > 0 ? `LIVE (${liveCount})` : "LIVE"}
+        </a>
+      )}
+    </div>
+  );
+}
+
 // ─── Left league rail (xl+) ───────────────────────────────────────────────────
 
 function HomeLeagueRail({ locale }: { locale: Locale }) {
@@ -427,14 +517,34 @@ export default function HomePageContent({
   matches,
   standingsData,
   hotPosts,
+  dateFilter,
+  viewFilter,
 }: HomePageContentProps) {
   const isKo = locale === "ko";
   const adBanner = process.env.NEXT_PUBLIC_ADSENSE_SLOT_BANNER ?? "0000000000";
   const adRect   = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE ?? "1111111111";
 
-  const liveMatches  = matches.filter((m) => m.status === "live");
-  const otherMatches = matches.filter((m) => m.status !== "live");
-  const leagueGroups = groupMatchesByLeague([...liveMatches, ...otherMatches], locale);
+  const uniqueDates = [...new Set(matches.map((m) => m.date ?? "").filter(Boolean))].sort();
+  const validDate   = dateFilter && uniqueDates.includes(dateFilter) ? dateFilter : undefined;
+  const isLiveView  = viewFilter === "live";
+  const liveCount   = matches.filter((m) => m.status === "live").length;
+
+  let filteredMatches = matches;
+  if (validDate)  filteredMatches = filteredMatches.filter((m) => m.date === validDate);
+  if (isLiveView) filteredMatches = filteredMatches.filter((m) => m.status === "live");
+
+  const leagueGroups = groupMatchesByLeague(filteredMatches, locale);
+
+  const today = kstToday();
+  const sectionTitle = (() => {
+    if (isLiveView) return isKo ? "⚽ LIVE 경기" : "⚽ Live Matches";
+    if (!validDate)  return isKo ? "⚽ 경기 일정" : "⚽ Match Schedule";
+    const diffDays = Math.round((new Date(validDate).getTime() - new Date(today).getTime()) / 86400000);
+    if (diffDays === 0) return isKo ? "⚽ 오늘의 경기" : "⚽ Today's Matches";
+    if (diffDays === 1) return isKo ? "⚽ 내일의 경기" : "⚽ Tomorrow's Matches";
+    const dateStr = formatDateLabel(validDate, locale, false);
+    return isKo ? `⚽ ${dateStr} 경기` : `⚽ ${dateStr} Matches`;
+  })();
 
   return (
     <>
@@ -461,16 +571,27 @@ export default function HomePageContent({
               {/* Today's Matches — grouped by league */}
               <section id="matches">
                 <SectionHeader
-                  title={isKo ? "⚽ 오늘의 경기" : "⚽ Today's Matches"}
+                  title={sectionTitle}
                   href={`/${locale}/league/premier-league`}
                   linkLabel={isKo ? "전체 리그" : "All leagues"}
+                />
+
+                <MatchFilterBar
+                  dates={uniqueDates}
+                  liveCount={liveCount}
+                  activeDate={validDate}
+                  activeView={isLiveView ? "live" : undefined}
+                  locale={locale}
+                  basePath={`/${locale}`}
                 />
 
                 {leagueGroups.length === 0 ? (
                   <div className="bg-white border border-gray-200 rounded-xl py-12 text-center shadow-sm">
                     <span className="text-3xl">⚽</span>
                     <p className="text-sm text-gray-400 mt-2">
-                      {isKo ? "오늘 예정된 경기가 없습니다" : "No matches scheduled today"}
+                      {isLiveView
+                        ? (isKo ? "현재 진행 중인 경기가 없습니다" : "No live matches right now")
+                        : (isKo ? "오늘 예정된 경기가 없습니다" : "No matches scheduled today")}
                     </p>
                   </div>
                 ) : (
