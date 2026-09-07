@@ -5,14 +5,14 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import { sportsEventJsonLd } from "@/lib/seo/jsonld";
 import { queryMatchDetail, queryFixturePlayers } from "@/lib/football/query";
 import { getAnalysesByFixture } from "@/lib/analysis/db";
-import { MOCK_FIXTURES } from "@/lib/football/mock-data";
+import { isMockMode } from "@/lib/football-api";
 import AdSlot from "@/components/ads/AdSlot";
 import MatchTabNav from "@/components/match/MatchTabNav";
 import RecapCTACard from "@/components/match/RecapCTACard";
 import PredictionCard from "@/components/match/PredictionCard";
 import { getServerUser, getServerProfile } from "@/lib/auth";
 import { getUserPrediction, getPredictionStats } from "@/lib/predictions";
-import type { Fixture, LineupPlayer } from "@/lib/football/types";
+import type { Fixture, MatchDetail, LineupPlayer } from "@/lib/football/types";
 
 export const revalidate = 300; // 5분 ISR
 
@@ -511,8 +511,7 @@ export async function generateMetadata({
   const { locale, id } = await params;
   if (!isValidLocale(locale)) return {};
   const providerMatch = await queryMatchDetail(Number(id));
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const match = (providerMatch as any) ?? MOCK_MATCHES[id] ?? null;
+  const match = providerMatch ?? (isMockMode ? (MOCK_MATCHES[id] ?? null) : null);
   if (!match) return buildMetadata({ locale: locale as Locale });
 
   const loc = locale as Locale;
@@ -544,24 +543,12 @@ export default async function MatchDetailPage({
 
   const loc = locale as Locale;
 
-  // Provider-first: real API returns full MatchDetail; mock returns basic fixture.
-  // MOCK_MATCHES holds richer demo data (lineups, statistics) — always merge it in
-  // so fields absent from the provider (e.g. lineupHome) are filled from the mock.
+  // Real mode: providerMatch only. Mock mode: MOCK_MATCHES fallback when absent.
   const providerMatch = await queryMatchDetail(Number(id));
-  const mockFallback  = MOCK_MATCHES[id] ?? null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const match: (typeof MOCK_MATCHES)[string] | null = providerMatch
-    ? {
-        ...mockFallback,          // mock provides lineups/stats as baseline
-        ...(providerMatch as any), // real data wins on all shared fields
-        // Explicitly fill lineup/stats gaps: prefer provider, fall back to mock
-        lineupHome: (providerMatch as any).lineupHome ?? mockFallback?.lineupHome ?? [],
-        lineupAway: (providerMatch as any).lineupAway ?? mockFallback?.lineupAway ?? [],
-        statistics: (providerMatch as any).statistics?.length
-          ? (providerMatch as any).statistics
-          : mockFallback?.statistics ?? [],
-      }
-    : mockFallback;
+  type MatchData = MatchDetail | (typeof MOCK_MATCHES)[string];
+  const match: MatchData | null =
+    providerMatch ??
+    (isMockMode ? (MOCK_MATCHES[id] ?? null) : null);
   // Match not found — render a graceful error page instead of a hard 404.
   // This prevents 404s caused by API rate-limits or temporary outages;
   // the ISR cache will retry after `revalidate` seconds.
@@ -617,17 +604,8 @@ export default async function MatchDetailPage({
   const rawEvents     = Array.isArray(match.events)     ? match.events     : [];
   const rawStatistics = Array.isArray(match.statistics) ? match.statistics : [];
 
-  // Hard fallback: look up the numeric ID in MOCK_FIXTURES (covers 1001, 1002, etc.)
-  const numericId     = Number(id);
-  const mockFixture   = MOCK_FIXTURES.find((f) => f.id === numericId);
-
-  const safeLineupHome = (Array.isArray(match.lineupHome) && match.lineupHome.length > 0)
-    ? match.lineupHome
-    : (mockFixture?.lineupHome ?? []);
-
-  const safeLineupAway = (Array.isArray(match.lineupAway) && match.lineupAway.length > 0)
-    ? match.lineupAway
-    : (mockFixture?.lineupAway ?? []);
+  const safeLineupHome: LineupPlayer[] = Array.isArray(match.lineupHome) ? match.lineupHome : [];
+  const safeLineupAway: LineupPlayer[] = Array.isArray(match.lineupAway) ? match.lineupAway : [];
 
 
   // Normalise events: handles both mock format {player,team:"home"|"away"} and
