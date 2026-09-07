@@ -368,19 +368,6 @@ export function QuickLinksBar({ locale }: { locale: Locale }) {
               <span>{isKo ? l.ko : l.en}</span>
             </a>
           ))}
-          <span className="w-px h-4 bg-gray-200 shrink-0 mx-1" />
-          <a
-            href={`/${locale}/analysis`}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-emerald-700 transition-colors whitespace-nowrap"
-          >
-            🤖 {isKo ? "AI 분석" : "AI Analysis"}
-          </a>
-          <a
-            href={`/${locale}/community`}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-emerald-700 transition-colors whitespace-nowrap"
-          >
-            💬 {isKo ? "커뮤니티" : "Community"}
-          </a>
         </div>
       </div>
     </div>
