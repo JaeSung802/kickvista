@@ -69,8 +69,7 @@ const labels = {
     fanDiscussion:    "Fan Discussion",
     community:        "Community →",
     leagueStats:      "League Stats",
-    homeWins:         "Home Wins",
-    awayWins:         "Away Wins",
+    decidedMatches:   "Decided Matches",
     draws:            "Draws",
     avgGoals:         "Avg Goals",
     topTeam:          "Top of Table",
@@ -94,8 +93,7 @@ const labels = {
     fanDiscussion:    "팬 토론",
     community:        "커뮤니티 →",
     leagueStats:      "리그 통계",
-    homeWins:         "홈 승",
-    awayWins:         "원정 승",
+    decidedMatches:   "승부 결정",
     draws:            "무승부",
     avgGoals:         "경기당 평균 득점",
     topTeam:          "리그 1위",
@@ -191,14 +189,13 @@ export default async function LeagueOverviewPage({
     .filter(([, entry]) => entry.leagueSlug === internalSlug)
     .map(([, entry]) => entry);
 
-  // Simple league stats derived from standings
+  // League stats derived from standings
+  // StandingEntry has only aggregate won/drawn/lost — no home/away split.
   const totalTeams = standingRows.length;
-  const totalWon   = standingRows.reduce((s, r) => s + r.won, 0);
-  const totalDrawn = standingRows.reduce((s, r) => s + r.drawn, 0);
   const totalGames = standingRows.reduce((s, r) => s + r.played, 0) / 2; // each match counted twice
-  const homeWinPct = totalGames > 0 ? Math.round((totalWon / 2 / totalGames) * 100) : 0;
-  const awayWinPct = totalGames > 0 ? Math.round((totalWon / 2 / totalGames) * 100) : 0;
-  const drawPct    = totalGames > 0 ? Math.round((totalDrawn / 2 / totalGames) * 100) : 0;
+  const drawnGames = standingRows.reduce((s, r) => s + r.drawn, 0) / 2;
+  const drawPct    = totalGames > 0 ? Math.round((drawnGames / totalGames) * 100) : 0;
+  const decidedPct = totalGames > 0 ? 100 - drawPct : 0;
   const leader     = standingRows[0];
 
   return (
@@ -548,16 +545,16 @@ export default async function LeagueOverviewPage({
                       </div>
                     </div>
                   )}
-                  {/* Win distribution */}
+                  {/* Match outcome distribution */}
                   {totalGames > 0 && (
                     <>
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-500">{t.homeWins}</span>
-                          <span className="text-xs font-bold text-gray-700">{homeWinPct}%</span>
+                          <span className="text-xs text-gray-500">{t.decidedMatches}</span>
+                          <span className="text-xs font-bold text-gray-700">{decidedPct}%</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${homeWinPct}%` }} />
+                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${decidedPct}%` }} />
                         </div>
                       </div>
                       <div>
@@ -567,15 +564,6 @@ export default async function LeagueOverviewPage({
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                           <div className="h-full bg-gray-400 rounded-full" style={{ width: `${drawPct}%` }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-gray-500">{t.awayWins}</span>
-                          <span className="text-xs font-bold text-gray-700">{awayWinPct}%</span>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-500 rounded-full" style={{ width: `${awayWinPct}%` }} />
                         </div>
                       </div>
                     </>
