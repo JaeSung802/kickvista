@@ -13,15 +13,9 @@ import HeroSection from "@/components/home/HeroSection";
 import { QuickLinksBar } from "@/components/home/HomePageContent";
 import HomePageContent, { type StandingsMap } from "@/components/home/HomePageContent";
 
-/**
- * force-dynamic  → Next.js Full Route Cache 완전 비활성화.
- *                  빌드 시 pre-render된 HTML이 아닌, 매 요청마다 서버 렌더링.
- * revalidate = 0 → Data Cache(fetch 레이어)도 0초로 세팅 — belt-and-suspenders.
- *                  force-dynamic이 이미 이를 함축하지만 명시적으로 선언해 두면
- *                  Vercel 대시보드에서도 "No Cache" 상태로 확인 가능.
- */
-export const dynamic   = "force-dynamic";
-export const revalidate = 0;
+// 홈 화면의 기본 재검증 주기: 5분
+// API-Football 요청은 provider에 설정된 개별 next.revalidate 캐시를 따른다.
+export const revalidate = 300;
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
