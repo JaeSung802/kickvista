@@ -34,6 +34,7 @@ export interface AnalysisCardProps {
   locale: "ko" | "en";
   slug: string;
   isAiGenerated?: boolean;
+  fixtureId?: number;
 }
 
 const TYPE_META = {
@@ -89,6 +90,7 @@ export default function AnalysisCard({
   locale,
   slug,
   isAiGenerated = true,
+  fixtureId,
 }: AnalysisCardProps) {
   const isKo = locale === "ko";
   const meta = TYPE_META[type];
@@ -176,6 +178,13 @@ export default function AnalysisCard({
               className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
             >
               {isKo ? "자세히 보기 →" : "Read More →"}
+            </a>
+          ) : type === "recap" && fixtureId ? (
+            <a
+              href={`/${locale}/match/${fixtureId}#tab-4`}
+              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              📊 {isKo ? "경기 결과 보기 →" : "View Match Recap →"}
             </a>
           ) : (
             <span className="text-xs font-semibold text-gray-400 italic">

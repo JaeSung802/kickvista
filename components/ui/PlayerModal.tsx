@@ -203,11 +203,11 @@ export default function PlayerModal({ player, onClose, locale, teamName, teamFla
       onClick={onClose}
     >
       <div
-        className="relative bg-white sm:rounded-3xl rounded-t-3xl shadow-2xl w-full max-w-sm max-h-[92svh] overflow-y-auto overscroll-contain"
+        className="relative bg-white sm:rounded-3xl rounded-t-3xl shadow-2xl w-full max-w-sm max-h-[92svh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="bg-emerald-600 px-6 pt-6 pb-10 relative">
+        {/* Header — 고정, 스크롤 안 됨 */}
+        <div className="bg-emerald-600 px-6 pt-6 pb-10 relative shrink-0">
           {/* Share button */}
           <button
             onClick={handleShare}
@@ -232,13 +232,14 @@ export default function PlayerModal({ player, onClose, locale, teamName, teamFla
           </button>
 
           <div className="flex items-center gap-4">
-            {/* Photo or jersey number */}
-            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 overflow-hidden">
-              {photoUrl ? (
+            {/* Photo — 번호를 베이스로, 사진이 위에 덮임 (실패시 번호 노출) */}
+            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 overflow-hidden relative">
+              <span className="text-2xl font-black text-white">
+                {player.number > 0 ? `#${player.number}` : "?"}
+              </span>
+              {photoUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoUrl} alt={player.name} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-              ) : (
-                <span className="text-2xl font-black text-white">#{player.number}</span>
+                <img src={photoUrl} alt={player.name} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
               )}
             </div>
             <div className="min-w-0">
@@ -266,6 +267,9 @@ export default function PlayerModal({ player, onClose, locale, teamName, teamFla
             </div>
           </div>
         </div>
+
+        {/* 흰색 영역만 스크롤 */}
+        <div className="overflow-y-auto overscroll-contain flex-1 scroll-smooth">
 
         {/* Jersey number badge — overlapping */}
         <div className="px-6">
@@ -357,6 +361,7 @@ export default function PlayerModal({ player, onClose, locale, teamName, teamFla
             </div>
           </div>
         </div>
+        </div> {/* end scroll wrapper */}
       </div>
     </div>
   );

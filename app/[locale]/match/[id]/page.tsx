@@ -562,7 +562,33 @@ export default async function MatchDetailPage({
           : mockFallback?.statistics ?? [],
       }
     : mockFallback;
-  if (!match) notFound();
+  // Match not found — render a graceful error page instead of a hard 404.
+  // This prevents 404s caused by API rate-limits or temporary outages;
+  // the ISR cache will retry after `revalidate` seconds.
+  if (!match) {
+    const isKoFallback = loc === "ko";
+    return (
+      <main className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 max-w-md w-full text-center">
+          <span className="text-5xl mb-4 block">⚽</span>
+          <h1 className="text-lg font-black text-gray-900 mb-2">
+            {isKoFallback ? "경기 정보를 불러올 수 없습니다" : "Match data unavailable"}
+          </h1>
+          <p className="text-sm text-gray-500 mb-6">
+            {isKoFallback
+              ? "일시적인 오류로 경기 정보를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요."
+              : "We couldn't load this match right now. Please try again in a moment."}
+          </p>
+          <a
+            href={`/${loc}`}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
+          >
+            ← {isKoFallback ? "홈으로 돌아가기" : "Back to home"}
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   const t = labels[loc];
   const isKo = loc === "ko";

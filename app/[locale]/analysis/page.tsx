@@ -289,6 +289,7 @@ export default async function AnalysisListPage({
                   locale={loc}
                   slug={item.slug}
                   isAiGenerated={item.isAiGenerated}
+                  fixtureId={item.fixtureId}
                 />
               ))}
             </div>

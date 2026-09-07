@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { buildMetadata } from "@/lib/seo/metadata";
 import AdSlot from "@/components/ads/AdSlot";
 import TransferTicker from "@/components/transfers/TransferTicker";
+import { fetchRecentTransfers, type APITransferItem } from "@/lib/transfers/api";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   });
 }
 
-// Relative date helper
+// ── Relative date helper ────────────────────────────────────────────────────
 function relativeDate(dateStr: string, isKo: boolean): string {
   const now = new Date();
   const date = new Date(dateStr);
@@ -36,7 +37,38 @@ function relativeDate(dateStr: string, isKo: boolean): string {
   return isKo ? `${months}개월 전` : `${months}mo ago`;
 }
 
-// Transfer status badge styles
+// ── Fee badge renderer ──────────────────────────────────────────────────────
+function FeeBadge({ fee, isKo }: { fee: string; isKo: boolean }) {
+  const normalized = fee.trim();
+
+  if (normalized === "Free") {
+    return (
+      <span className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+        {isKo ? "무료 이적" : "Free"}
+      </span>
+    );
+  }
+  if (normalized === "미공개" || normalized === "N/A" || normalized === "") {
+    return (
+      <span className="text-xs font-medium text-gray-400">
+        {isKo ? "비공개" : "Undisclosed"}
+      </span>
+    );
+  }
+  if (normalized.toLowerCase() === "loan" || normalized === "임대") {
+    return (
+      <span className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+        {isKo ? "임대" : "Loan"}
+      </span>
+    );
+  }
+  // Monetary amount (e.g. €150M)
+  return (
+    <span className="text-sm font-black text-gray-900">{normalized}</span>
+  );
+}
+
+// ── Transfer status badge styles ────────────────────────────────────────────
 const STATUS_STYLES: Record<string, { label: string; labelKo: string; bg: string; text: string; border: string }> = {
   confirmed: { label: "Confirmed",  labelKo: "확정",     bg: "#ecfdf5", text: "#059669", border: "#a7f3d0" },
   rumour:    { label: "Rumour",     labelKo: "루머",     bg: "#fefce8", text: "#ca8a04", border: "#fde68a" },
@@ -44,6 +76,7 @@ const STATUS_STYLES: Record<string, { label: string; labelKo: string; bg: string
   rejected:  { label: "Rejected",   labelKo: "거절",     bg: "#fef2f2", text: "#dc2626", border: "#fecaca" },
 };
 
+// ── Mock data (rumours & imminent — API doesn't provide these) ──────────────
 interface TransferItem {
   id: number;
   player: string;
@@ -67,8 +100,7 @@ interface TransferItem {
   source?: string;
 }
 
-const MOCK_TRANSFERS: TransferItem[] = [
-  // ── 2026-04-02 ──────────────────────────────────────────────────────────
+const MOCK_RUMOURS: TransferItem[] = [
   {
     id: 1,  player: "Erling Haaland 🇳🇴",  playerKo: "얼링 홀란드 🇳🇴",
     fromTeam: "Man City",       fromTeamKo: "맨체스터 시티",    fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
@@ -84,16 +116,6 @@ const MOCK_TRANSFERS: TransferItem[] = [
     fee: "€300M+", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
     date: "2026-04-02", age: 25, nationality: "Brazil", nationalityKo: "브라질",
     position: "FWD", positionKo: "공격수", source: "Marca",
-  },
-
-  // ── 2026-04-01 ──────────────────────────────────────────────────────────
-  {
-    id: 3,  player: "Bukayo Saka 🏴󠁧󠁢󠁥󠁮󠁧󠁿",  playerKo: "부카요 사카 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fromTeam: "Arsenal",        fromTeamKo: "아스날",           fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    toTeam:   "Arsenal",        toTeamKo:   "아스날",           toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fee: "Extension", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-04-01", age: 24, nationality: "England", nationalityKo: "잉글랜드",
-    position: "FWD", positionKo: "공격수", source: "David Ornstein",
   },
   {
     id: 4,  player: "Lee Kang-in 🇰🇷",     playerKo: "이강인 🇰🇷",
@@ -119,8 +141,6 @@ const MOCK_TRANSFERS: TransferItem[] = [
     date: "2026-04-01", age: 22, nationality: "England", nationalityKo: "잉글랜드",
     position: "MID", positionKo: "미드필더", source: "The Athletic",
   },
-
-  // ── 2026-03-31 ──────────────────────────────────────────────────────────
   {
     id: 7,  player: "Pedri 🇪🇸",            playerKo: "페드리 🇪🇸",
     fromTeam: "Barcelona",      fromTeamKo: "바르셀로나",       fromFlag: "🇪🇸",
@@ -137,16 +157,6 @@ const MOCK_TRANSFERS: TransferItem[] = [
     date: "2026-03-31", age: 27, nationality: "Nigeria", nationalityKo: "나이지리아",
     position: "FWD", positionKo: "공격수", source: "Sky Sports",
   },
-
-  // ── 2026-03-30 ──────────────────────────────────────────────────────────
-  {
-    id: 9,  player: "Florian Wirtz 🇩🇪",  playerKo: "플로리안 비르츠 🇩🇪",
-    fromTeam: "Bayer Leverkusen", fromTeamKo: "바이어 레버쿠젠", fromFlag: "🇩🇪",
-    toTeam:   "Liverpool",      toTeamKo:   "리버풀",           toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fee: "€150M", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-03-30", age: 22, nationality: "Germany", nationalityKo: "독일",
-    position: "MID", positionKo: "미드필더", source: "Fabrizio Romano",
-  },
   {
     id: 10, player: "Gavi 🇪🇸",             playerKo: "가비 🇪🇸",
     fromTeam: "Barcelona",      fromTeamKo: "바르셀로나",       fromFlag: "🇪🇸",
@@ -154,16 +164,6 @@ const MOCK_TRANSFERS: TransferItem[] = [
     fee: "€80M", status: "rumour", window: "Summer 2026", windowKo: "2026 여름",
     date: "2026-03-30", age: 21, nationality: "Spain", nationalityKo: "스페인",
     position: "MID", positionKo: "미드필더", source: "Bild",
-  },
-
-  // ── 2026-03-28 ──────────────────────────────────────────────────────────
-  {
-    id: 11, player: "Phil Foden 🏴󠁧󠁢󠁥󠁮󠁧󠁿",   playerKo: "필 포든 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fromTeam: "Man City",       fromTeamKo: "맨체스터 시티",    fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    toTeam:   "Man City",       toTeamKo:   "맨체스터 시티",    toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fee: "Extension", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-03-28", age: 25, nationality: "England", nationalityKo: "잉글랜드",
-    position: "MID", positionKo: "미드필더", source: "Sky Sports",
   },
   {
     id: 12, player: "Lamine Yamal 🇪🇸",    playerKo: "라민 야말 🇪🇸",
@@ -173,16 +173,6 @@ const MOCK_TRANSFERS: TransferItem[] = [
     date: "2026-03-28", age: 18, nationality: "Spain", nationalityKo: "스페인",
     position: "FWD", positionKo: "공격수", source: "The Athletic",
   },
-
-  // ── 2026-03-25 ──────────────────────────────────────────────────────────
-  {
-    id: 13, player: "Marcus Rashford 🏴󠁧󠁢󠁥󠁮󠁧󠁿", playerKo: "마커스 래쉬포드 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fromTeam: "Aston Villa",    fromTeamKo: "애스턴 빌라",      fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    toTeam:   "Aston Villa",    toTeamKo:   "애스턴 빌라",      toFlag:   "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    fee: "€35M", status: "confirmed", window: "Summer 2026", windowKo: "2026 여름",
-    date: "2026-03-25", age: 28, nationality: "England", nationalityKo: "잉글랜드",
-    position: "FWD", positionKo: "공격수", source: "BBC Sport",
-  },
   {
     id: 14, player: "Rodri 🇪🇸",           playerKo: "로드리 🇪🇸",
     fromTeam: "Man City",       fromTeamKo: "맨체스터 시티",    fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
@@ -191,18 +181,9 @@ const MOCK_TRANSFERS: TransferItem[] = [
     date: "2026-03-25", age: 29, nationality: "Spain", nationalityKo: "스페인",
     position: "MID", positionKo: "미드필더", source: "Marca",
   },
-
-  // ── 2025-07-01 ──────────────────────────────────────────────────────────
-  {
-    id: 15, player: "Heung-Min Son 🇰🇷",   playerKo: "손흥민 🇰🇷",
-    fromTeam: "Tottenham",      fromTeamKo: "토트넘",           fromFlag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-    toTeam:   "LAFC",           toTeamKo:   "LAFC",             toFlag:   "🇺🇸",
-    fee: "Free", status: "confirmed", window: "Summer 2025", windowKo: "2025 여름",
-    date: "2025-07-01", age: 33, nationality: "South Korea", nationalityKo: "대한민국",
-    position: "FWD", positionKo: "공격수", source: "Sky Sports",
-  },
 ];
 
+// ── Page ────────────────────────────────────────────────────────────────────
 export default async function TransfersPage({
   params,
 }: {
@@ -213,37 +194,45 @@ export default async function TransfersPage({
 
   const isKo = locale === "ko";
 
+  // Fetch live API data (server-side, cached 1 hour)
+  const apiTransfers: APITransferItem[] = await fetchRecentTransfers();
+  const hasLiveData = apiTransfers.length > 0;
+
   const labels = {
     title:        isKo ? "이적 소식" : "Transfer News",
     subtitle:     isKo ? "최신 선수 이적 및 계약 정보" : "Latest player transfers & contract news",
-    player:       isKo ? "선수" : "Player",
-    from:         isKo ? "이전 클럽" : "From",
-    to:           isKo ? "새 클럽" : "To",
-    fee:          isKo ? "이적료" : "Fee",
-    status:       isKo ? "상태" : "Status",
-    window:       isKo ? "이적 시장" : "Window",
     age:          isKo ? "나이" : "Age",
-    position:     isKo ? "포지션" : "Position",
-    nationality:  isKo ? "국적" : "Nationality",
     confirmed:    isKo ? "확정" : "Confirmed",
     recent:       isKo ? "최근 이적" : "Recent Transfers",
     rumours:      isKo ? "루머 & 임박" : "Rumours & Imminent",
+    live:         isKo ? "실시간" : "LIVE",
+    noData:       isKo ? "이적 데이터를 불러오는 중입니다." : "Loading transfer data...",
   };
 
-  const confirmed = MOCK_TRANSFERS.filter((t) => t.status === "confirmed");
-  const pending   = MOCK_TRANSFERS.filter((t) => t.status !== "confirmed");
-
-  const tickerItems = MOCK_TRANSFERS.map((t) => ({
-    player:     t.player,
-    playerKo:   t.playerKo,
-    fromTeam:   t.fromTeam,
-    fromTeamKo: t.fromTeamKo,
-    toTeam:     t.toTeam,
-    toTeamKo:   t.toTeamKo,
-    fee:        t.fee,
-    status:     t.status,
-    source:     t.source,
-  }));
+  // Ticker: API confirmed + mock rumours
+  const tickerItems = [
+    ...apiTransfers.map((t) => ({
+      player: t.playerName,
+      playerKo: t.playerName,
+      fromTeam: t.fromTeam,
+      fromTeamKo: t.fromTeam,
+      toTeam: t.toTeam,
+      toTeamKo: t.toTeam,
+      fee: t.fee,
+      status: "confirmed" as const,
+    })),
+    ...MOCK_RUMOURS.map((t) => ({
+      player: t.player,
+      playerKo: t.playerKo,
+      fromTeam: t.fromTeam,
+      fromTeamKo: t.fromTeamKo,
+      toTeam: t.toTeam,
+      toTeamKo: t.toTeamKo,
+      fee: t.fee,
+      status: t.status,
+      source: t.source,
+    })),
+  ];
 
   return (
     <main className="bg-gray-50 min-h-screen">
@@ -263,7 +252,15 @@ export default async function TransfersPage({
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-black text-gray-900">{labels.title}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-black text-gray-900">{labels.title}</h1>
+                {hasLiveData && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white tracking-wide">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                    {labels.live}
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-500 mt-0.5">{labels.subtitle}</p>
             </div>
           </div>
@@ -276,83 +273,151 @@ export default async function TransfersPage({
           {/* Main content */}
           <div className="lg:col-span-2 flex flex-col gap-8">
 
-            {[
-              { title: labels.recent, items: confirmed },
-              { title: labels.rumours, items: pending },
-            ].map(({ title, items }) => (
-              <section key={title}>
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="w-1 h-5 rounded-full bg-emerald-600 shrink-0" />
-                  <h2 className="text-base font-bold text-gray-900">{title}</h2>
-                </div>
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  {items.map((transfer, idx) => {
-                    const s = STATUS_STYLES[transfer.status];
-                    return (
-                      <div
-                        key={transfer.id}
-                        className={`px-5 py-4 ${idx < items.length - 1 ? "border-b border-gray-100" : ""} hover:bg-gray-50 transition-colors`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          {/* Player info */}
+            {/* ── Section 1: Recent Confirmed Transfers (API live data) ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-1 h-5 rounded-full bg-emerald-600 shrink-0" />
+                <h2 className="text-base font-bold text-gray-900">{labels.recent}</h2>
+                {hasLiveData && (
+                  <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                    API-Football
+                  </span>
+                )}
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                {hasLiveData ? (
+                  apiTransfers.map((transfer, idx) => (
+                    <div
+                      key={`${transfer.playerId}-${transfer.date}-${idx}`}
+                      className={`px-5 py-4 ${idx < apiTransfers.length - 1 ? "border-b border-gray-100" : ""} hover:bg-gray-50 transition-colors`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        {/* Player avatar + info */}
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`https://media.api-sports.io/football/players/${transfer.playerId}.png`}
+                            alt={transfer.playerName}
+                            width={40}
+                            height={40}
+                            className="w-10 h-10 rounded-full object-cover bg-gray-100 border border-gray-200 shrink-0"
+                            onError={undefined}
+                          />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                              <span className="font-bold text-gray-900 text-sm">
-                                {isKo ? transfer.playerKo : transfer.player}
-                              </span>
+                              <span className="font-bold text-gray-900 text-sm">{transfer.playerName}</span>
                               <span
                                 className="text-xs font-semibold px-2 py-0.5 rounded-full border"
-                                style={{ background: s.bg, color: s.text, borderColor: s.border }}
+                                style={{ background: STATUS_STYLES.confirmed.bg, color: STATUS_STYLES.confirmed.text, borderColor: STATUS_STYLES.confirmed.border }}
                               >
-                                {isKo ? s.labelKo : s.label}
+                                {isKo ? STATUS_STYLES.confirmed.labelKo : STATUS_STYLES.confirmed.label}
                               </span>
                             </div>
 
                             {/* Transfer route */}
                             <div className="flex items-center gap-2 text-sm flex-wrap">
                               <span className="text-gray-500">
-                                {transfer.fromFlag} {isKo ? transfer.fromTeamKo : transfer.fromTeam}
+                                {transfer.fromFlag} {transfer.fromTeam}
                               </span>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                                 <path d="M5 12h14M12 5l7 7-7 7"/>
                               </svg>
                               <span className="font-semibold text-gray-900">
-                                {transfer.toFlag} {isKo ? transfer.toTeamKo : transfer.toTeam}
+                                {transfer.toFlag} {transfer.toTeam}
                               </span>
                             </div>
-
-                            {/* Meta */}
-                            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400 flex-wrap">
-                              <span>{isKo ? transfer.positionKo : transfer.position}</span>
-                              <span>·</span>
-                              <span>{isKo ? transfer.nationalityKo : transfer.nationality}</span>
-                              <span>·</span>
-                              <span>{labels.age} {transfer.age}</span>
-                              <span>·</span>
-                              <span>{isKo ? transfer.windowKo : transfer.window}</span>
-                              {transfer.source && (
-                                <>
-                                  <span>·</span>
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full">
-                                    📰 {transfer.source}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Fee badge */}
-                          <div className="shrink-0 text-right">
-                            <div className="text-sm font-black text-gray-900">{transfer.fee}</div>
-                            <div className="text-xs text-gray-400 mt-0.5">{relativeDate(transfer.date, isKo)}</div>
                           </div>
                         </div>
+
+                        {/* Fee + date */}
+                        <div className="shrink-0 text-right">
+                          <div className="mb-0.5">
+                            <FeeBadge fee={transfer.fee} isKo={isKo} />
+                          </div>
+                          <div className="text-xs text-gray-400">{relativeDate(transfer.date, isKo)}</div>
+                        </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-5 py-10 text-center text-sm text-gray-400">
+                    {labels.noData}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* ── Section 2: Rumours & Imminent (mock data) ── */}
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="w-1 h-5 rounded-full bg-amber-500 shrink-0" />
+                <h2 className="text-base font-bold text-gray-900">{labels.rumours}</h2>
+              </div>
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                {MOCK_RUMOURS.map((transfer, idx) => {
+                  const s = STATUS_STYLES[transfer.status];
+                  return (
+                    <div
+                      key={transfer.id}
+                      className={`px-5 py-4 ${idx < MOCK_RUMOURS.length - 1 ? "border-b border-gray-100" : ""} hover:bg-gray-50 transition-colors`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="font-bold text-gray-900 text-sm">
+                              {isKo ? transfer.playerKo : transfer.player}
+                            </span>
+                            <span
+                              className="text-xs font-semibold px-2 py-0.5 rounded-full border"
+                              style={{ background: s.bg, color: s.text, borderColor: s.border }}
+                            >
+                              {isKo ? s.labelKo : s.label}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm flex-wrap">
+                            <span className="text-gray-500">
+                              {transfer.fromFlag} {isKo ? transfer.fromTeamKo : transfer.fromTeam}
+                            </span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                              <path d="M5 12h14M12 5l7 7-7 7"/>
+                            </svg>
+                            <span className="font-semibold text-gray-900">
+                              {transfer.toFlag} {isKo ? transfer.toTeamKo : transfer.toTeam}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400 flex-wrap">
+                            <span>{isKo ? transfer.positionKo : transfer.position}</span>
+                            <span>·</span>
+                            <span>{isKo ? transfer.nationalityKo : transfer.nationality}</span>
+                            <span>·</span>
+                            <span>{labels.age} {transfer.age}</span>
+                            <span>·</span>
+                            <span>{isKo ? transfer.windowKo : transfer.window}</span>
+                            {transfer.source && (
+                              <>
+                                <span>·</span>
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-500 bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded-full">
+                                  📰 {transfer.source}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 text-right">
+                          <div className="mb-0.5">
+                            <FeeBadge fee={transfer.fee} isKo={isKo} />
+                          </div>
+                          <div className="text-xs text-gray-400 mt-0.5">{relativeDate(transfer.date, isKo)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           </div>
 
           {/* Sidebar */}
@@ -362,10 +427,26 @@ export default async function TransfersPage({
               <h3 className="text-sm font-bold text-gray-900 mb-4">{isKo ? "이적 현황" : "Transfer Summary"}</h3>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: isKo ? "확정" : "Confirmed", count: MOCK_TRANSFERS.filter(t => t.status === "confirmed").length, color: "text-emerald-600" },
-                  { label: isKo ? "임박" : "Imminent",  count: MOCK_TRANSFERS.filter(t => t.status === "imminent").length,  color: "text-amber-600" },
-                  { label: isKo ? "루머" : "Rumours",   count: MOCK_TRANSFERS.filter(t => t.status === "rumour").length,    color: "text-gray-600" },
-                  { label: isKo ? "총계" : "Total",     count: MOCK_TRANSFERS.length,                                       color: "text-gray-900" },
+                  {
+                    label: isKo ? "확정" : "Confirmed",
+                    count: hasLiveData ? apiTransfers.length : 0,
+                    color: "text-emerald-600",
+                  },
+                  {
+                    label: isKo ? "임박" : "Imminent",
+                    count: MOCK_RUMOURS.filter((t) => t.status === "imminent").length,
+                    color: "text-amber-600",
+                  },
+                  {
+                    label: isKo ? "루머" : "Rumours",
+                    count: MOCK_RUMOURS.filter((t) => t.status === "rumour").length,
+                    color: "text-gray-600",
+                  },
+                  {
+                    label: isKo ? "총계" : "Total",
+                    count: (hasLiveData ? apiTransfers.length : 0) + MOCK_RUMOURS.length,
+                    color: "text-gray-900",
+                  },
                 ].map(({ label, count, color }) => (
                   <div key={label} className="bg-gray-50 rounded-xl p-3 text-center border border-gray-100">
                     <div className={`text-2xl font-black ${color}`}>{count}</div>
@@ -373,6 +454,11 @@ export default async function TransfersPage({
                   </div>
                 ))}
               </div>
+              {hasLiveData && (
+                <p className="text-[10px] text-gray-400 mt-3 text-center">
+                  {isKo ? "확정 데이터: API-Football 실시간" : "Confirmed data: API-Football live"}
+                </p>
+              )}
             </div>
 
             <AdSlot slotId="transfers-sidebar" size="rectangle" />

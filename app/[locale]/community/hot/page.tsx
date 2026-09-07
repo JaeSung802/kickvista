@@ -51,7 +51,7 @@ const CATEGORY_META: Record<
 };
 
 const ALL_CATEGORIES: PostCategory[] = [
-  "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
+  "worldcup-2026", "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
 ];
 
 // Rank medal colors: #1 green, #2 amber, #3 bronze, rest muted

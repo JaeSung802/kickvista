@@ -97,8 +97,23 @@ export default function SquadSection({ players, teamName, teamFlag, locale, upda
       if (st.goals.total       != null) update.goals       = st.goals.total;
       if (st.goals.assists     != null) update.assists      = st.goals.assists;
 
+      // Rating-based market value estimation (API-Football은 몸값을 직접 제공 안 함)
+      const ratingRaw = (st.games as Record<string, unknown>).rating;
+      const rating = ratingRaw ? parseFloat(String(ratingRaw)) : null;
+
       statsCache.current.set(player.id, update);
-      setSelected((prev) => (prev ? { ...prev, ...update } : prev));
+      setSelected((prev) => {
+        if (!prev) return prev;
+        const next = { ...prev, ...update };
+        // 몸값이 없으면 rating으로 추정
+        if (!next.marketValue && rating) {
+          next.marketValue =
+            rating >= 8.0 ? "~€80M+" :
+            rating >= 7.5 ? "~€40M"  :
+            rating >= 7.0 ? "~€20M"  : "~€10M";
+        }
+        return next;
+      });
     } catch {
       // silently ignore — modal keeps existing data
     }
