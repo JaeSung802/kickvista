@@ -1,11 +1,10 @@
 /**
  * HomePageContent — Server Component (assembler)
  *
- * Portal-style 2-column layout:
- * - Left (2/3): Today's matches + Community hot posts
- * - Right (1/3): Standings mini + AI Analysis CTA + Notices
- *
- * Visually distinct from league pages via dark hero + portal layout.
+ * 3-column dashboard layout:
+ * - Left  (xl 3/12): Popular league rail — sticky, xl+ only
+ * - Center (xl 6/12, lg 2/3): Today's matches + Community hot posts
+ * - Right  (xl 3/12, lg 1/3): Standings mini + AI Analysis CTA + Notices
  */
 
 import type { Locale } from "@/lib/i18n";
@@ -19,8 +18,6 @@ import AdSidebar from "@/components/ads/AdSidebar";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { LeagueLogo } from "@/components/ui/LeagueLogo";
 import StandingsMiniClient from "./StandingsMiniClient";
-import { WorldCupGroupsDynamic, KoreaMatchScheduleDynamic } from "@/components/worldcup/WorldCupLoaders";
-import { isWorldCupVisible } from "@/lib/worldcup/visibility";
 
 export type StandingsMap = Partial<Record<string, StandingRowViewModel[]>>;
 
@@ -388,6 +385,41 @@ export function QuickLinksBar({ locale }: { locale: Locale }) {
   );
 }
 
+// ─── Left league rail (xl+) ───────────────────────────────────────────────────
+
+function HomeLeagueRail({ locale }: { locale: Locale }) {
+  const isKo = locale === "ko";
+  return (
+    <aside aria-label={isKo ? "인기 리그" : "Popular Leagues"} className="sticky top-20">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+            {isKo ? "인기 리그" : "Popular Leagues"}
+          </h2>
+        </div>
+        <div className="p-2 flex flex-col gap-0.5">
+          {LEAGUE_QUICK.map((l) => (
+            <a
+              key={l.href}
+              href={`/${locale}/league/${l.href}`}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors group"
+            >
+              <LeagueLogo
+                logo={l.logo}
+                name={isKo ? l.ko : l.en}
+                flag={l.flag}
+                size={22}
+                className="shrink-0 group-hover:scale-110 transition-transform"
+              />
+              <span className="truncate">{isKo ? l.ko : l.en}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 // ─── Main layout ──────────────────────────────────────────────────────────────
 
 export default function HomePageContent({
@@ -403,7 +435,6 @@ export default function HomePageContent({
   const liveMatches  = matches.filter((m) => m.status === "live");
   const otherMatches = matches.filter((m) => m.status !== "live");
   const leagueGroups = groupMatchesByLeague([...liveMatches, ...otherMatches], locale);
-  const showWorldCup = isWorldCupVisible();
 
   return (
     <>
@@ -414,25 +445,18 @@ export default function HomePageContent({
         </div>
       </div>
 
-      {/* ── Main 2-col portal layout ── */}
+      {/* ── Main 3-col portal layout ── */}
       <div className="bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-12 gap-6">
 
-            {/* ── LEFT — main content (2/3) ── */}
-            <div className="lg:col-span-2 flex flex-col gap-6">
+            {/* ── LEFT — league rail (xl only, display:none below xl) ── */}
+            <div className="hidden xl:block xl:col-span-3">
+              <HomeLeagueRail locale={locale} />
+            </div>
 
-              {/* World Cup Group Standings — 기간 한정 노출 */}
-              {showWorldCup && (
-                <section>
-                  <SectionHeader
-                    title={isKo ? "🏆 2026 월드컵 조편성" : "🏆 2026 World Cup Groups"}
-                    href={`/${locale}/community?category=worldcup-2026`}
-                    linkLabel={isKo ? "월드컵 커뮤니티" : "WC Community"}
-                  />
-                  <WorldCupGroupsDynamic isKo={isKo} />
-                </section>
-              )}
+            {/* ── CENTER — main content ── */}
+            <div className="lg:col-span-2 xl:col-span-6 flex flex-col gap-6">
 
               {/* Today's Matches — grouped by league */}
               <section id="matches">
@@ -547,11 +571,8 @@ export default function HomePageContent({
               <AdBanner slot={adBanner} />
             </div>
 
-            {/* ── RIGHT — sidebar (1/3) ── */}
-            <div className="flex flex-col gap-5">
-
-              {/* Korea Match Schedule — 기간 한정 노출 */}
-              {showWorldCup && <KoreaMatchScheduleDynamic isKo={isKo} />}
+            {/* ── RIGHT — sidebar ── */}
+            <div className="lg:col-span-1 xl:col-span-3 flex flex-col gap-5">
 
               {/* League standings mini */}
               <StandingsMiniClient standingsData={standingsData} locale={locale} />

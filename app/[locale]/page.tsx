@@ -3,13 +3,11 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
-import { websiteJsonLd, koreaScheduleJsonLd } from "@/lib/seo/jsonld";
-import { isWorldCupVisible } from "@/lib/worldcup/visibility";
+import { websiteJsonLd } from "@/lib/seo/jsonld";
 import { queryHomeMatches, queryStandings } from "@/lib/football/query";
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
 
 import { listHotPosts } from "@/lib/community/hotPosts";
-import HeroSection from "@/components/home/HeroSection";
 import { QuickLinksBar } from "@/components/home/HomePageContent";
 import HomePageContent, { type StandingsMap } from "@/components/home/HomePageContent";
 
@@ -27,15 +25,6 @@ export async function generateMetadata({
   const { locale } = await params;
   if (!isValidLocale(locale)) return {};
   const loc = locale as Locale;
-  if (isWorldCupVisible()) {
-    return buildMetadata({
-      locale: loc,
-      description:
-        loc === "ko"
-          ? "2026 FIFA 북중미 월드컵 조편성·대한민국 경기 일정, 라이브 스코어, 순위표, AI 경기 분석 — 킥비스타"
-          : "2026 FIFA World Cup groups & Korea schedule, live scores, standings and AI match analysis — KickVista",
-    });
-  }
   return buildMetadata({ locale: loc });
 }
 
@@ -90,9 +79,21 @@ function HomeContentSkeleton() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column skeleton */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-12 gap-6">
+          {/* Left league rail skeleton — xl only */}
+          <div className="hidden xl:block xl:col-span-3">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="shimmer h-10 w-full" />
+              {[...Array(7)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-t border-gray-100">
+                  <div className="shimmer h-5 w-5 rounded shrink-0" />
+                  <div className="shimmer h-3 flex-1 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Center column skeleton */}
+          <div className="lg:col-span-2 xl:col-span-6 flex flex-col gap-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="shimmer h-10 w-full" />
@@ -109,7 +110,7 @@ function HomeContentSkeleton() {
             ))}
           </div>
           {/* Right column skeleton */}
-          <div className="flex flex-col gap-4">
+          <div className="lg:col-span-1 xl:col-span-3 flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="shimmer h-10 w-full" />
               {[...Array(6)].map((_, i) => (
@@ -137,9 +138,8 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   if (!isValidLocale(locale)) notFound();
-  const loc        = locale as Locale;
-  const jsonLd     = websiteJsonLd(loc);
-  const wcJsonLds  = isWorldCupVisible() ? koreaScheduleJsonLd(loc) : [];
+  const loc    = locale as Locale;
+  const jsonLd = websiteJsonLd(loc);
 
   return (
     <>
@@ -147,16 +147,10 @@ export default async function HomePage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {wcJsonLds.map((ld, i) => (
-        <script
-          key={`wc-${i}`}
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
-        />
-      ))}
-      {/* Renders instantly — no data dependency */}
-      <HeroSection locale={loc} />
-      <QuickLinksBar locale={loc} />
+      {/* QuickLinksBar — hidden at xl where the league rail takes over */}
+      <div className="xl:hidden">
+        <QuickLinksBar locale={loc} />
+      </div>
       {/* Data-dependent section streams in behind the skeleton */}
       <Suspense fallback={<HomeContentSkeleton />}>
         <HomeContent locale={loc} />
