@@ -10,6 +10,7 @@
 import type { Fixture, Team, StandingEntry, FixtureStatus } from "./types";
 import type { LeagueSlug } from "./types";
 import { TEAM_REGISTRY, getTeamNameKo } from "./teamRegistry";
+import { SUPPORTED_LEAGUES } from "./constants";
 
 // Build a lookup map from numeric API team ID → registry entry (built once at module load)
 const TEAM_BY_ID = Object.fromEntries(
@@ -55,11 +56,10 @@ const STATUS_MAP: Record<string, FixtureStatus> = {
   "PEN": "PEN", "PST": "PST", "CANC": "CANC", "SUSP": "SUSP",
 };
 
-// Map API league IDs to domain slugs (matches constants.ts)
-const LEAGUE_ID_TO_SLUG: Record<number, LeagueSlug> = {
-  39: "premier-league", 140: "la-liga", 78: "bundesliga",
-  135: "serie-a", 61: "ligue-1", 2: "champions-league",
-};
+// Map API league IDs to domain slugs — derived from SUPPORTED_LEAGUES (single source of truth)
+const LEAGUE_ID_TO_SLUG: Record<number, LeagueSlug> = Object.fromEntries(
+  SUPPORTED_LEAGUES.map((l) => [l.id, l.slug])
+) as Record<number, LeagueSlug>;
 
 export function normalizeTeam(raw: RawTeam): Team {
   const registered = TEAM_BY_ID[raw.id];
