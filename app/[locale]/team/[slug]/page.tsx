@@ -155,7 +155,7 @@ export default async function TeamPage({
   const upcomingMatches = fixturesToMatches(upcomingFixtures, loc);
 
   const standingRow = standings
-    ? standingsToRows(standings).find((r) => r.team === entry.nameEn || r.teamKo === entry.nameKo)
+    ? standingsToRows(standings, loc).find((r) => r.team === entry.nameEn || r.teamKo === entry.nameKo)
     : null;
 
   const ordinal = (n: number) => ["st","nd","rd"][n-1] ?? "th";

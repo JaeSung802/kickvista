@@ -177,7 +177,7 @@ export default async function LeagueOverviewPage({
 
   const recentMatches   = fixturesToMatches(results, loc);
   const upcomingMatches = fixturesToMatches(upcoming, loc);
-  const standingRows    = standings ? standingsToRows(standings) : [];
+  const standingRows    = standings ? standingsToRows(standings, loc) : [];
   const topRows         = standingRows.slice(0, 20);
 
   // League teams: prefer live standings (current-season accurate) over static registry

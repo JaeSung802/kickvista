@@ -65,10 +65,10 @@ async function HomeContent({
   const hotPosts    = hotPostsResult.status  === "fulfilled" ? hotPostsResult.value.posts : [];
 
   const standingsData: StandingsMap = {
-    ...(plStandings && { "premier-league": standingsToRows(plStandings) }),
-    ...(laLiga      && { "la-liga":        standingsToRows(laLiga) }),
-    ...(bundesliga  && { "bundesliga":     standingsToRows(bundesliga) }),
-    ...(serieA      && { "serie-a":        standingsToRows(serieA) }),
+    ...(plStandings && { "premier-league": standingsToRows(plStandings, locale) }),
+    ...(laLiga      && { "la-liga":        standingsToRows(laLiga,      locale) }),
+    ...(bundesliga  && { "bundesliga":     standingsToRows(bundesliga,  locale) }),
+    ...(serieA      && { "serie-a":        standingsToRows(serieA,      locale) }),
   };
 
   return (
