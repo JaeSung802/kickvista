@@ -63,12 +63,13 @@ function kstDateString(offsetDays = 0): string {
  * Fetch home-page matches for the 4 main leagues (PL, La Liga, Bundesliga, Serie A).
  *
  * Fallback chain per league:
- *   1. Range query: today → +2 days (timezone Asia/Seoul) — catches today + tomorrow
- *   2. Last 10 finished results       — shown when there's a mid-week break
- *   3. Next 10 upcoming fixtures      — shown during pre-season / international breaks
+ *   1. Range query: 오늘 + 다음 7일 (timezone Asia/Seoul) — finished/live/upcoming 모두 포함
+ *   2. Next 10 upcoming fixtures      — 오늘~7일 범위에 경기가 없을 때 (국제 A매치 기간 등)
  *
- * Returns deduplicated, sorted, max-20 fixtures — always non-empty when the API
- * is healthy and the season is active.
+ * 과거 종료 경기(fetchFixturesLast)는 홈 일정에 사용하지 않는다.
+ * 오늘 날짜의 finished/live/upcoming 경기는 모두 유지된다.
+ *
+ * Returns deduplicated, kickoff-sorted fixtures for the first 3 match days found.
  */
 export async function queryHomeMatches(): Promise<Fixture[]> {
   const provider = getFootballProvider();
@@ -86,14 +87,14 @@ export async function queryHomeMatches(): Promise<Fixture[]> {
   // KST dates: using toISOString() would return UTC and show yesterday's date
   // in Korean morning hours (UTC+9 is 9 h ahead of UTC).
   const from = kstDateString(0);
-  const to   = kstDateString(2);
+  const to   = kstDateString(7);
 
   // calendar year vs football season: 2026 calendar year → season param 2025 (2025-26)
   console.log(`[queryHomeMatches] KST: ${from}→${to} | calYear=${new Date().getFullYear()} season=${leagues[0]?.season}`);
 
   const allFixtures = await Promise.all(
     leagues.map(async (league): Promise<Fixture[]> => {
-      // 1st: date range (today → +2 days, KST)
+      // 1st: date range (today → +7 days, KST)
       try {
         const primary = await provider.fetchFixturesRange(league.id, from, to, league.season);
         if (primary.length > 0) return primary;
@@ -101,15 +102,7 @@ export async function queryHomeMatches(): Promise<Fixture[]> {
         console.error(`[matches] league=${league.id} primary failed:`, err);
       }
 
-      // 2nd: last 10 finished
-      try {
-        const last = await provider.fetchFixturesLast(league.id, league.season, 10);
-        if (last.length > 0) return last;
-      } catch (err) {
-        console.error(`[matches] league=${league.id} fallback last failed:`, err);
-      }
-
-      // 3rd: next 10 upcoming
+      // 2nd: next 10 upcoming
       try {
         const next = await provider.fetchFixturesNext(league.id, league.season, 10);
         return next;
@@ -120,7 +113,7 @@ export async function queryHomeMatches(): Promise<Fixture[]> {
     })
   );
 
-  // Dedupe by fixture.id, sort by kickoff time, cap at 20
+  // Dedupe by fixture.id, sort by kickoff time
   const seen = new Set<number>();
   const merged: Fixture[] = [];
   for (const fixtures of allFixtures) {
@@ -132,7 +125,19 @@ export async function queryHomeMatches(): Promise<Fixture[]> {
     }
   }
   merged.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  return merged.slice(0, 20);
+
+  // 가장 이른 고유 날짜 3개를 선택해 그 날짜의 경기를 모두 반환한다.
+  // fixture.date는 timezone=Asia/Seoul 요청으로 +09:00 offset이므로
+  // .slice(0, 10)이 올바른 KST YYYY-MM-DD를 반환한다.
+  const firstThreeDates = [
+    ...new Set(merged.map((fixture) => fixture.date.slice(0, 10))),
+  ].slice(0, 3);
+
+  const allowedDates = new Set(firstThreeDates);
+
+  return merged.filter((fixture) =>
+    allowedDates.has(fixture.date.slice(0, 10))
+  );
 }
 
 /**

@@ -413,7 +413,7 @@ export class RealFootballProvider implements IFootballProvider {
     n: number
   ): Promise<Fixture[]> {
     const data = await this.apiFetch<{ response: unknown[] }>(
-      `/fixtures?league=${leagueId}&season=${season}&status=NS&next=${n}`,
+      `/fixtures?league=${leagueId}&season=${season}&status=NS&next=${n}&timezone=Asia%2FSeoul`,
       CACHE_TTL.FIXTURES_TODAY,
       cacheTags("fixtures", leagueId),
       // noStore = false — ISR 캐시 활용
