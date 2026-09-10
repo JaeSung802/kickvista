@@ -218,7 +218,10 @@ export async function queryLeagueFixtures(
 
 /**
  * Fetch upcoming (not-started) fixtures for a league.
- * Includes postponed matches (PST).
+ *
+ * NOTE: PST(postponed) fixtures are not included — fetchFixturesNext uses
+ * status=NS only. This is an intentional behavior change from the previous
+ * implementation which filtered fetchFixtures(today) for NS|PST.
  */
 export async function queryUpcomingFixtures(
   leagueSlug: LeagueSlug,
@@ -230,10 +233,9 @@ export async function queryUpcomingFixtures(
     console.error(`[queryUpcomingFixtures] unknown leagueSlug: ${leagueSlug}`);
     return [];
   }
-  const all = await provider.fetchFixtures(league.id, undefined, league.season);
+  const fixtures = await provider.fetchFixturesNext(league.id, league.season, limit);
 
-  return all
-    .filter((f) => f.status === "NS" || f.status === "PST")
+  return [...fixtures]
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, limit);
 }
