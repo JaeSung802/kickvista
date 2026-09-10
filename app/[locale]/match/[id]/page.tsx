@@ -5,10 +5,8 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import { sportsEventJsonLd } from "@/lib/seo/jsonld";
 import { queryMatchDetail, queryFixturePlayers } from "@/lib/football/query";
 import { getAnalysesByFixture } from "@/lib/analysis/db";
-import { isMockMode } from "@/lib/football-api";
 import AdSlot from "@/components/ads/AdSlot";
 import MatchTabNav from "@/components/match/MatchTabNav";
-import RecapCTACard from "@/components/match/RecapCTACard";
 import PredictionCard from "@/components/match/PredictionCard";
 import { getServerUser, getServerProfile } from "@/lib/auth";
 import { getUserPrediction, getPredictionStats } from "@/lib/predictions";
@@ -156,7 +154,12 @@ const MOCK_MATCHES: Record<string, Fixture & {
 
 const labels = {
   en: {
-    tabs: ["Summary", "Statistics", "Lineup", "AI Analysis", "Recap"],
+    tabs: {
+      facts:      "Facts",
+      ticker:     "Ticker",
+      lineup:     "Lineup",
+      statistics: "Statistics",
+    },
     kickoff: "Kick-off",
     halfTime: "Half-Time",
     fullTime: "Full Time",
@@ -182,7 +185,12 @@ const labels = {
     assist: "Assist",
   },
   ko: {
-    tabs: ["요약", "통계", "라인업", "AI 분석", "리캡"],
+    tabs: {
+      facts:      "팩트",
+      ticker:     "티커",
+      lineup:     "라인업",
+      statistics: "통계",
+    },
     kickoff: "킥오프",
     halfTime: "전반전",
     fullTime: "경기 종료",
@@ -228,7 +236,6 @@ interface RecapData {
   }>;
 }
 
-// Normalise a raw event from either mock format or real API format into a flat shape.
 function normaliseEvent(
   e: unknown,
   homeId: number
@@ -241,16 +248,14 @@ function normaliseEvent(
       ? ev.minute
       : ((ev.time as Record<string, unknown> | undefined)?.elapsed as number | undefined) ?? 0;
 
-  // Normalise type: real API uses "Goal", "Card", "subst"; mock uses "goal", "yellow-card" etc.
   const rawType = String(ev.type ?? "").toLowerCase();
   const detail  = String(ev.detail ?? "").toLowerCase();
   let type: string;
   if (rawType === "goal")         type = "goal";
   else if (rawType === "card")    type = detail.includes("red") ? "red-card" : "yellow-card";
   else if (rawType === "subst")   type = "substitution";
-  else                             type = rawType; // already normalised (mock)
+  else                             type = rawType;
 
-  // Normalise team: mock = "home"|"away", real API = { id: number }
   let team: "home" | "away";
   if (typeof ev.team === "string") {
     team = ev.team === "home" ? "home" : "away";
@@ -259,7 +264,6 @@ function normaliseEvent(
     team = teamId === homeId ? "home" : "away";
   }
 
-  // Normalise player name: mock = ev.player (string), real API = { id, name }
   const player: string =
     typeof ev.player === "string"
       ? ev.player
@@ -268,7 +272,6 @@ function normaliseEvent(
       : (ev.player as Record<string, unknown> | undefined)?.name as string | undefined
       ?? "Unknown";
 
-  // Normalise assist: mock = ev.assist (string), real API = { id, name } | null
   const rawAssist = ev.assist ?? ev.assistName;
   const assist: string | undefined =
     typeof rawAssist === "string"
@@ -278,7 +281,6 @@ function normaliseEvent(
   return { minute, type, team, player, assist };
 }
 
-// KO → EN stat type mapping for real API "Shots on Goal" etc.
 const STAT_LABEL_MAP: Record<string, { en: string; ko: string }> = {
   "ball possession":    { en: "Possession",       ko: "점유율"      },
   "shots on goal":      { en: "Shots on Target",   ko: "유효슈팅"    },
@@ -292,15 +294,13 @@ const STAT_LABEL_MAP: Record<string, { en: string; ko: string }> = {
   "offsides":           { en: "Offsides",          ko: "오프사이드"  },
 };
 
-// Flatten real API statistics `[{team, statistics:[{type,value}]}]` → flat {label,labelKo,home,away}[]
 function flattenApiStats(
   raw: unknown,
   homeId: number
 ): Array<{ label: string; labelKo: string; home: string | number; away: string | number }> {
   if (!Array.isArray(raw)) return [];
-  // Detect real API format: each element has a "statistics" sub-array
   const isApiFormat = (raw[0] as Record<string, unknown> | undefined)?.statistics !== undefined;
-  if (!isApiFormat) return []; // already flat (mock) — caller uses its own format
+  if (!isApiFormat) return [];
 
   const homeTeamEntry = raw.find((entry) => {
     const t = (entry as Record<string, unknown>).team as Record<string, unknown> | undefined;
@@ -353,13 +353,11 @@ function generateRecap(
   const resultEn = winner === "draw" ? "draw" : `${winnerName} win`;
   const resultKo = winner === "draw" ? "무승부" : `${winnerKo} 승리`;
 
-  // Normalise events array (handles both mock and real API formats)
   const rawEvents: unknown[] = Array.isArray(match.events) ? match.events : [];
   const events = rawEvents
     .map((e) => normaliseEvent(e, homeId))
     .filter((e): e is NonNullable<typeof e> => e !== null);
 
-  // Normalise statistics (handle both mock flat array and real API nested array)
   const rawStats: unknown[] = Array.isArray(match.statistics) ? match.statistics : [];
   const isApiFormat = (rawStats[0] as Record<string, unknown> | undefined)?.statistics !== undefined;
   const flatStats: Array<{ label: string; labelKo: string; home: string | number; away: string | number }> =
@@ -367,7 +365,6 @@ function generateRecap(
       ? flattenApiStats(rawStats, homeId)
       : rawStats as Array<{ label: string; labelKo: string; home: string | number; away: string | number }>;
 
-  // MOM: first scorer, fallback to winner team name
   const firstGoal = events.find((e) => e.type === "goal");
   const redCard   = events.find((e) => e.type === "red-card");
   const mom = firstGoal
@@ -382,7 +379,6 @@ function generateRecap(
         reasonKo: `${hs}–${as_} ${resultKo}을 이끈 뛰어난 팀 퍼포먼스.`,
       };
 
-  // Highlights
   const goals = events.filter((e) => e.type === "goal");
   const highlights: RecapData["highlights"] = [];
 
@@ -395,7 +391,6 @@ function generateRecap(
       textKo: `총 ${hs + as_}골 — ${gsKo}`,
     });
   } else {
-    // Fallback for no event data
     highlights.push({
       icon: "⚽",
       text:   `Final score: ${home} ${hs}–${as_} ${away}`,
@@ -438,7 +433,6 @@ function generateRecap(
     });
   }
 
-  // Narrative
   const period1Goals = goals.filter((g) => g.minute <= 45);
   const period2Goals = goals.filter((g) => g.minute > 45);
 
@@ -467,7 +461,6 @@ function generateRecap(
     ko: `${redCard ? `${redCard.minute}분 ${redCard.player}의 퇴장으로 ${redCard.team === "home" ? homeKo : awayKo}는 이후 10명으로 수비에 나서야 했습니다. ` : ""}${shotsStat ? `${homeKo}의 유효슈팅 ${shotsStat.home}개, ${awayKo}의 유효슈팅 ${shotsStat.away}개가 이번 경기의 흐름을 잘 보여줍니다.` : `양 팀의 수준을 잘 드러낸 기억에 남을 명승부였습니다.`}`,
   };
 
-  // Key stats (from normalised flat stats)
   const statLabels = ["Possession", "Shots", "Shots on Target", "Corners", "Pass Accuracy"];
   const labelKoMap: Record<string, string> = {
     Possession: "점유율", Shots: "슈팅", "Shots on Target": "유효슈팅",
@@ -503,6 +496,12 @@ function formatMatchTime(dateStr: string, locale: Locale): string {
   });
 }
 
+// ─── Valid tab IDs ─────────────────────────────────────────────────────────────
+
+const VALID_TABS = new Set(["facts", "ticker", "lineup", "statistics"]);
+
+// ─── Metadata ─────────────────────────────────────────────────────────────────
+
 export async function generateMetadata({
   params,
 }: {
@@ -511,7 +510,7 @@ export async function generateMetadata({
   const { locale, id } = await params;
   if (!isValidLocale(locale)) return {};
   const providerMatch = await queryMatchDetail(Number(id));
-  const match = providerMatch ?? (isMockMode ? (MOCK_MATCHES[id] ?? null) : null);
+  const match = providerMatch ?? (MOCK_MATCHES[id] ?? null);
   if (!match) return buildMetadata({ locale: locale as Locale });
 
   const loc = locale as Locale;
@@ -533,25 +532,30 @@ export async function generateMetadata({
   });
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default async function MatchDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { locale, id } = await params;
   if (!isValidLocale(locale)) notFound();
 
   const loc = locale as Locale;
 
-  // Real mode: providerMatch only. Mock mode: MOCK_MATCHES fallback when absent.
+  // Derive and validate activeTab (invalid values fall back to "facts")
+  const rawTab = (await searchParams).tab;
+  const activeTab = VALID_TABS.has(rawTab ?? "") ? rawTab! : "facts";
+
   const providerMatch = await queryMatchDetail(Number(id));
   type MatchData = MatchDetail | (typeof MOCK_MATCHES)[string];
   const match: MatchData | null =
     providerMatch ??
-    (isMockMode ? (MOCK_MATCHES[id] ?? null) : null);
-  // Match not found — render a graceful error page instead of a hard 404.
-  // This prevents 404s caused by API rate-limits or temporary outages;
-  // the ISR cache will retry after `revalidate` seconds.
+    (MOCK_MATCHES[id] ?? null);
+
   if (!match) {
     const isKoFallback = loc === "ko";
     return (
@@ -600,55 +604,51 @@ export default async function MatchDetailPage({
     ? (loc === "ko" ? "취소됨" : "Cancelled")
     : formatMatchTime(match.date, loc);
 
-  // Safe arrays — API returns undefined for postponed/cancelled matches
   const rawEvents     = Array.isArray(match.events)     ? match.events     : [];
   const rawStatistics = Array.isArray(match.statistics) ? match.statistics : [];
 
   const safeLineupHome: LineupPlayer[] = Array.isArray(match.lineupHome) ? match.lineupHome : [];
   const safeLineupAway: LineupPlayer[] = Array.isArray(match.lineupAway) ? match.lineupAway : [];
 
-
-  // Normalise events: handles both mock format {player,team:"home"|"away"} and
-  // real API format {player:{id,name}, team:{id,name}, time:{elapsed}} so
-  // React never receives an object where it expects a string.
   const safeEvents = rawEvents
     .map((e) => normaliseEvent(e, match.homeTeam.id))
     .filter((e): e is NonNullable<typeof e> => e !== null);
 
-  // Normalise statistics: real API returns [{team,statistics:[]}] nested format;
-  // mock returns flat [{label,labelKo,home,away}].  flattenApiStats handles both.
   const isApiStatsFormat = (rawStatistics[0] as Record<string, unknown> | undefined)?.statistics !== undefined;
   const safeStatistics: Array<{ label: string; labelKo: string; home: string | number; away: string | number }> =
     isApiStatsFormat
       ? flattenApiStats(rawStatistics, match.homeTeam.id)
       : rawStatistics as Array<{ label: string; labelKo: string; home: string | number; away: string | number }>;
 
-  // CDN logo URLs — use API value if present, otherwise construct from team ID
   const homeLogo = match.homeTeam.logo ?? `https://media.api-sports.io/football/teams/${match.homeTeam.id}.png`;
   const awayLogo = match.awayTeam.logo ?? `https://media.api-sports.io/football/teams/${match.awayTeam.id}.png`;
 
-  // Fetch live player ratings for finished matches (MOM selection)
-  const fixturePlayers = (isFinished && !isInactive)
+  // ── Lazy queries: only fetch when the Facts tab is active ──────────────────
+
+  // Player stats for MOM — only Facts tab, finished matches
+  const fixturePlayers = (activeTab === "facts" && isFinished && !isInactive)
     ? await queryFixturePlayers(Number(id))
     : [];
 
-  // MOM: highest-rated player with ≥ 45 minutes played
   const momPlayer = fixturePlayers.length > 0
     ? fixturePlayers
         .filter((p) => p.minutesPlayed >= 45 && (p.rating ?? 0) > 0)
         .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.goals - a.goals || b.assists - a.assists)[0] ?? null
     : null;
 
-  // ── Prediction data ──────────────────────────────────────────────────────────
+  // Supabase user + prediction data (PredictionCard is always in sidebar)
   const supabaseUser = await getServerUser();
 
-  // Fetch profile, prediction stats, user prediction, and AI analyses in parallel
   const [userProfileR, predictionStatsR, userPredictionR, dbAnalysesR] = await Promise.allSettled([
     supabaseUser ? getServerProfile(supabaseUser.id) : Promise.resolve(null),
     getPredictionStats(Number(id)),
     supabaseUser ? getUserPrediction(supabaseUser.id, Number(id)) : Promise.resolve(null),
-    getAnalysesByFixture(Number(id), loc).catch(() => ({ preview: null, recap: null })),
+    // AI Analysis DB fetch — only needed on Facts tab
+    activeTab === "facts"
+      ? getAnalysesByFixture(Number(id), loc).catch(() => ({ preview: null, recap: null }))
+      : Promise.resolve({ preview: null, recap: null }),
   ]);
+
   const userProfile     = userProfileR.status     === "fulfilled" ? userProfileR.value     : null;
   const predictionStats = predictionStatsR.status === "fulfilled" ? predictionStatsR.value : { HOME_WIN: 0, DRAW: 0, AWAY_WIN: 0, total: 0 };
   const userPrediction  = userPredictionR.status  === "fulfilled" ? userPredictionR.value  : null;
@@ -657,16 +657,17 @@ export default async function MatchDetailPage({
   const dbPreview = dbAnalyses.preview;
   const dbRecap   = dbAnalyses.recap;
 
-  // AI Recap (local fallback using match events — used when DB recap not yet ready)
-  const recap = generateRecap(match);
+  // Local AI recap (pure computation — no API call)
+  const recap = isFinished ? generateRecap(match) : null;
 
-  // For inactive (postponed/cancelled) matches hide AI Analysis (idx 3) and Recap (idx 4) tabs
-  const visibleTabs = isInactive
-    ? t.tabs.slice(0, 3).map((label, idx) => ({ label, idx }))
-    : t.tabs.map((label, idx) => ({ label, idx }));
+  // ── Nav tabs ───────────────────────────────────────────────────────────────
 
-  // Always start at Summary (idx 0) — scroll spy takes over as user scrolls
-  const defaultTabIdx = 0;
+  const navTabs = [
+    { id: "facts",      label: t.tabs.facts      },
+    { id: "ticker",     label: t.tabs.ticker     },
+    { id: "lineup",     label: t.tabs.lineup     },
+    { id: "statistics", label: t.tabs.statistics },
+  ];
 
   return (
     <>
@@ -679,7 +680,6 @@ export default async function MatchDetailPage({
         {/* Match header */}
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-            {/* Back link */}
             <a
               href={`/${loc}`}
               style={{ color: "#6b7280", fontSize: 13, textDecoration: "none", display: "inline-block", marginBottom: 20 }}
@@ -687,7 +687,6 @@ export default async function MatchDetailPage({
               {t.backToMatches}
             </a>
 
-            {/* League + Round badge */}
             <div className="flex items-center justify-center gap-2 mb-6">
               <span style={{ color: "#6b7280", fontSize: 13 }}>
                 {match.leagueSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
@@ -696,7 +695,6 @@ export default async function MatchDetailPage({
               <span style={{ color: "#6b7280", fontSize: 13 }}>{match.round}</span>
             </div>
 
-            {/* Score board */}
             <div className="flex items-start justify-between gap-2">
               {/* Home team */}
               <div className="flex flex-col items-center" style={{ flex: "0 0 120px", width: 120 }}>
@@ -711,70 +709,19 @@ export default async function MatchDetailPage({
               {/* Score */}
               <div className="flex flex-col items-center gap-2 shrink-0">
                 {isLive && (
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      backgroundColor: "rgba(34,197,94,0.1)",
-                      border: "1px solid rgba(34,197,94,0.25)",
-                      borderRadius: 999,
-                      padding: "4px 12px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: "50%",
-                        backgroundColor: "#059669",
-                        display: "inline-block",
-                      }}
-                    />
-                    <span
-                      style={{
-                        color: "#059669",
-                        fontSize: 12,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {statusLabel}
-                    </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, backgroundColor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 999, padding: "4px 12px" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", backgroundColor: "#059669", display: "inline-block" }} />
+                    <span style={{ color: "#059669", fontSize: 12, fontWeight: 700 }}>{statusLabel}</span>
                   </div>
                 )}
-
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    backgroundColor: "#ffffff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 14,
-                    padding: "12px 20px",
-                  }}
-                >
-                  <span style={{ color: "#111827", fontSize: 40, fontWeight: 900, lineHeight: 1 }}>
-                    {match.homeScore ?? "–"}
-                  </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 14, padding: "12px 20px" }}>
+                  <span style={{ color: "#111827", fontSize: 40, fontWeight: 900, lineHeight: 1 }}>{match.homeScore ?? "–"}</span>
                   <span style={{ color: "#9ca3af", fontSize: 24, fontWeight: 400 }}>:</span>
-                  <span style={{ color: "#111827", fontSize: 40, fontWeight: 900, lineHeight: 1 }}>
-                    {match.awayScore ?? "–"}
-                  </span>
+                  <span style={{ color: "#111827", fontSize: 40, fontWeight: 900, lineHeight: 1 }}>{match.awayScore ?? "–"}</span>
                 </div>
-
                 {!isLive && (
-                  <span
-                    style={{
-                      color: isFinished ? "#059669" : "#6b7280",
-                      fontSize: 12,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {statusLabel}
-                  </span>
+                  <span style={{ color: isFinished ? "#059669" : "#6b7280", fontSize: 12, fontWeight: 600 }}>{statusLabel}</span>
                 )}
-
                 {match.homeScoreHT !== undefined && (
                   <span style={{ color: "#9ca3af", fontSize: 12 }}>
                     {t.halfTime}: {match.homeScoreHT}–{match.awayScoreHT}
@@ -793,17 +740,8 @@ export default async function MatchDetailPage({
               </div>
             </div>
 
-            {/* Venue */}
             {match.venue && (
-              <p
-                style={{
-                  color: "#9ca3af",
-                  fontSize: 12,
-                  textAlign: "center" as const,
-                  marginTop: 16,
-                  marginBottom: 0,
-                }}
-              >
+              <p style={{ color: "#9ca3af", fontSize: 12, textAlign: "center" as const, marginTop: 16, marginBottom: 0 }}>
                 📍 {match.venue}
               </p>
             )}
@@ -816,765 +754,487 @@ export default async function MatchDetailPage({
         </div>
 
         {/* Tab navigation */}
-        <MatchTabNav tabs={visibleTabs} defaultTabIdx={defaultTabIdx} />
+        <MatchTabNav tabs={navTabs} activeTab={activeTab} matchId={id} locale={loc} />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main content */}
+
+            {/* ── Main content: one tab at a time ─────────────────────────── */}
             <div className="lg:col-span-2 flex flex-col gap-8">
 
-              {/* ── Postponed / Cancelled notice ─────────────────────────── */}
-              {isInactive && (
-                <div
-                  style={{
-                    backgroundColor: "#fffbeb",
-                    border: "1px solid #fde68a",
-                    borderRadius: 12,
-                    padding: "28px 24px",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 12,
-                    textAlign: "center",
-                  }}
-                >
-                  <span style={{ fontSize: 44 }}>📅</span>
-                  <p style={{ color: "#92400e", fontSize: 16, fontWeight: 700, margin: 0 }}>
-                    {isCancelled
-                      ? (loc === "ko" ? "이 경기는 취소되었습니다" : "This match has been cancelled")
-                      : (loc === "ko" ? "이 경기는 연기되었습니다" : "This match has been postponed")}
-                  </p>
-                  <p style={{ color: "#b45309", fontSize: 13, margin: 0, maxWidth: 400, lineHeight: 1.7 }}>
-                    {isCancelled
-                      ? (loc === "ko"
-                          ? "경기가 취소되어 더 이상 진행되지 않습니다."
-                          : "This fixture has been cancelled and will not take place.")
-                      : (loc === "ko"
-                          ? "이 경기는 일정에 따라 연기되었습니다. 새로운 일정이 확정되면 업데이트됩니다."
-                          : "This match has been postponed. The page will be updated once a new date is confirmed.")}
-                  </p>
-                </div>
-              )}
-
-              {/* Summary / Timeline */}
-              <section id="tab-0">
-                <h3
-                  style={{
-                    color: "#111827",
-                    fontSize: 16,
-                    fontWeight: 700,
-                    margin: "0 0 16px",
-                  }}
-                >
-                  {t.tabs[0]}
-                </h3>
-                <div
-                  style={{
-                    backgroundColor: "#ffffff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                  }}
-                >
-                  {safeEvents.length === 0 ? (
-                    <p style={{ color: "#9ca3af", fontSize: 13, padding: "24px 20px", margin: 0, textAlign: "center" }}>
-                      {loc === "ko" ? "경기 이벤트 데이터가 없습니다." : "No match events available."}
-                    </p>
-                  ) : null}
-                  {safeEvents.map((event, idx) => {
-                    const isHome = event.team === "home";
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          padding: "12px 20px",
-                          borderBottom: idx < safeEvents.length - 1 ? "1px solid #f3f4f6" : "none",
-                          gap: 12,
-                          flexDirection: isHome ? ("row" as const) : ("row-reverse" as const),
-                        }}
-                      >
-                        {/* Team side player */}
-                        <div
-                          style={{
-                            flex: 1,
-                            textAlign: isHome ? ("left" as const) : ("right" as const),
-                          }}
-                        >
-                          <span style={{ color: "#111827", fontSize: 13, fontWeight: 600 }}>
-                            {event.player}
-                          </span>
-                          {event.assist && event.type === "goal" && (
-                            <span style={{ color: "#6b7280", fontSize: 11, display: "block" }}>
-                              {t.assist}: {event.assist}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Event icon + minute */}
-                        <div className="flex flex-col items-center gap-1" style={{ minWidth: 64 }}>
-                          <span style={{ fontSize: 18 }}>{EVENT_ICONS[event.type]}</span>
-                          <span
-                            style={{
-                              color: "#6b7280",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              backgroundColor: "#f9fafb",
-                              borderRadius: 4,
-                              padding: "1px 7px",
-                              border: "1px solid #e5e7eb",
-                            }}
-                          >
-                            {event.minute}&apos;
-                          </span>
-                        </div>
-
-                        {/* Spacer for opposite side */}
-                        <div style={{ flex: 1 }} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* Statistics */}
-              <section id="tab-1">
-                <h3
-                  style={{
-                    color: "#111827",
-                    fontSize: 16,
-                    fontWeight: 700,
-                    margin: "0 0 16px",
-                  }}
-                >
-                  {t.tabs[1]}
-                </h3>
-                <div
-                  style={{
-                    backgroundColor: "#ffffff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 12,
-                    padding: "4px 0",
-                  }}
-                >
-                  {safeStatistics.map((stat, idx) => {
-                    const homeNum = typeof stat.home === "string"
-                      ? parseInt(stat.home)
-                      : stat.home;
-                    const awayNum = typeof stat.away === "string"
-                      ? parseInt(stat.away)
-                      : stat.away;
-                    const total = homeNum + awayNum || 1;
-                    const homePercent = Math.round((homeNum / total) * 100);
-
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          padding: "12px 20px",
-                          borderBottom: idx < safeStatistics.length - 1 ? "1px solid #f3f4f6" : "none",
-                        }}
-                      >
-                        {/* Labels row */}
-                        <div
-                          className="flex items-center justify-between"
-                          style={{ marginBottom: 8 }}
-                        >
-                          <span style={{ color: "#111827", fontSize: 13, fontWeight: 700 }}>
-                            {stat.home}
-                          </span>
-                          <span style={{ color: "#6b7280", fontSize: 12 }}>
-                            {isKo ? stat.labelKo : stat.label}
-                          </span>
-                          <span style={{ color: "#111827", fontSize: 13, fontWeight: 700 }}>
-                            {stat.away}
-                          </span>
-                        </div>
-                        {/* Bar */}
-                        <div
-                          style={{
-                            height: 6,
-                            backgroundColor: "#f3f4f6",
-                            borderRadius: 999,
-                            overflow: "hidden",
-                            display: "flex",
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${homePercent}%`,
-                              background: "linear-gradient(90deg, #059669, #059669)",
-                              borderRadius: "999px 0 0 999px",
-                              transition: "width 0.6s ease",
-                            }}
-                          />
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${100 - homePercent}%`,
-                              background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-                              borderRadius: "0 999px 999px 0",
-                              transition: "width 0.6s ease",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* Lineup */}
-              <section id="tab-2">
-                <h3
-                  style={{
-                    color: "#111827",
-                    fontSize: 16,
-                    fontWeight: 700,
-                    margin: "0 0 16px",
-                  }}
-                >
-                  {t.tabs[2]}
-                </h3>
-                {/* Helper: infer rough position from index in an 11-player list */}
-                {(() => {
-                  function posLabel(i: number, total: number): string {
-                    if (i === 0) return "GK";
-                    // Rough 4-4-2 / 4-3-3 groupings
-                    if (total >= 11) {
-                      if (i <= 4) return "DF";
-                      if (i <= 7) return "MF";
-                      return "FW";
-                    }
-                    return String(i + 1);
-                  }
-
-                  const POS_MAP: Record<string, string> = { G: "GK", D: "DF", M: "MF", F: "FW" };
-
-                  function LineupCard({
-                    players,
-                    teamName,
-                    teamFlag,
-                    accent,
-                    bg,
-                  }: {
-                    players: LineupPlayer[];
-                    teamName: string;
-                    teamFlag: string;
-                    accent: string;      // e.g. "#059669"
-                    bg: string;          // e.g. "rgba(22,163,74,0.08)"
-                  }) {
-                    return (
-                      <div style={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
-                        {/* Card header */}
-                        <div style={{
-                          padding: "11px 16px",
-                          borderBottom: "1px solid #f3f4f6",
-                          backgroundColor: "#f9fafb",
-                          display: "flex", alignItems: "center", gap: 8,
-                        }}>
-                          <span style={{ fontSize: 20 }}>{teamFlag}</span>
-                          <span style={{ color: "#111827", fontSize: 13, fontWeight: 700 }}>{teamName}</span>
-                          <span style={{
-                            marginLeft: "auto",
-                            fontSize: 10, fontWeight: 700, color: "#9ca3af",
-                            backgroundColor: "#f3f4f6", borderRadius: 4, padding: "2px 6px",
-                          }}>
-                            {players.length === 11 ? "XI" : `${players.length}명`}
-                          </span>
-                        </div>
-                        {/* Players */}
-                        {players.map((player, i) => {
-                          const pos = player.pos ? (POS_MAP[player.pos] ?? player.pos) : posLabel(i, players.length);
-                          const isGK = pos === "GK";
-                          const jerseyNum = player.number ?? i + 1;
-                          return (
-                            <div
-                              key={i}
-                              style={{
-                                padding: "9px 16px",
-                                borderBottom: i < players.length - 1 ? "1px solid #f9fafb" : "none",
-                                display: "flex", alignItems: "center", gap: 10,
-                                backgroundColor: isGK ? `${bg}` : "transparent",
-                              }}
-                            >
-                              {/* Number badge */}
-                              <span style={{
-                                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                                width: 26, height: 26, borderRadius: "50%",
-                                backgroundColor: isGK ? accent : bg,
-                                border: `1.5px solid ${accent}`,
-                                color: isGK ? "#fff" : accent,
-                                fontSize: 10, fontWeight: 800, flexShrink: 0,
-                                boxShadow: `0 1px 4px ${accent}40`,
-                              }}>
-                                {jerseyNum}
-                              </span>
-                              {/* Position tag */}
-                              <span style={{
-                                fontSize: 9, fontWeight: 700, color: accent,
-                                backgroundColor: bg,
-                                borderRadius: 3, padding: "1px 4px",
-                                flexShrink: 0, lineHeight: 1.5,
-                                border: `1px solid ${accent}30`,
-                              }}>
-                                {pos}
-                              </span>
-                              {/* Player name */}
-                              <span style={{
-                                color: "#1f2937", fontSize: 13,
-                                fontWeight: isGK ? 700 : 400,
-                                flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                              }}>
-                                {player.name}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  }
-
-                  const hasLineup = safeLineupHome.length > 0 || safeLineupAway.length > 0;
-
-                  if (!hasLineup) {
-                    return (
-                      <div style={{
-                        backgroundColor: "#fff",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 14,
-                        padding: "40px 24px",
-                        display: "flex", flexDirection: "column", alignItems: "center",
-                        gap: 12, textAlign: "center",
-                      }}>
-                        <span style={{ fontSize: 36 }}>📋</span>
-                        <p style={{ color: "#374151", fontSize: 14, fontWeight: 700, margin: 0 }}>
-                          {isKo ? "라인업 정보 없음" : "Lineup Unavailable"}
-                        </p>
-                        <p style={{ color: "#9ca3af", fontSize: 13, margin: 0, maxWidth: 260, lineHeight: 1.6 }}>
-                          {isKo
-                            ? "이 경기의 선발 라인업이 아직 공개되지 않았습니다."
-                            : "The starting lineup for this match has not been announced yet."}
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <LineupCard
-                        players={safeLineupHome}
-                        teamName={homeName}
-                        teamFlag={match.homeTeam.flag}
-                        accent="#059669"
-                        bg="rgba(22,163,74,0.08)"
-                      />
-                      <LineupCard
-                        players={safeLineupAway}
-                        teamName={awayName}
-                        teamFlag={match.awayTeam.flag}
-                        accent="#2563eb"
-                        bg="rgba(37,99,235,0.07)"
-                      />
-                    </div>
-                  );
-                })()}
-              </section>
-
-              {/* AI Analysis tab */}
-              <section id="tab-3">
-                <h3
-                  style={{
-                    color: "#111827",
-                    fontSize: 16,
-                    fontWeight: 700,
-                    margin: "0 0 16px",
-                  }}
-                >
-                  {t.tabs[3]}
-                </h3>
-
-                {dbPreview ? (
-                  <>
-                    {/* AI disclaimer */}
-                    <div
-                      style={{
-                        backgroundColor: "rgba(59,130,246,0.06)",
-                        border: "1px solid rgba(59,130,246,0.2)",
-                        borderRadius: 8,
-                        padding: "10px 14px",
-                        marginBottom: 16,
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                      }}
-                    >
-                      <span style={{ fontSize: 16, flexShrink: 0 }}>🤖</span>
-                      <p style={{ color: "#1d4ed8", fontSize: 12, margin: 0, lineHeight: 1.6 }}>
-                        {dbPreview.disclaimer ?? t.aiDisclaimer}
-                      </p>
-                    </div>
-
-                    <div
-                      style={{
-                        backgroundColor: "#ffffff",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 12,
-                        padding: "20px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 16,
-                      }}
-                    >
-                      {/* Prediction */}
-                      {dbPreview.prediction && (
-                        <div>
-                          <p
-                            style={{
-                              color: "#6b7280",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              textTransform: "uppercase" as const,
-                              letterSpacing: "0.06em",
-                              margin: "0 0 8px",
-                            }}
-                          >
-                            {t.aiPrediction}
-                          </p>
-                          <div className="flex items-center gap-3">
-                            <span
-                              style={{
-                                color: "#059669",
-                                fontSize: 16,
-                                fontWeight: 800,
-                                backgroundColor: "rgba(34,197,94,0.1)",
-                                border: "1px solid rgba(34,197,94,0.25)",
-                                borderRadius: 8,
-                                padding: "6px 14px",
-                              }}
-                            >
-                              {dbPreview.prediction.label}
-                            </span>
+              {/* ═══════════════════════════════════════════════════════════
+                  FACTS TAB
+              ══════════════════════════════════════════════════════════════ */}
+              {activeTab === "facts" && (
+                <>
+                  {/* Match info card */}
+                  <section>
+                    <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "16px" }}>
+                      <h3 style={{ color: "#111827", fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>
+                        {isKo ? "경기 정보" : "Match Info"}
+                      </h3>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        {[
+                          {
+                            label: isKo ? "대회" : "Competition",
+                            value: match.leagueSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+                          },
+                          { label: isKo ? "라운드" : "Round", value: match.round },
+                          {
+                            label: isKo ? "날짜" : "Date",
+                            value: formatMatchTime(match.date, loc),
+                          },
+                          { label: isKo ? "경기장" : "Venue", value: match.venue ?? "–" },
+                        ].map(({ label, value }) => (
+                          <div key={label} style={{ display: "flex", gap: 12 }}>
+                            <span style={{ color: "#9ca3af", fontSize: 12, minWidth: 60, paddingTop: 1 }}>{label}</span>
+                            <span style={{ color: "#374151", fontSize: 13, flex: 1 }}>{value}</span>
                           </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
 
-                          {/* Confidence */}
-                          <div style={{ marginTop: 12 }}>
-                            <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-                              <span style={{ color: "#6b7280", fontSize: 12 }}>{t.aiConfidence}</span>
-                              <span style={{ color: "#059669", fontSize: 13, fontWeight: 700 }}>
-                                {dbPreview.prediction.confidence}%
-                              </span>
+                  {/* PST/CANC notice */}
+                  {isInactive && (
+                    <section>
+                      <div style={{ backgroundColor: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center" }}>
+                        <span style={{ fontSize: 44 }}>📅</span>
+                        <p style={{ color: "#92400e", fontSize: 16, fontWeight: 700, margin: 0 }}>
+                          {isCancelled
+                            ? (loc === "ko" ? "이 경기는 취소되었습니다" : "This match has been cancelled")
+                            : (loc === "ko" ? "이 경기는 연기되었습니다" : "This match has been postponed")}
+                        </p>
+                        <p style={{ color: "#b45309", fontSize: 13, margin: 0, maxWidth: 400, lineHeight: 1.7 }}>
+                          {isCancelled
+                            ? (loc === "ko"
+                                ? "경기가 취소되어 더 이상 진행되지 않습니다."
+                                : "This fixture has been cancelled and will not take place.")
+                            : (loc === "ko"
+                                ? "이 경기는 일정에 따라 연기되었습니다. 새로운 일정이 확정되면 업데이트됩니다."
+                                : "This match has been postponed. The page will be updated once a new date is confirmed.")}
+                        </p>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* AI Analysis — hidden for PST/CANC */}
+                  {!isInactive && (
+                    <section>
+                      <h3 style={{ color: "#111827", fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>
+                        {isKo ? "AI 분석" : "AI Analysis"}
+                      </h3>
+
+                      {dbPreview ? (
+                        <>
+                          <div style={{ backgroundColor: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                            <span style={{ fontSize: 16, flexShrink: 0 }}>🤖</span>
+                            <p style={{ color: "#1d4ed8", fontSize: 12, margin: 0, lineHeight: 1.6 }}>
+                              {dbPreview.disclaimer ?? t.aiDisclaimer}
+                            </p>
+                          </div>
+                          <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "20px", display: "flex", flexDirection: "column", gap: 16 }}>
+                            {dbPreview.prediction && (
+                              <div>
+                                <p style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 8px" }}>
+                                  {t.aiPrediction}
+                                </p>
+                                <div className="flex items-center gap-3">
+                                  <span style={{ color: "#059669", fontSize: 16, fontWeight: 800, backgroundColor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 8, padding: "6px 14px" }}>
+                                    {dbPreview.prediction.label}
+                                  </span>
+                                </div>
+                                <div style={{ marginTop: 12 }}>
+                                  <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
+                                    <span style={{ color: "#6b7280", fontSize: 12 }}>{t.aiConfidence}</span>
+                                    <span style={{ color: "#059669", fontSize: 13, fontWeight: 700 }}>{dbPreview.prediction.confidence}%</span>
+                                  </div>
+                                  <div style={{ height: 8, backgroundColor: "#f3f4f6", borderRadius: 999, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                                    <div style={{ height: "100%", width: `${dbPreview.prediction.confidence}%`, background: "linear-gradient(90deg, #059669, #059669)", borderRadius: 999 }} />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 16 }}>
+                              <p style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 8px" }}>
+                                {t.keyInsight}
+                              </p>
+                              <p style={{ color: "#374151", fontSize: 14, lineHeight: 1.7, margin: 0 }}>{dbPreview.insight}</p>
                             </div>
-                            <div
-                              style={{
-                                height: 8,
-                                backgroundColor: "#f3f4f6",
-                                borderRadius: 999,
-                                overflow: "hidden",
-                                border: "1px solid #e5e7eb",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  height: "100%",
-                                  width: `${dbPreview.prediction.confidence}%`,
-                                  background: "linear-gradient(90deg, #059669, #059669)",
-                                  borderRadius: 999,
-                                }}
-                              />
+                            {dbPreview.tips && dbPreview.tips.length > 0 && (
+                              <div>
+                                <p style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.06em", margin: "0 0 8px" }}>
+                                  {isKo ? "분석 포인트" : "Key Tips"}
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {dbPreview.tips.map((tip, i) => (
+                                    <span key={i} style={{ fontSize: 12, fontWeight: 500, color: "#a78bfa", backgroundColor: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 5, padding: "4px 10px" }}>
+                                      {isKo ? tip.labelKo : tip.label}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      ) : isFinished && (dbRecap || recap) ? (
+                        // Recap content is shown directly below — no CTA needed
+                        null
+                      ) : isFinished ? (
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
+                            <span className="text-base shrink-0">🤖</span>
+                            <p className="text-xs font-medium text-blue-700">
+                              {isKo
+                                ? "AI가 경기를 분석하고 있습니다. 곧 리캡이 완성됩니다."
+                                : "AI is analysing the match. The recap will be ready shortly."}
+                            </p>
+                          </div>
+                          {[80, 48, 64].map((w, i) => (
+                            <div key={i} className="bg-white border border-gray-100 rounded-2xl p-5 animate-pulse">
+                              <div className="h-3 bg-gray-200 rounded-full mb-3" style={{ width: `${w}%` }} />
+                              <div className="h-2.5 bg-gray-100 rounded-full mb-2 w-full" />
+                              <div className="h-2.5 bg-gray-100 rounded-full" style={{ width: "60%" }} />
                             </div>
+                          ))}
+                        </div>
+                      ) : isLive ? (
+                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-50 border border-green-100">
+                          <span className="text-base shrink-0">🟢</span>
+                          <p className="text-xs font-medium text-green-700">
+                            {isKo
+                              ? "경기가 진행 중입니다. 경기 종료 후 AI 분석이 제공됩니다."
+                              : "This match is in progress. AI analysis will be available after full time."}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-gray-100 rounded-2xl p-10 flex flex-col items-center gap-4 text-center">
+                          <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-3xl">⚽</div>
+                          <div>
+                            <p className="font-black text-gray-800 text-base mb-2">
+                              {isKo ? "경기 종료 후 AI 분석 시작" : "AI Analysis After Final Whistle"}
+                            </p>
+                            <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
+                              {isKo
+                                ? "경기가 끝나는 순간 AI가 즉시 분석을 시작합니다. 승리 요인, 핵심 장면, 선수 평점까지 자동으로 생성됩니다."
+                                : "The moment the final whistle blows, AI begins its analysis — win factors, key moments, and player ratings."}
+                            </p>
+                          </div>
+                          <div className="w-full flex flex-col gap-2 mt-2 opacity-40">
+                            {[90, 70, 55].map((w, i) => (
+                              <div key={i} className="h-2.5 bg-gray-200 rounded-full" style={{ width: `${w}%` }} />
+                            ))}
                           </div>
                         </div>
                       )}
+                    </section>
+                  )}
 
-                      {/* Key insight */}
-                      <div
-                        style={{
-                          borderTop: "1px solid #f3f4f6",
-                          paddingTop: 16,
-                        }}
-                      >
-                        <p
-                          style={{
-                            color: "#6b7280",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            textTransform: "uppercase" as const,
-                            letterSpacing: "0.06em",
-                            margin: "0 0 8px",
-                          }}
-                        >
-                          {t.keyInsight}
-                        </p>
-                        <p style={{ color: "#374151", fontSize: 14, lineHeight: 1.7, margin: 0 }}>
-                          {dbPreview.insight}
+                  {/* MOM + Highlights + Narrative — finished matches only */}
+                  {isFinished && !isInactive && (recap || dbRecap) && (
+                    <div className="flex flex-col gap-6">
+
+                      {/* AI badge */}
+                      <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
+                        <span className="text-base shrink-0">🤖</span>
+                        <p className="text-xs font-medium text-blue-700">
+                          {isKo
+                            ? "AI가 분석한 경기 요약입니다. 통계 데이터를 바탕으로 자동 생성됩니다."
+                            : "AI-analysed match summary, auto-generated from match statistics."}
                         </p>
                       </div>
 
-                      {/* Tips */}
-                      {dbPreview.tips && dbPreview.tips.length > 0 && (
-                        <div>
-                          <p
-                            style={{
-                              color: "#6b7280",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              textTransform: "uppercase" as const,
-                              letterSpacing: "0.06em",
-                              margin: "0 0 8px",
-                            }}
-                          >
-                            {isKo ? "분석 포인트" : "Key Tips"}
+                      {/* MOM Card */}
+                      <div className="bg-linear-to-br from-emerald-600 to-emerald-900 rounded-2xl p-5 text-white">
+                        <p className="text-amber-200 text-xs font-bold uppercase tracking-widest mb-3">
+                          {isKo ? "🏅 오늘의 선수 (MOM)" : "🏅 Man of the Match"}
+                        </p>
+                        <div className="flex items-center gap-4">
+                          <div className="relative shrink-0">
+                            {momPlayer ? (
+                              <div className="w-16 h-16 rounded-2xl bg-white/20 overflow-hidden border-2 border-white/30">
+                                <Image
+                                  src={`https://media.api-sports.io/football/players/${momPlayer.playerId}.png`}
+                                  alt={momPlayer.playerName}
+                                  width={64}
+                                  height={64}
+                                  className="object-cover w-full h-full"
+                                  unoptimized
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-3xl">⭐</div>
+                            )}
+                            {momPlayer && (
+                              <span className="absolute -bottom-1.5 -right-1.5 bg-white text-emerald-700 text-[10px] font-black px-1.5 py-0.5 rounded-full shadow">
+                                {(momPlayer.rating ?? 0).toFixed(1)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xl font-black leading-tight truncate">
+                              {momPlayer ? momPlayer.playerName : (recap?.mom.name ?? "–")}
+                            </p>
+                            {momPlayer ? (
+                              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                {momPlayer.goals > 0 && (
+                                  <span className="flex items-center gap-1 text-sm text-emerald-100">⚽ {momPlayer.goals}{isKo ? "골" : "G"}</span>
+                                )}
+                                {momPlayer.assists > 0 && (
+                                  <span className="flex items-center gap-1 text-sm text-emerald-100">🎯 {momPlayer.assists}{isKo ? "어시스트" : "A"}</span>
+                                )}
+                                {momPlayer.shotsTotal > 0 && (
+                                  <span className="flex items-center gap-1 text-sm text-emerald-100">🎯 {momPlayer.shotsOnTarget}/{momPlayer.shotsTotal} {isKo ? "유효슈팅" : "SOT"}</span>
+                                )}
+                                <span className="text-sm text-amber-200">{momPlayer.minutesPlayed}{isKo ? "분 출전" : "min"}</span>
+                              </div>
+                            ) : recap ? (
+                              <p className="text-emerald-100 text-sm mt-1 leading-relaxed">
+                                {isKo ? recap.mom.reasonKo : recap.mom.reason}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Key Highlights */}
+                      {(dbRecap?.tips && dbRecap.tips.length > 0) ? (
+                        <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
+                            {isKo ? "핵심 하이라이트" : "Key Highlights"}
                           </p>
                           <div className="flex flex-wrap gap-2">
-                            {dbPreview.tips.map((tip, i) => (
-                              <span
-                                key={i}
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: 500,
-                                  color: "#a78bfa",
-                                  backgroundColor: "rgba(139,92,246,0.12)",
-                                  border: "1px solid rgba(139,92,246,0.25)",
-                                  borderRadius: 5,
-                                  padding: "4px 10px",
-                                }}
-                              >
+                            {dbRecap.tips.map((tip, i) => (
+                              <span key={i} style={{ fontSize: 12, fontWeight: 500, color: "#a78bfa", backgroundColor: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 5, padding: "4px 10px" }}>
                                 {isKo ? tip.labelKo : tip.label}
                               </span>
                             ))}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </>
-                ) : (isFinished && (dbRecap || recap)) ? (
-                  /* Condition A: Finished + recap exists — premium CTA (self-contained client component) */
-                  <RecapCTACard locale={isKo ? "ko" : "en"} recapTabIdx={4} />
-                ) : isFinished ? (
-                  /* Condition B-2: Finished but no recap yet — skeleton */
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 border border-blue-100">
-                      <span className="text-base shrink-0">🤖</span>
-                      <p className="text-xs font-medium text-blue-700">
-                        {isKo
-                          ? "AI가 경기를 분석하고 있습니다. 곧 리캡이 완성됩니다."
-                          : "AI is analysing the match. The recap will be ready shortly."}
-                      </p>
-                    </div>
-                    {/* Skeleton cards */}
-                    {[80, 48, 64].map((w, i) => (
-                      <div key={i} className="bg-white border border-gray-100 rounded-2xl p-5 animate-pulse">
-                        <div className="h-3 bg-gray-200 rounded-full mb-3" style={{ width: `${w}%` }} />
-                        <div className="h-2.5 bg-gray-100 rounded-full mb-2 w-full" />
-                        <div className="h-2.5 bg-gray-100 rounded-full" style={{ width: "60%" }} />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  /* Condition B-1: Match not yet finished */
-                  <div className="bg-white border border-gray-100 rounded-2xl p-10 flex flex-col items-center gap-4 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-3xl">
-                      ⚽
-                    </div>
-                    <div>
-                      <p className="font-black text-gray-800 text-base mb-2">
-                        {isKo ? "경기 종료 후 AI 분석 시작" : "AI Analysis After Final Whistle"}
-                      </p>
-                      <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
-                        {isKo
-                          ? "경기가 끝나는 순간 AI가 즉시 분석을 시작합니다. 승리 요인, 핵심 장면, 선수 평점까지 자동으로 생성됩니다."
-                          : "The moment the final whistle blows, AI begins its analysis — win factors, key moments, and player ratings."}
-                      </p>
-                    </div>
-                    {/* Skeleton preview */}
-                    <div className="w-full flex flex-col gap-2 mt-2 opacity-40">
-                      {[90, 70, 55].map((w, i) => (
-                        <div key={i} className="h-2.5 bg-gray-200 rounded-full" style={{ width: `${w}%` }} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              {/* ─── Recap tab ──────────────────────────────────────── */}
-              <section id="tab-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="w-1 h-5 rounded-full bg-emerald-600 shrink-0" />
-                  <h3 className="text-base font-bold text-gray-900">{t.tabs[4]}</h3>
-                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
-                    ✨ AI-Generated
-                  </span>
-                </div>
-
-                {/* AI 배지 */}
-                {recap && (
-                  <div className="flex items-center gap-2 px-4 py-2.5 mb-5 rounded-xl bg-blue-50 border border-blue-100">
-                    <span className="text-base shrink-0">🤖</span>
-                    <p className="text-xs font-medium text-blue-700">
-                      {isKo
-                        ? "AI가 분석한 경기 요약입니다. 통계 데이터를 바탕으로 자동 생성됩니다."
-                        : "AI-analysed match summary, auto-generated from match statistics."}
-                    </p>
-                  </div>
-                )}
-
-                {!recap && !dbRecap ? (
-                  /* Empty state — match not finished */
-                  <div className="bg-white border border-gray-200 rounded-2xl p-10 flex flex-col items-center gap-4 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center text-3xl">
-                      ⏱️
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-800 text-sm mb-1">
-                        {isKo ? "리캡 준비 중" : "Recap Pending"}
-                      </p>
-                      <p className="text-sm text-gray-500 max-w-xs leading-relaxed">
-                        {isKo
-                          ? "경기 종료 후 AI가 분석한 리캡 데이터가 업데이트될 예정입니다."
-                          : "The AI-powered recap will be available after the match has concluded."}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-6">
-
-                    {/* MOM Card */}
-                    <div className="bg-linear-to-br from-emerald-600 to-emerald-900 rounded-2xl p-5 text-white">
-                      <p className="text-amber-200 text-xs font-bold uppercase tracking-widest mb-3">
-                        {isKo ? "🏅 오늘의 선수 (MOM)" : "🏅 Man of the Match"}
-                      </p>
-                      <div className="flex items-center gap-4">
-                        {/* Player photo or fallback star */}
-                        <div className="relative shrink-0">
-                          {momPlayer ? (
-                            <div className="w-16 h-16 rounded-2xl bg-white/20 overflow-hidden border-2 border-white/30">
-                              <Image
-                                src={`https://media.api-sports.io/football/players/${momPlayer.playerId}.png`}
-                                alt={momPlayer.playerName}
-                                width={64}
-                                height={64}
-                                className="object-cover w-full h-full"
-                                unoptimized
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-3xl">
-                              ⭐
-                            </div>
-                          )}
-                          {momPlayer && (
-                            <span className="absolute -bottom-1.5 -right-1.5 bg-white text-emerald-700 text-[10px] font-black px-1.5 py-0.5 rounded-full shadow">
-                              {(momPlayer.rating ?? 0).toFixed(1)}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xl font-black leading-tight truncate">
-                            {momPlayer ? momPlayer.playerName : (recap?.mom.name ?? "–")}
+                      ) : recap?.highlights && recap.highlights.length > 0 ? (
+                        <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
+                            {isKo ? "핵심 하이라이트" : "Key Highlights"}
                           </p>
-                          {momPlayer ? (
-                            <div className="flex items-center gap-3 mt-2 flex-wrap">
-                              {momPlayer.goals > 0 && (
-                                <span className="flex items-center gap-1 text-sm text-emerald-100">
-                                  ⚽ {momPlayer.goals}{isKo ? "골" : "G"}
-                                </span>
-                              )}
-                              {momPlayer.assists > 0 && (
-                                <span className="flex items-center gap-1 text-sm text-emerald-100">
-                                  🎯 {momPlayer.assists}{isKo ? "어시스트" : "A"}
-                                </span>
-                              )}
-                              {momPlayer.shotsTotal > 0 && (
-                                <span className="flex items-center gap-1 text-sm text-emerald-100">
-                                  🎯 {momPlayer.shotsOnTarget}/{momPlayer.shotsTotal} {isKo ? "유효슈팅" : "SOT"}
-                                </span>
-                              )}
-                              <span className="text-sm text-amber-200">
-                                {momPlayer.minutesPlayed}{isKo ? "분 출전" : "min"}
-                              </span>
-                            </div>
-                          ) : recap ? (
-                            <p className="text-emerald-100 text-sm mt-1 leading-relaxed">
-                              {isKo ? recap.mom.reasonKo : recap.mom.reason}
-                            </p>
-                          ) : null}
+                          <div className="flex flex-col gap-3">
+                            {recap.highlights.map((h, i) => (
+                              <div key={i} className="flex items-start gap-3">
+                                <span className="text-xl shrink-0 mt-0.5">{h.icon}</span>
+                                <p className="text-sm text-gray-700 leading-relaxed">{isKo ? h.textKo : h.text}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      ) : null}
 
-                    {/* Key Highlights — prefer dbRecap.tips, fallback to local recap */}
-                    {(dbRecap?.tips && dbRecap.tips.length > 0) ? (
+                      {/* Match Narrative */}
                       <div className="bg-white border border-gray-200 rounded-2xl p-5">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-                          {isKo ? "핵심 하이라이트" : "Key Highlights"}
+                          {isKo ? "경기 흐름 분석" : "Match Narrative"}
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {dbRecap.tips.map((tip, i) => (
-                            <span
-                              key={i}
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 500,
-                                color: "#a78bfa",
-                                backgroundColor: "rgba(139,92,246,0.12)",
-                                border: "1px solid rgba(139,92,246,0.25)",
-                                borderRadius: 5,
-                                padding: "4px 10px",
-                              }}
-                            >
-                              {isKo ? tip.labelKo : tip.label}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ) : recap?.highlights && recap.highlights.length > 0 ? (
-                      <div className="bg-white border border-gray-200 rounded-2xl p-5">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-                          {isKo ? "핵심 하이라이트" : "Key Highlights"}
-                        </p>
-                        <div className="flex flex-col gap-3">
-                          {recap.highlights.map((h, i) => (
-                            <div key={i} className="flex items-start gap-3">
-                              <span className="text-xl shrink-0 mt-0.5">{h.icon}</span>
-                              <p className="text-sm text-gray-700 leading-relaxed">
-                                {isKo ? h.textKo : h.text}
+                        {dbRecap ? (
+                          <p className="text-sm text-gray-700 leading-relaxed">{dbRecap.insight}</p>
+                        ) : (
+                          <div className="flex flex-col gap-4">
+                            {recap!.narrative.map((para, i) => (
+                              <p key={i} className="text-sm text-gray-700 leading-relaxed">
+                                {isKo ? para.ko : para.en}
                               </p>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-xs text-gray-400 mt-4 pt-4 border-t border-gray-100 flex items-center gap-1.5">
+                          <span>🤖</span>
+                          {isKo
+                            ? "이 리캡은 KickVista AI가 경기 데이터를 분석하여 자동 생성했습니다."
+                            : "This recap was auto-generated by KickVista AI based on match data."}
+                        </p>
                       </div>
-                    ) : null}
-
-                    {/* Match Narrative — prefer dbRecap.insight, fallback to local recap */}
-                    <div className="bg-white border border-gray-200 rounded-2xl p-5">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-                        {isKo ? "경기 흐름 분석" : "Match Narrative"}
-                      </p>
-                      {dbRecap ? (
-                        <p className="text-sm text-gray-700 leading-relaxed">{dbRecap.insight}</p>
-                      ) : (
-                        <div className="flex flex-col gap-4">
-                          {recap!.narrative.map((para, i) => (
-                            <p key={i} className="text-sm text-gray-700 leading-relaxed">
-                              {isKo ? para.ko : para.en}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-400 mt-4 pt-4 border-t border-gray-100 flex items-center gap-1.5">
-                        <span>🤖</span>
-                        {isKo
-                          ? "이 리캡은 KickVista AI가 경기 데이터를 분석하여 자동 생성했습니다."
-                          : "This recap was auto-generated by KickVista AI based on match data."}
-                      </p>
                     </div>
+                  )}
+                </>
+              )}
 
-                    {/* Key Stats Comparison */}
-                    {recap && recap.keyStats.length > 0 && (
+              {/* ═══════════════════════════════════════════════════════════
+                  TICKER TAB
+              ══════════════════════════════════════════════════════════════ */}
+              {activeTab === "ticker" && (
+                <section>
+                  <h3 style={{ color: "#111827", fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>
+                    {t.tabs.ticker}
+                  </h3>
+                  <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
+                    {safeEvents.length === 0 ? (
+                      <p style={{ color: "#9ca3af", fontSize: 13, padding: "24px 20px", margin: 0, textAlign: "center" }}>
+                        {isFinished
+                          ? (loc === "ko" ? "경기 이벤트 데이터가 없습니다." : "No match events available.")
+                          : (loc === "ko" ? "경기 시작 후 이벤트가 표시됩니다." : "Events will appear once the match kicks off.")}
+                      </p>
+                    ) : null}
+                    {safeEvents.map((event, idx) => {
+                      const isHome = event.team === "home";
+                      return (
+                        <div
+                          key={idx}
+                          style={{ display: "flex", alignItems: "center", padding: "12px 20px", borderBottom: idx < safeEvents.length - 1 ? "1px solid #f3f4f6" : "none", gap: 12, flexDirection: isHome ? ("row" as const) : ("row-reverse" as const) }}
+                        >
+                          <div style={{ flex: 1, textAlign: isHome ? ("left" as const) : ("right" as const) }}>
+                            <span style={{ color: "#111827", fontSize: 13, fontWeight: 600 }}>{event.player}</span>
+                            {event.assist && event.type === "goal" && (
+                              <span style={{ color: "#6b7280", fontSize: 11, display: "block" }}>
+                                {t.assist}: {event.assist}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-center gap-1" style={{ minWidth: 64 }}>
+                            <span style={{ fontSize: 18 }}>{EVENT_ICONS[event.type]}</span>
+                            <span style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, backgroundColor: "#f9fafb", borderRadius: 4, padding: "1px 7px", border: "1px solid #e5e7eb" }}>
+                              {event.minute}&apos;
+                            </span>
+                          </div>
+                          <div style={{ flex: 1 }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {/* ═══════════════════════════════════════════════════════════
+                  LINEUP TAB
+              ══════════════════════════════════════════════════════════════ */}
+              {activeTab === "lineup" && (
+                <section>
+                  <h3 style={{ color: "#111827", fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>
+                    {t.tabs.lineup}
+                  </h3>
+                  {(() => {
+                    function posLabel(i: number, total: number): string {
+                      if (i === 0) return "GK";
+                      if (total >= 11) {
+                        if (i <= 4) return "DF";
+                        if (i <= 7) return "MF";
+                        return "FW";
+                      }
+                      return String(i + 1);
+                    }
+
+                    const POS_MAP: Record<string, string> = { G: "GK", D: "DF", M: "MF", F: "FW" };
+
+                    function LineupCard({
+                      players,
+                      teamName,
+                      teamFlag,
+                      accent,
+                      bg,
+                    }: {
+                      players: LineupPlayer[];
+                      teamName: string;
+                      teamFlag: string;
+                      accent: string;
+                      bg: string;
+                    }) {
+                      return (
+                        <div style={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, overflow: "hidden" }}>
+                          <div style={{ padding: "11px 16px", borderBottom: "1px solid #f3f4f6", backgroundColor: "#f9fafb", display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ fontSize: 20 }}>{teamFlag}</span>
+                            <span style={{ color: "#111827", fontSize: 13, fontWeight: 700 }}>{teamName}</span>
+                            <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700, color: "#9ca3af", backgroundColor: "#f3f4f6", borderRadius: 4, padding: "2px 6px" }}>
+                              {players.length === 11 ? "XI" : `${players.length}명`}
+                            </span>
+                          </div>
+                          {players.map((player, i) => {
+                            const pos = player.pos ? (POS_MAP[player.pos] ?? player.pos) : posLabel(i, players.length);
+                            const isGK = pos === "GK";
+                            const jerseyNum = player.number ?? i + 1;
+                            return (
+                              <div key={i} style={{ padding: "9px 16px", borderBottom: i < players.length - 1 ? "1px solid #f9fafb" : "none", display: "flex", alignItems: "center", gap: 10, backgroundColor: isGK ? `${bg}` : "transparent" }}>
+                                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 26, height: 26, borderRadius: "50%", backgroundColor: isGK ? accent : bg, border: `1.5px solid ${accent}`, color: isGK ? "#fff" : accent, fontSize: 10, fontWeight: 800, flexShrink: 0, boxShadow: `0 1px 4px ${accent}40` }}>
+                                  {jerseyNum}
+                                </span>
+                                <span style={{ fontSize: 9, fontWeight: 700, color: accent, backgroundColor: bg, borderRadius: 3, padding: "1px 4px", flexShrink: 0, lineHeight: 1.5, border: `1px solid ${accent}30` }}>
+                                  {pos}
+                                </span>
+                                <span style={{ color: "#1f2937", fontSize: 13, fontWeight: isGK ? 700 : 400, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {player.name}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+
+                    const hasLineup = safeLineupHome.length > 0 || safeLineupAway.length > 0;
+
+                    if (!hasLineup) {
+                      return (
+                        <div style={{ backgroundColor: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, padding: "40px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center" }}>
+                          <span style={{ fontSize: 36 }}>📋</span>
+                          <p style={{ color: "#374151", fontSize: 14, fontWeight: 700, margin: 0 }}>
+                            {isKo ? "라인업 정보 없음" : "Lineup Unavailable"}
+                          </p>
+                          <p style={{ color: "#9ca3af", fontSize: 13, margin: 0, maxWidth: 260, lineHeight: 1.6 }}>
+                            {isKo
+                              ? "이 경기의 선발 라인업이 아직 공개되지 않았습니다."
+                              : "The starting lineup for this match has not been announced yet."}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <LineupCard players={safeLineupHome} teamName={homeName} teamFlag={match.homeTeam.flag} accent="#059669" bg="rgba(22,163,74,0.08)" />
+                        <LineupCard players={safeLineupAway} teamName={awayName} teamFlag={match.awayTeam.flag} accent="#2563eb" bg="rgba(37,99,235,0.07)" />
+                      </div>
+                    );
+                  })()}
+                </section>
+              )}
+
+              {/* ═══════════════════════════════════════════════════════════
+                  STATISTICS TAB
+              ══════════════════════════════════════════════════════════════ */}
+              {activeTab === "statistics" && (
+                <>
+                  <section>
+                    <h3 style={{ color: "#111827", fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>
+                      {t.tabs.statistics}
+                    </h3>
+                    <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "4px 0" }}>
+                      {safeStatistics.length === 0 ? (
+                        <p style={{ color: "#9ca3af", fontSize: 13, padding: "24px 20px", margin: 0, textAlign: "center" }}>
+                          {isFinished
+                            ? (loc === "ko" ? "통계 데이터가 없습니다." : "No statistics available.")
+                            : (loc === "ko" ? "경기 시작 후 통계가 표시됩니다." : "Statistics will appear once the match kicks off.")}
+                        </p>
+                      ) : null}
+                      {safeStatistics.map((stat, idx) => {
+                        const homeNum = typeof stat.home === "string" ? parseInt(stat.home) : stat.home;
+                        const awayNum = typeof stat.away === "string" ? parseInt(stat.away) : stat.away;
+                        const total = homeNum + awayNum || 1;
+                        const homePercent = Math.round((homeNum / total) * 100);
+                        return (
+                          <div key={idx} style={{ padding: "12px 20px", borderBottom: idx < safeStatistics.length - 1 ? "1px solid #f3f4f6" : "none" }}>
+                            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+                              <span style={{ color: "#111827", fontSize: 13, fontWeight: 700 }}>{stat.home}</span>
+                              <span style={{ color: "#6b7280", fontSize: 12 }}>{isKo ? stat.labelKo : stat.label}</span>
+                              <span style={{ color: "#111827", fontSize: 13, fontWeight: 700 }}>{stat.away}</span>
+                            </div>
+                            <div style={{ height: 6, backgroundColor: "#f3f4f6", borderRadius: 999, overflow: "hidden", display: "flex" }}>
+                              <div style={{ height: "100%", width: `${homePercent}%`, background: "linear-gradient(90deg, #059669, #059669)", borderRadius: "999px 0 0 999px", transition: "width 0.6s ease" }} />
+                              <div style={{ height: "100%", width: `${100 - homePercent}%`, background: "linear-gradient(90deg, #3b82f6, #2563eb)", borderRadius: "0 999px 999px 0", transition: "width 0.6s ease" }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+
+                  {/* Key Stats Comparison (from recap) — finished matches only */}
+                  {isFinished && recap && recap.keyStats.length > 0 && (
+                    <section>
                       <div className="bg-white border border-gray-200 rounded-2xl p-5">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
                           {isKo ? "승부를 가른 통계" : "Decisive Stats"}
@@ -1585,52 +1245,21 @@ export default async function MatchDetailPage({
                             const av = typeof stat.away === "string" ? parseFloat(stat.away) : stat.away;
                             const total = hv + av || 1;
                             const homePct = Math.round((hv / total) * 100);
-
                             return (
                               <div key={stat.label}>
                                 <div className="flex items-center justify-between mb-1.5">
-                                  <span
-                                    className="text-sm font-bold"
-                                    style={{ color: stat.winner === "home" ? "#059669" : "#374151" }}
-                                  >
-                                    {stat.home}
-                                  </span>
-                                  <span className="text-xs text-gray-500 font-medium">
-                                    {isKo ? stat.labelKo : stat.label}
-                                  </span>
-                                  <span
-                                    className="text-sm font-bold"
-                                    style={{ color: stat.winner === "away" ? "#2563eb" : "#374151" }}
-                                  >
-                                    {stat.away}
-                                  </span>
+                                  <span className="text-sm font-bold" style={{ color: stat.winner === "home" ? "#059669" : "#374151" }}>{stat.home}</span>
+                                  <span className="text-xs text-gray-500 font-medium">{isKo ? stat.labelKo : stat.label}</span>
+                                  <span className="text-sm font-bold" style={{ color: stat.winner === "away" ? "#2563eb" : "#374151" }}>{stat.away}</span>
                                 </div>
                                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                                  <div
-                                    style={{
-                                      width: `${homePct}%`,
-                                      background: stat.winner === "home"
-                                        ? "linear-gradient(90deg,#059669,#059669)"
-                                        : "linear-gradient(90deg,#d1d5db,#9ca3af)",
-                                      borderRadius: "999px 0 0 999px",
-                                    }}
-                                  />
-                                  <div
-                                    style={{
-                                      width: `${100 - homePct}%`,
-                                      background: stat.winner === "away"
-                                        ? "linear-gradient(90deg,#60a5fa,#2563eb)"
-                                        : "linear-gradient(90deg,#d1d5db,#9ca3af)",
-                                      borderRadius: "0 999px 999px 0",
-                                    }}
-                                  />
+                                  <div style={{ width: `${homePct}%`, background: stat.winner === "home" ? "linear-gradient(90deg,#059669,#059669)" : "linear-gradient(90deg,#d1d5db,#9ca3af)", borderRadius: "999px 0 0 999px" }} />
+                                  <div style={{ width: `${100 - homePct}%`, background: stat.winner === "away" ? "linear-gradient(90deg,#60a5fa,#2563eb)" : "linear-gradient(90deg,#d1d5db,#9ca3af)", borderRadius: "0 999px 999px 0" }} />
                                 </div>
                               </div>
                             );
                           })}
                         </div>
-
-                        {/* Team color legend */}
                         <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
                           <span className="flex items-center gap-1.5 text-xs text-gray-500">
                             <span className="inline-block w-3 h-2 rounded-full bg-emerald-500" />
@@ -1642,71 +1271,16 @@ export default async function MatchDetailPage({
                           </span>
                         </div>
                       </div>
-                    )}
+                    </section>
+                  )}
+                </>
+              )}
 
-                    {/* Timeline Key Moments */}
-                    <div className="bg-white border border-gray-200 rounded-2xl p-5">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
-                        {isKo ? "결정적 순간" : "Key Moments"}
-                      </p>
-                      <div className="relative pl-6">
-                        {/* Vertical line */}
-                        <div className="absolute left-2 top-2 bottom-2 w-px bg-gray-200" />
-                        <div className="flex flex-col gap-4">
-                          {safeEvents
-                            .filter((e) => e.type !== "substitution")
-                            .map((event, i) => {
-                              const isHome = event.team === "home";
-                              const icon = EVENT_ICONS[event.type];
-                              const color =
-                                event.type === "goal" ? "#059669"
-                                : event.type === "red-card" ? "#dc2626"
-                                : "#ca8a04";
-                              return (
-                                <div key={i} className="relative flex items-start gap-3">
-                                  {/* Timeline dot */}
-                                  <div
-                                    className="absolute -left-4 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-[9px]"
-                                    style={{ backgroundColor: color, top: 2 }}
-                                  />
-                                  <div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span
-                                        className="text-xs font-bold px-1.5 py-0.5 rounded"
-                                        style={{ backgroundColor: color + "18", color }}
-                                      >
-                                        {event.minute}&apos;
-                                      </span>
-                                      <span className="text-base leading-none">{icon}</span>
-                                      <span className="text-sm font-semibold text-gray-900">
-                                        {event.player}
-                                      </span>
-                                      <span className="text-xs text-gray-400">
-                                        — {isHome ? homeName : awayName}
-                                      </span>
-                                    </div>
-                                    {event.assist && event.type === "goal" && (
-                                      <p className="text-xs text-gray-400 mt-0.5">
-                                        {isKo ? "어시스트" : "Assist"}: {event.assist}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                )}
-              </section>
             </div>
 
-            {/* Sidebar */}
+            {/* ── Sidebar (always visible) ─────────────────────────────────── */}
             <div className="flex flex-col gap-6">
 
-              {/* ── Prediction Card ────────────────────────────────────── */}
               <PredictionCard
                 matchId={Number(id)}
                 homeTeamName={homeName}
@@ -1723,41 +1297,25 @@ export default async function MatchDetailPage({
 
               <AdSlot slotId={`match-${id}-sidebar`} size="rectangle" />
 
-              {/* Match info card */}
-              <div
-                style={{
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: "16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 12,
-                }}
-              >
+              {/* Match info card (compact sidebar reference) */}
+              <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
                 <h4 style={{ color: "#111827", fontSize: 13, fontWeight: 700, margin: 0 }}>
                   {isKo ? "경기 정보" : "Match Info"}
                 </h4>
                 {[
-                  {
-                    label: isKo ? "대회" : "Competition",
-                    value: match.leagueSlug
-                      .replace(/-/g, " ")
-                      .replace(/\b\w/g, (c) => c.toUpperCase()),
-                  },
+                  { label: isKo ? "대회" : "Competition", value: match.leagueSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) },
                   { label: isKo ? "라운드" : "Round", value: match.round },
                   { label: isKo ? "날짜" : "Date", value: match.date.split("T")[0] },
                   { label: isKo ? "경기장" : "Venue", value: match.venue ?? "–" },
                 ].map(({ label, value }) => (
                   <div key={label}>
-                    <span style={{ color: "#9ca3af", fontSize: 11, display: "block", marginBottom: 2 }}>
-                      {label}
-                    </span>
+                    <span style={{ color: "#9ca3af", fontSize: 11, display: "block", marginBottom: 2 }}>{label}</span>
                     <span style={{ color: "#374151", fontSize: 13 }}>{value}</span>
                   </div>
                 ))}
               </div>
             </div>
+
           </div>
         </div>
       </main>
