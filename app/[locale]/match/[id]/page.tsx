@@ -3,8 +3,10 @@ import Image from "next/image";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { sportsEventJsonLd } from "@/lib/seo/jsonld";
-import { queryMatchDetail, queryFixturePlayers } from "@/lib/football/query";
+import { queryMatchDetail, queryFixturePlayers, queryStandings } from "@/lib/football/query";
+import { standingsToRows } from "@/lib/football/adapters";
 import { getAnalysesByFixture } from "@/lib/analysis/db";
+import MatchStandingsTable from "@/components/match/MatchStandingsTable";
 import AdSlot from "@/components/ads/AdSlot";
 import MatchTabNav from "@/components/match/MatchTabNav";
 import PredictionCard from "@/components/match/PredictionCard";
@@ -158,6 +160,7 @@ const labels = {
       facts:      "Facts",
       ticker:     "Ticker",
       lineup:     "Lineup",
+      standings:  "Standings",
       statistics: "Statistics",
     },
     kickoff: "Kick-off",
@@ -189,6 +192,7 @@ const labels = {
       facts:      "팩트",
       ticker:     "티커",
       lineup:     "라인업",
+      standings:  "순위",
       statistics: "통계",
     },
     kickoff: "킥오프",
@@ -498,7 +502,7 @@ function formatMatchTime(dateStr: string, locale: Locale): string {
 
 // ─── Valid tab IDs ─────────────────────────────────────────────────────────────
 
-const VALID_TABS = new Set(["facts", "ticker", "lineup", "statistics"]);
+const VALID_TABS = new Set(["facts", "ticker", "lineup", "standings", "statistics"]);
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
@@ -636,6 +640,12 @@ export default async function MatchDetailPage({
         .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.goals - a.goals || b.assists - a.assists)[0] ?? null
     : null;
 
+  // Standings — only fetched when Standings tab is active
+  const standings = activeTab === "standings"
+    ? await queryStandings(match.leagueSlug)
+    : null;
+  const standingRows = standings ? standingsToRows(standings, loc) : [];
+
   // Supabase user + prediction data (PredictionCard is always in sidebar)
   const supabaseUser = await getServerUser();
 
@@ -666,6 +676,7 @@ export default async function MatchDetailPage({
     { id: "facts",      label: t.tabs.facts      },
     { id: "ticker",     label: t.tabs.ticker     },
     { id: "lineup",     label: t.tabs.lineup     },
+    { id: "standings",  label: t.tabs.standings  },
     { id: "statistics", label: t.tabs.statistics },
   ];
 
@@ -1190,6 +1201,47 @@ export default async function MatchDetailPage({
                       </div>
                     );
                   })()}
+                </section>
+              )}
+
+              {/* ═══════════════════════════════════════════════════════════
+                  STANDINGS TAB
+              ══════════════════════════════════════════════════════════════ */}
+              {activeTab === "standings" && (
+                <section>
+                  <h3 style={{ color: "#111827", fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>
+                    {t.tabs.standings}
+                  </h3>
+                  {standings === null ? (
+                    <div
+                      style={{
+                        backgroundColor: "#ffffff",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 12,
+                        padding: "40px 24px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 10,
+                        textAlign: "center",
+                      }}
+                    >
+                      <span style={{ fontSize: 32 }}>📊</span>
+                      <p style={{ color: "#9ca3af", fontSize: 13, margin: 0 }}>
+                        {isKo
+                          ? "순위표를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요."
+                          : "Standings are currently unavailable. Please try again later."}
+                      </p>
+                    </div>
+                  ) : (
+                    <MatchStandingsTable
+                      rows={standingRows}
+                      homeTeamId={match.homeTeam.id}
+                      awayTeamId={match.awayTeam.id}
+                      locale={loc}
+                      leagueSlug={match.leagueSlug}
+                    />
+                  )}
                 </section>
               )}
 
