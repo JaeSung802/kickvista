@@ -181,7 +181,7 @@ export default function AnalysisCard({
             </a>
           ) : type === "recap" && fixtureId ? (
             <a
-              href={`/${locale}/match/${fixtureId}#tab-4`}
+              href={`/${locale}/match/${fixtureId}`}
               className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
             >
               📊 {isKo ? "경기 결과 보기 →" : "View Match Recap →"}

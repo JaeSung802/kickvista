@@ -3,9 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
-// Kept for backward compatibility with GoToRecapButton import (cleanup in later phase)
-export const SWITCH_TAB_EVENT = "match-switch-tab";
-
 interface Tab {
   id: string;
   label: string;
