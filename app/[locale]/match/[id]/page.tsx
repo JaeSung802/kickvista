@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import MatchScoreHeader from "@/components/match/MatchScoreHeader";
+import MatchFactsPanel from "@/components/match/MatchFactsPanel";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { sportsEventJsonLd } from "@/lib/seo/jsonld";
 import { queryMatchDetail, queryFixturePlayers, queryStandings, queryHeadToHead } from "@/lib/football/query";
@@ -730,56 +731,15 @@ export default async function MatchDetailPage({
               ══════════════════════════════════════════════════════════════ */}
               {activeTab === "facts" && (
                 <>
-                  {/* Match info card */}
-                  <section>
-                    <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "16px" }}>
-                      <h3 style={{ color: "#111827", fontSize: 14, fontWeight: 700, margin: "0 0 14px" }}>
-                        {isKo ? "경기 정보" : "Match Info"}
-                      </h3>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {[
-                          {
-                            label: isKo ? "대회" : "Competition",
-                            value: match.leagueSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-                          },
-                          { label: isKo ? "라운드" : "Round", value: match.round },
-                          {
-                            label: isKo ? "날짜" : "Date",
-                            value: formatMatchTime(match.date, loc),
-                          },
-                          { label: isKo ? "경기장" : "Venue", value: match.venue ?? "–" },
-                        ].map(({ label, value }) => (
-                          <div key={label} style={{ display: "flex", gap: 12 }}>
-                            <span style={{ color: "#9ca3af", fontSize: 12, minWidth: 60, paddingTop: 1 }}>{label}</span>
-                            <span style={{ color: "#374151", fontSize: 13, flex: 1 }}>{value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* PST/CANC notice */}
-                  {isInactive && (
-                    <section>
-                      <div style={{ backgroundColor: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "28px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center" }}>
-                        <span style={{ fontSize: 44 }}>📅</span>
-                        <p style={{ color: "#92400e", fontSize: 16, fontWeight: 700, margin: 0 }}>
-                          {isCancelled
-                            ? (loc === "ko" ? "이 경기는 취소되었습니다" : "This match has been cancelled")
-                            : (loc === "ko" ? "이 경기는 연기되었습니다" : "This match has been postponed")}
-                        </p>
-                        <p style={{ color: "#b45309", fontSize: 13, margin: 0, maxWidth: 400, lineHeight: 1.7 }}>
-                          {isCancelled
-                            ? (loc === "ko"
-                                ? "경기가 취소되어 더 이상 진행되지 않습니다."
-                                : "This fixture has been cancelled and will not take place.")
-                            : (loc === "ko"
-                                ? "이 경기는 일정에 따라 연기되었습니다. 새로운 일정이 확정되면 업데이트됩니다."
-                                : "This match has been postponed. The page will be updated once a new date is confirmed.")}
-                        </p>
-                      </div>
-                    </section>
-                  )}
+                  <MatchFactsPanel
+                    locale={loc}
+                    leagueSlug={match.leagueSlug}
+                    round={match.round}
+                    formattedDate={formatMatchTime(match.date, loc)}
+                    venue={match.venue}
+                    isInactive={isInactive}
+                    isCancelled={isCancelled}
+                  />
 
                   {/* AI Analysis — hidden for PST/CANC */}
                   {!isInactive && (
