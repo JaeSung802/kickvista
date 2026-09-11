@@ -138,19 +138,27 @@ export type SyncResult =
 
 /** Head-to-head record between two teams */
 export interface H2HRecord {
-  homeTeam: string;
-  awayTeam: string;
-  homeScore: number;
-  awayScore: number;
-  date: string;
-  result: "home" | "away" | "draw";
+  fixtureId:       number;
+  status:          string;         // raw API code ("FT" | "NS" | "1H" etc.)
+  date:            string;         // ISO datetime
+  leagueId:        number;
+  leagueName:      string;
+  homeTeamId:      number;
+  homeTeam:        string;         // kept for ai-analysis.ts buildH2HSummary compat
+  homeTeamLogoUrl: string | null;
+  awayTeamId:      number;
+  awayTeam:        string;         // kept for compat
+  awayTeamLogoUrl: string | null;
+  homeScore:       number | null;  // null for NS/live — never coerced to 0
+  awayScore:       number | null;
+  result?:         "home" | "away" | "draw"; // set only when FT/AET/PEN + both scores non-null
 }
 
 export interface H2HData {
   team1Id: number;
   team2Id: number;
   matches: H2HRecord[];
-  /** Summary over the fetched matches */
+  /** Summary over the fetched matches (exact team pair only, FT/AET/PEN only) */
   summary: {
     team1Wins: number;
     team2Wins: number;

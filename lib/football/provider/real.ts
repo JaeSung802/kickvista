@@ -452,29 +452,69 @@ export class RealFootballProvider implements IFootballProvider {
     const matches: H2HRecord[] = [];
     let team1Wins = 0, team2Wins = 0, draws = 0;
 
+    const FINISHED_H2H = new Set(["FT", "AET", "PEN"]);
+
     for (const item of raw) {
-      const r = item as Record<string, unknown>;
-      const fixture = r.fixture as Record<string, unknown>;
-      const goals = r.goals as Record<string, number | null>;
-      const teams = r.teams as Record<string, { id: number; name: string }>;
+      const r       = item as Record<string, unknown>;
+      const fix     = r.fixture  as Record<string, unknown>;
+      const goals   = r.goals    as Record<string, number | null> | undefined;
+      const teams   = r.teams    as Record<string, Record<string, unknown>> | undefined;
+      const league  = r.league   as Record<string, unknown> | undefined;
 
-      const homeScore = goals?.home ?? 0;
-      const awayScore = goals?.away ?? 0;
-      const homeId = teams?.home?.id;
+      const homeTeamId   = (teams?.home?.id   as number | undefined) ?? 0;
+      const awayTeamId   = (teams?.away?.id   as number | undefined) ?? 0;
+      const homeTeamName = (teams?.home?.name as string | undefined) ?? "";
+      const awayTeamName = (teams?.away?.name as string | undefined) ?? "";
+      const homeTeamLogo = (teams?.home?.logo as string | null | undefined) ?? null;
+      const awayTeamLogo = (teams?.away?.logo as string | null | undefined) ?? null;
 
-      let result: "home" | "away" | "draw";
-      if (homeScore > awayScore) { result = "home"; homeId === team1Id ? team1Wins++ : team2Wins++; }
-      else if (awayScore > homeScore) { result = "away"; homeId === team2Id ? team2Wins++ : team1Wins++; }
-      else { result = "draw"; draws++; }
+      const statusCode  = ((fix?.status as Record<string, unknown>)?.short as string | undefined) ?? "";
+      const fixtureId   = (fix?.id   as number | undefined) ?? 0;
+      const date        = (fix?.date as string | undefined) ?? "";
+      const leagueId    = (league?.id   as number | undefined) ?? 0;
+      const leagueName  = (league?.name as string | undefined) ?? "";
+
+      const homeScore = goals?.home ?? null;
+      const awayScore = goals?.away ?? null;
+
+      let result: "home" | "away" | "draw" | undefined;
+      if (FINISHED_H2H.has(statusCode) && homeScore !== null && awayScore !== null) {
+        if (homeScore > awayScore)      result = "home";
+        else if (awayScore > homeScore) result = "away";
+        else                            result = "draw";
+      }
 
       matches.push({
-        homeTeam: teams?.home?.name ?? "",
-        awayTeam: teams?.away?.name ?? "",
+        fixtureId,
+        status: statusCode,
+        date,
+        leagueId,
+        leagueName,
+        homeTeamId,
+        homeTeam: homeTeamName,
+        homeTeamLogoUrl: homeTeamLogo,
+        awayTeamId,
+        awayTeam: awayTeamName,
+        awayTeamLogoUrl: awayTeamLogo,
         homeScore,
         awayScore,
-        date: (fixture?.date as string) ?? "",
-        result,
+        ...(result !== undefined ? { result } : {}),
       });
+
+      // Provider-level summary: exact pair check + score-based winId
+      const isPair =
+        (homeTeamId === team1Id && awayTeamId === team2Id) ||
+        (homeTeamId === team2Id && awayTeamId === team1Id);
+      if (!isPair) continue;
+      if (!FINISHED_H2H.has(statusCode) || homeScore === null || awayScore === null) continue;
+
+      if (homeScore === awayScore) {
+        draws++;
+      } else {
+        const winId = homeScore > awayScore ? homeTeamId : awayTeamId;
+        if (winId === team1Id)      team1Wins++;
+        else if (winId === team2Id) team2Wins++;
+      }
     }
 
     return { team1Id, team2Id, matches, summary: { team1Wins, team2Wins, draws } };

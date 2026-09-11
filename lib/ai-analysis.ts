@@ -167,9 +167,19 @@ function buildH2HSummary(h2h: H2HData, homeName: string, awayName: string): stri
   const { summary, matches } = h2h;
   const total = summary.team1Wins + summary.team2Wins + summary.draws;
   if (total === 0) return "No head-to-head data available.";
-  const recent = matches.slice(0, 5).map(
-    (m) => `${m.homeTeam} ${m.homeScore}–${m.awayScore} ${m.awayTeam} (${m.date.split("T")[0]})`
-  ).join(", ");
+  const FINISHED_H2H = new Set(["FT", "AET", "PEN"]);
+  const recent = matches
+    .filter(
+      (m) =>
+        m.homeScore !== null &&
+        m.awayScore !== null &&
+        FINISHED_H2H.has(m.status),
+    )
+    .slice(0, 5)
+    .map(
+      (m) => `${m.homeTeam} ${m.homeScore}–${m.awayScore} ${m.awayTeam} (${m.date.split("T")[0]})`,
+    )
+    .join(", ");
   return `H2H last ${total} meetings — ${homeName}: ${summary.team1Wins}W | Draws: ${summary.draws} | ${awayName}: ${summary.team2Wins}W. Recent: ${recent}`;
 }
 

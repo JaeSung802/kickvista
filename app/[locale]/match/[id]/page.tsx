@@ -3,10 +3,11 @@ import Image from "next/image";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { sportsEventJsonLd } from "@/lib/seo/jsonld";
-import { queryMatchDetail, queryFixturePlayers, queryStandings } from "@/lib/football/query";
+import { queryMatchDetail, queryFixturePlayers, queryStandings, queryHeadToHead } from "@/lib/football/query";
 import { standingsToRows } from "@/lib/football/adapters";
 import { getAnalysesByFixture } from "@/lib/analysis/db";
 import MatchStandingsTable from "@/components/match/MatchStandingsTable";
+import MatchHeadToHead from "@/components/match/MatchHeadToHead";
 import AdSlot from "@/components/ads/AdSlot";
 import MatchTabNav from "@/components/match/MatchTabNav";
 import PredictionCard from "@/components/match/PredictionCard";
@@ -162,6 +163,7 @@ const labels = {
       lineup:     "Lineup",
       standings:  "Standings",
       statistics: "Statistics",
+      h2h:        "H2H",
     },
     kickoff: "Kick-off",
     halfTime: "Half-Time",
@@ -194,6 +196,7 @@ const labels = {
       lineup:     "라인업",
       standings:  "순위",
       statistics: "통계",
+      h2h:        "역대 전적",
     },
     kickoff: "킥오프",
     halfTime: "전반전",
@@ -502,7 +505,7 @@ function formatMatchTime(dateStr: string, locale: Locale): string {
 
 // ─── Valid tab IDs ─────────────────────────────────────────────────────────────
 
-const VALID_TABS = new Set(["facts", "ticker", "lineup", "standings", "statistics"]);
+const VALID_TABS = new Set(["facts", "ticker", "lineup", "standings", "statistics", "h2h"]);
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
@@ -646,6 +649,11 @@ export default async function MatchDetailPage({
     : null;
   const standingRows = standings ? standingsToRows(standings, loc) : [];
 
+  // H2H — only fetched when H2H tab is active
+  const h2hData = activeTab === "h2h"
+    ? await queryHeadToHead(match.homeTeam.id, match.awayTeam.id, Number(id))
+    : null;
+
   // Supabase user + prediction data (PredictionCard is always in sidebar)
   const supabaseUser = await getServerUser();
 
@@ -678,6 +686,7 @@ export default async function MatchDetailPage({
     { id: "lineup",     label: t.tabs.lineup     },
     { id: "standings",  label: t.tabs.standings  },
     { id: "statistics", label: t.tabs.statistics },
+    { id: "h2h",        label: t.tabs.h2h        },
   ];
 
   return (
@@ -708,7 +717,7 @@ export default async function MatchDetailPage({
 
             <div className="flex items-start justify-between gap-2">
               {/* Home team */}
-              <div className="flex flex-col items-center" style={{ flex: "0 0 120px", width: 120 }}>
+              <div className="flex flex-col items-center" style={{ flex: "0 1 120px", width: 120, minWidth: 0 }}>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-md flex items-center justify-center p-2 mb-3" style={{ width: 72, height: 72 }}>
                   <Image src={homeLogo} alt={homeName} width={52} height={52} className="object-contain" unoptimized />
                 </div>
@@ -741,7 +750,7 @@ export default async function MatchDetailPage({
               </div>
 
               {/* Away team */}
-              <div className="flex flex-col items-center" style={{ flex: "0 0 120px", width: 120 }}>
+              <div className="flex flex-col items-center" style={{ flex: "0 1 120px", width: 120, minWidth: 0 }}>
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-md flex items-center justify-center p-2 mb-3" style={{ width: 72, height: 72 }}>
                   <Image src={awayLogo} alt={awayName} width={52} height={52} className="object-contain" unoptimized />
                 </div>
@@ -1326,6 +1335,20 @@ export default async function MatchDetailPage({
                     </section>
                   )}
                 </>
+              )}
+
+              {/* ═══════════════════════════════════════════════════════════
+                  H2H TAB
+              ══════════════════════════════════════════════════════════════ */}
+              {activeTab === "h2h" && h2hData && (
+                <section className="max-w-4xl mx-auto">
+                  <MatchHeadToHead
+                    data={h2hData}
+                    homeTeam={match.homeTeam}
+                    awayTeam={match.awayTeam}
+                    locale={loc}
+                  />
+                </section>
               )}
 
             </div>

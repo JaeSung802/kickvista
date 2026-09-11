@@ -13,6 +13,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getFootballProvider } from "@/lib/football/provider";
+import { queryHeadToHead } from "@/lib/football/query";
 import { SUPPORTED_LEAGUES, currentFootballSeason } from "@/lib/football/constants";
 import { generateMatchAnalysis, type AnalysisEnrichmentData } from "@/lib/ai-analysis";
 import { saveAnalysis } from "@/lib/analysis/db";
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
   try {
     if (type === "preview") {
       const [h2h, homeStats, awayStats] = await Promise.all([
-        provider.fetchHeadToHead(fixture.homeTeam.id, fixture.awayTeam.id),
+        queryHeadToHead(fixture.homeTeam.id, fixture.awayTeam.id, fixtureId),
         provider.fetchTeamStatistics(fixture.leagueId, season, fixture.homeTeam.id),
         provider.fetchTeamStatistics(fixture.leagueId, season, fixture.awayTeam.id),
       ]);

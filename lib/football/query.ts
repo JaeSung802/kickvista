@@ -17,7 +17,7 @@
  *   const standings = await queryStandings("premier-league");
  */
 
-import type { Fixture, Standings, MatchDetail, LeagueSlug } from "./types";
+import type { Fixture, Standings, MatchDetail, LeagueSlug, H2HData } from "./types";
 import { LEAGUE_BY_SLUG, SUPPORTED_LEAGUES, LIVE_STATUSES } from "./constants";
 import { getFootballProvider } from "./provider";
 
@@ -360,6 +360,62 @@ export function countLiveByLeague(
     }
   }
   return counts;
+}
+
+// ---------------------------------------------------------------------------
+// Head-to-head query
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch and filter head-to-head records for two teams.
+ *
+ * Filters applied on top of the raw provider result:
+ *   1. Excludes the current fixture (currentFixtureId)
+ *   2. Only FT / AET / PEN results (completed matches)
+ *   3. Both scores must be non-null
+ *   4. Exact team pair — both homeTeamId and awayTeamId must be {team1Id, team2Id}
+ *      (eliminates third-team matches that happen to involve one of the two teams)
+ * Sorts by date desc, slices to 10, then recalculates the summary.
+ */
+export async function queryHeadToHead(
+  team1Id: number,
+  team2Id: number,
+  currentFixtureId: number,
+): Promise<H2HData> {
+  try {
+    const raw = await getFootballProvider().fetchHeadToHead(team1Id, team2Id);
+
+    const filtered = raw.matches.filter(
+      (m) =>
+        m.fixtureId !== currentFixtureId &&
+        FINISHED_SET.has(m.status) &&
+        m.homeScore !== null &&
+        m.awayScore !== null &&
+        (
+          (m.homeTeamId === team1Id && m.awayTeamId === team2Id) ||
+          (m.homeTeamId === team2Id && m.awayTeamId === team1Id)
+        ),
+    );
+
+    filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const limited = filtered.slice(0, 10);
+
+    let team1Wins = 0, team2Wins = 0, draws = 0;
+    for (const m of limited) {
+      if (m.homeScore === null || m.awayScore === null) continue;
+      if (m.homeScore === m.awayScore) {
+        draws++;
+      } else {
+        const winId = m.homeScore > m.awayScore ? m.homeTeamId : m.awayTeamId;
+        if (winId === team1Id)      team1Wins++;
+        else if (winId === team2Id) team2Wins++;
+      }
+    }
+
+    return { team1Id, team2Id, matches: limited, summary: { team1Wins, team2Wins, draws } };
+  } catch {
+    return { team1Id, team2Id, matches: [], summary: { team1Wins: 0, team2Wins: 0, draws: 0 } };
+  }
 }
 
 /**
