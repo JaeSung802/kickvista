@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import MatchScoreHeader from "@/components/match/MatchScoreHeader";
 import MatchFactsPanel from "@/components/match/MatchFactsPanel";
+import MatchTicker from "@/components/match/MatchTicker";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { sportsEventJsonLd } from "@/lib/seo/jsonld";
 import { queryMatchDetail, queryFixturePlayers, queryStandings, queryHeadToHead } from "@/lib/football/query";
@@ -215,13 +216,6 @@ const labels = {
     substitution: "교체",
     assist: "어시스트",
   },
-};
-
-const EVENT_ICONS: Record<string, string> = {
-  goal: "⚽",
-  "yellow-card": "🟨",
-  "red-card": "🟥",
-  substitution: "🔄",
 };
 
 // ─── AI Recap generator ───────────────────────────────────────────────────────
@@ -768,45 +762,13 @@ export default async function MatchDetailPage({
                   TICKER TAB
               ══════════════════════════════════════════════════════════════ */}
               {activeTab === "ticker" && (
-                <section>
-                  <h3 style={{ color: "#111827", fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>
-                    {t.tabs.ticker}
-                  </h3>
-                  <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden" }}>
-                    {safeEvents.length === 0 ? (
-                      <p style={{ color: "#9ca3af", fontSize: 13, padding: "24px 20px", margin: 0, textAlign: "center" }}>
-                        {isFinished
-                          ? (loc === "ko" ? "경기 이벤트 데이터가 없습니다." : "No match events available.")
-                          : (loc === "ko" ? "경기 시작 후 이벤트가 표시됩니다." : "Events will appear once the match kicks off.")}
-                      </p>
-                    ) : null}
-                    {safeEvents.map((event, idx) => {
-                      const isHome = event.team === "home";
-                      return (
-                        <div
-                          key={idx}
-                          style={{ display: "flex", alignItems: "center", padding: "12px 20px", borderBottom: idx < safeEvents.length - 1 ? "1px solid #f3f4f6" : "none", gap: 12, flexDirection: isHome ? ("row" as const) : ("row-reverse" as const) }}
-                        >
-                          <div style={{ flex: 1, textAlign: isHome ? ("left" as const) : ("right" as const) }}>
-                            <span style={{ color: "#111827", fontSize: 13, fontWeight: 600 }}>{event.player}</span>
-                            {event.assist && event.type === "goal" && (
-                              <span style={{ color: "#6b7280", fontSize: 11, display: "block" }}>
-                                {t.assist}: {event.assist}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-center gap-1" style={{ minWidth: 64 }}>
-                            <span style={{ fontSize: 18 }}>{EVENT_ICONS[event.type]}</span>
-                            <span style={{ color: "#6b7280", fontSize: 11, fontWeight: 700, backgroundColor: "#f9fafb", borderRadius: 4, padding: "1px 7px", border: "1px solid #e5e7eb" }}>
-                              {event.minute}&apos;
-                            </span>
-                          </div>
-                          <div style={{ flex: 1 }} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
+                <MatchTicker
+                  events={safeEvents}
+                  isFinished={isFinished}
+                  locale={loc}
+                  tickerTitle={t.tabs.ticker}
+                  assistLabel={t.assist}
+                />
               )}
 
               {/* ═══════════════════════════════════════════════════════════
