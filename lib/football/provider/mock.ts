@@ -63,13 +63,13 @@ export class MockFootballProvider implements IFootballProvider {
   }
 
   async fetchResults(leagueId: number, _season: number, limit?: number): Promise<Fixture[]> {
-    let results = MOCK_FIXTURES.filter(
+    const filtered = MOCK_FIXTURES.filter(
       (f) => f.leagueId === leagueId && FINISHED_SET.has(f.status)
     );
-    if (limit !== undefined && limit > 0) {
-      results = results.slice(0, limit);
-    }
-    return results;
+    const sorted = [...filtered].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    return limit !== undefined && limit > 0 ? sorted.slice(0, limit) : sorted;
   }
 
   async fetchFixturesRange(leagueId: number, _from: string, _to: string, _season?: number): Promise<Fixture[]> {
@@ -85,9 +85,12 @@ export class MockFootballProvider implements IFootballProvider {
   }
 
   async fetchTeamResults(teamId: number, leagueId: number, _season: number, n: number): Promise<Fixture[]> {
-    return MOCK_FIXTURES.filter(
+    const filtered = MOCK_FIXTURES.filter(
       (f) => f.leagueId === leagueId && (f.homeTeam.id === teamId || f.awayTeam.id === teamId) && FINISHED_SET.has(f.status)
-    ).slice(0, n);
+    );
+    return [...filtered]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, n);
   }
 
   async fetchTeamFixturesNext(teamId: number, leagueId: number, _season: number, n: number): Promise<Fixture[]> {

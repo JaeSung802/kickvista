@@ -5,6 +5,7 @@ import type { LeagueSlug } from "@/lib/football/types";
 import { LEAGUE_BY_SLUG } from "@/lib/football/constants";
 import { queryRecentResults } from "@/lib/football/query";
 import { fixturesToMatches } from "@/lib/football/adapters";
+import { formatFixtureDateHeader } from "@/lib/football/date-helpers";
 import LeagueHeader from "@/components/league/LeagueHeader";
 import AdSlot from "@/components/ads/AdSlot";
 import { TeamLogo } from "@/components/ui/TeamLogo";
@@ -53,20 +54,6 @@ export async function generateMetadata({
       ? `${name} 최신 경기 결과와 스코어를 KickVista에서 확인하세요.`
       : `Check the latest ${name} match results and scores on KickVista.`,
     path: `/league/${urlSlug}/results`,
-  });
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDateLabel(dateStr: string, locale: Locale): string {
-  const d = new Date(dateStr + "T12:00:00Z");
-  if (locale === "ko") {
-    return d.toLocaleDateString("ko-KR", {
-      month: "long", day: "numeric", weekday: "short",
-    });
-  }
-  return d.toLocaleDateString("en-GB", {
-    weekday: "short", day: "numeric", month: "long",
   });
 }
 
@@ -134,7 +121,7 @@ export default async function LeagueResultsPage({
                 {/* Date header */}
                 <div className="flex items-center gap-3 mb-2 px-1">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    {dateKey !== "unknown" ? formatDateLabel(dateKey, loc) : (isKo ? "날짜 미정" : "Date unknown")}
+                    {formatFixtureDateHeader(dateKey, loc, false)}
                   </span>
                   <div className="flex-1 h-px bg-gray-200" />
                 </div>

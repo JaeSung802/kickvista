@@ -1,4 +1,5 @@
 import type { Locale } from "@/lib/i18n";
+import { formatMatchDateTime } from "@/lib/football/date-helpers";
 
 export function normaliseEvent(
   e: unknown,
@@ -97,9 +98,5 @@ export function flattenApiStats(
 }
 
 export function formatMatchTime(dateStr: string, locale: Locale): string {
-  const date = new Date(dateStr);
-  return date.toLocaleString(locale === "ko" ? "ko-KR" : "en-GB", {
-    dateStyle: "long",
-    timeStyle: "short",
-  });
+  return formatMatchDateTime(dateStr, locale);
 }

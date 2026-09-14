@@ -358,8 +358,8 @@ export class RealFootballProvider implements IFootballProvider {
     limit?: number
   ): Promise<Fixture[]> {
     const path = limit
-      ? `/fixtures?league=${leagueId}&season=${season}&status=FT-AET-PEN&last=${limit}`
-      : `/fixtures?league=${leagueId}&season=${season}&status=FT-AET-PEN`;
+      ? `/fixtures?league=${leagueId}&season=${season}&status=FT-AET-PEN&last=${limit}&timezone=Asia%2FSeoul`
+      : `/fixtures?league=${leagueId}&season=${season}&status=FT-AET-PEN&timezone=Asia%2FSeoul`;
 
     const data = await this.apiFetch<{ response: unknown[] }>(
       path,
@@ -397,7 +397,7 @@ export class RealFootballProvider implements IFootballProvider {
     n: number
   ): Promise<Fixture[]> {
     const data = await this.apiFetch<{ response: unknown[] }>(
-      `/fixtures?league=${leagueId}&season=${season}&status=FT&last=${n}`,
+      `/fixtures?league=${leagueId}&season=${season}&status=FT&last=${n}&timezone=Asia%2FSeoul`,
       CACHE_TTL.FIXTURES_TODAY,
       cacheTags("fixtures", leagueId),
       // noStore = false — ISR 캐시 활용
@@ -425,7 +425,7 @@ export class RealFootballProvider implements IFootballProvider {
 
   async fetchTeamResults(teamId: number, leagueId: number, season: number, n: number): Promise<Fixture[]> {
     const data = await this.apiFetch<{ response: unknown[] }>(
-      `/fixtures?team=${teamId}&league=${leagueId}&season=${season}&status=FT-AET-PEN&last=${n}`,
+      `/fixtures?team=${teamId}&league=${leagueId}&season=${season}&status=FT-AET-PEN&last=${n}&timezone=Asia%2FSeoul`,
       CACHE_TTL.RESULTS,
       cacheTags("fixtures", leagueId),
     );

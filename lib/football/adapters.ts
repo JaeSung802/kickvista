@@ -12,6 +12,7 @@
 import type { Fixture, Standings, StandingEntry, LeagueSlug } from "./types";
 import type { Locale } from "@/lib/i18n";
 import { LEAGUE_BY_SLUG, LIVE_STATUSES, FINISHED_STATUSES } from "./constants";
+import { fixtureDateKey, fixtureTimeKST } from "./date-helpers";
 
 const LIVE_SET       = new Set(LIVE_STATUSES);
 const FINISHED_SET   = new Set(FINISHED_STATUSES);
@@ -62,13 +63,8 @@ export function fixtureToMatch(
     ? "cancelled"
     : "upcoming";
 
-  // Extract local time string from the ISO date ("HH:MM")
-  const kickOffTime = fixture.date
-    ? new Date(fixture.date).toLocaleTimeString(
-        locale === "ko" ? "ko-KR" : "en-GB",
-        { hour: "2-digit", minute: "2-digit", hour12: false }
-      )
-    : undefined;
+  // Extract KST kick-off time ("HH:mm") — timezone-independent
+  const kickOffTime = fixture.date ? fixtureTimeKST(fixture.date) : undefined;
 
   return {
     id: String(fixture.id),
@@ -87,7 +83,7 @@ export function fixtureToMatch(
     leagueSlug: fixture.leagueSlug,
     leagueFlag: league.flag,
     venue: fixture.venue,
-    date: fixture.date ? fixture.date.slice(0, 10) : undefined,
+    date: fixture.date ? fixtureDateKey(fixture.date) : undefined,
   };
 }
 

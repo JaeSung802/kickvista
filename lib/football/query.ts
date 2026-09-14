@@ -20,6 +20,7 @@
 import type { Fixture, Standings, MatchDetail, LeagueSlug, H2HData } from "./types";
 import { LEAGUE_BY_SLUG, SUPPORTED_LEAGUES, LIVE_STATUSES } from "./constants";
 import { getFootballProvider } from "./provider";
+import { fixtureDateKey } from "./date-helpers";
 
 const LIVE_SET = new Set(LIVE_STATUSES);
 const FINISHED_SET = new Set(["FT", "AET", "PEN"]);
@@ -127,16 +128,15 @@ export async function queryHomeMatches(): Promise<Fixture[]> {
   merged.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   // 가장 이른 고유 날짜 3개를 선택해 그 날짜의 경기를 모두 반환한다.
-  // fixture.date는 timezone=Asia/Seoul 요청으로 +09:00 offset이므로
-  // .slice(0, 10)이 올바른 KST YYYY-MM-DD를 반환한다.
+  // fixtureDateKey: RealProvider(+09:00 offset)와 MockProvider(UTC Z) 모두 KST 날짜 보장.
   const firstThreeDates = [
-    ...new Set(merged.map((fixture) => fixture.date.slice(0, 10))),
+    ...new Set(merged.map((fixture) => fixtureDateKey(fixture.date))),
   ].slice(0, 3);
 
   const allowedDates = new Set(firstThreeDates);
 
   return merged.filter((fixture) =>
-    allowedDates.has(fixture.date.slice(0, 10))
+    allowedDates.has(fixtureDateKey(fixture.date))
   );
 }
 
@@ -253,7 +253,8 @@ export async function queryRecentResults(
     console.error(`[queryRecentResults] unknown leagueSlug: ${leagueSlug}`);
     return [];
   }
-  return provider.fetchResults(league.id, league.season, limit);
+  const raw = await provider.fetchResults(league.id, league.season, limit);
+  return [...raw].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 // ---------------------------------------------------------------------------
