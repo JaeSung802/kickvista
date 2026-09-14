@@ -16,7 +16,7 @@ import MatchAIAnalysis from "@/components/match/MatchAIAnalysis";
 import MatchRecap from "@/components/match/MatchRecap";
 import AdSlot from "@/components/ads/AdSlot";
 import MatchTabNav from "@/components/match/MatchTabNav";
-import PredictionCard from "@/components/match/PredictionCard";
+import MatchSidebar from "@/components/match/MatchSidebar";
 import { getServerUser, getServerProfile } from "@/lib/auth";
 import { getUserPrediction, getPredictionStats } from "@/lib/predictions";
 import type { Fixture, MatchDetail, LineupPlayer } from "@/lib/football/types";
@@ -862,42 +862,24 @@ export default async function MatchDetailPage({
             </div>
 
             {/* ── Sidebar (always visible) ─────────────────────────────────── */}
-            <div className="flex flex-col gap-6">
-
-              <PredictionCard
-                matchId={Number(id)}
-                homeTeamName={homeName}
-                awayTeamName={awayName}
-                isLive={isLive}
-                isFinished={isFinished}
-                isInactive={isInactive}
-                userPoints={userPoints}
-                initialPrediction={userPrediction}
-                initialStats={predictionStats}
-                locale={loc}
-                loginUrl={`/${loc}/auth/login`}
-              />
-
-              <AdSlot slotId={`match-${id}-sidebar`} size="rectangle" />
-
-              {/* Match info card (compact sidebar reference) */}
-              <div style={{ backgroundColor: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
-                <h4 style={{ color: "#111827", fontSize: 13, fontWeight: 700, margin: 0 }}>
-                  {isKo ? "경기 정보" : "Match Info"}
-                </h4>
-                {[
-                  { label: isKo ? "대회" : "Competition", value: match.leagueSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) },
-                  { label: isKo ? "라운드" : "Round", value: match.round },
-                  { label: isKo ? "날짜" : "Date", value: match.date.split("T")[0] },
-                  { label: isKo ? "경기장" : "Venue", value: match.venue ?? "–" },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <span style={{ color: "#9ca3af", fontSize: 11, display: "block", marginBottom: 2 }}>{label}</span>
-                    <span style={{ color: "#374151", fontSize: 13 }}>{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <MatchSidebar
+              matchId={Number(id)}
+              homeTeamName={homeName}
+              awayTeamName={awayName}
+              isLive={isLive}
+              isFinished={isFinished}
+              isInactive={isInactive}
+              userPoints={userPoints}
+              initialPrediction={userPrediction}
+              initialStats={predictionStats}
+              locale={loc}
+              loginUrl={`/${loc}/auth/login`}
+              sidebarAdSlotId={`match-${id}-sidebar`}
+              leagueSlug={match.leagueSlug}
+              round={match.round}
+              date={match.date}
+              venue={match.venue}
+            />
 
           </div>
         </div>
