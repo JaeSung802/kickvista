@@ -14,6 +14,7 @@ import {
   queryStandings,
 } from "@/lib/football/query";
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
+import { formatFixtureDate } from "@/lib/football/date-helpers";
 import LeagueHeader from "@/components/league/LeagueHeader";
 import PostCard from "@/components/community/PostCard";
 import AdBanner from "@/components/ads/AdBanner";
@@ -249,6 +250,11 @@ export default async function LeagueOverviewPage({
                             <span className="text-base font-black text-gray-900 tabular-nums">{m.awayScore}</span>
                           </div>
                           <span className="text-[10px] font-semibold text-gray-400">{t.ft}</span>
+                          {m.date && (
+                            <span className="text-[10px] text-gray-400">
+                              {formatFixtureDate(m.date, loc)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 justify-end flex-1 min-w-0">
                           <span className={`text-sm truncate text-right ${awayWin ? "font-bold text-gray-900" : "font-medium text-gray-500"}`}>

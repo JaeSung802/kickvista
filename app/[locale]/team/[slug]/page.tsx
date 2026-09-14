@@ -5,6 +5,7 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import { getFootballProvider } from "@/lib/football/provider";
 import { LEAGUE_BY_SLUG } from "@/lib/football/constants";
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
+import { formatFixtureDate } from "@/lib/football/date-helpers";
 import { queryStandings } from "@/lib/football/query";
 import { TEAM_REGISTRY } from "@/lib/football/teamRegistry";
 import {
@@ -302,10 +303,17 @@ export default async function TeamPage({
                             {m.homeTeam}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0 mx-3 bg-gray-100 rounded-lg px-3 py-1">
-                          <span className="text-sm font-black text-gray-900 tabular-nums">{m.homeScore}</span>
-                          <span className="text-gray-400 text-xs">–</span>
-                          <span className="text-sm font-black text-gray-900 tabular-nums">{m.awayScore}</span>
+                        <div className="flex flex-col items-center gap-0.5 shrink-0 mx-3">
+                          <div className="flex items-center gap-1.5 bg-gray-100 rounded-lg px-3 py-1">
+                            <span className="text-sm font-black text-gray-900 tabular-nums">{m.homeScore}</span>
+                            <span className="text-gray-400 text-xs">–</span>
+                            <span className="text-sm font-black text-gray-900 tabular-nums">{m.awayScore}</span>
+                          </div>
+                          {m.date && (
+                            <span className="text-[10px] text-gray-400">
+                              {formatFixtureDate(m.date, loc)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                           <span className={`truncate text-right text-sm ${m.awayTeam === teamName ? "font-bold text-gray-900" : "font-medium text-gray-500"}`}>
