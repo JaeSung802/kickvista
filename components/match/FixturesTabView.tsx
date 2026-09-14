@@ -3,6 +3,7 @@
 import { useState } from "react";
 import MatchCard from "@/components/match/MatchCard";
 import type { Match } from "@/components/match/MatchCard";
+import { fixtureDateKey, formatFixtureDateHeader } from "@/lib/football/date-helpers";
 
 type TabKey = "all" | "live" | "upcoming" | "finished";
 
@@ -52,20 +53,6 @@ function groupByDate(matches: Match[]): { dateKey: string; matches: Match[] }[] 
   return Array.from(map.entries()).map(([dateKey, matches]) => ({ dateKey, matches }));
 }
 
-/** Format YYYY-MM-DD into a localised date header string. */
-function formatDateHeader(dateKey: string, locale: "ko" | "en"): string {
-  if (dateKey === "unknown") return locale === "ko" ? "날짜 미정" : "Date TBD";
-  const d = new Date(dateKey + "T12:00:00"); // noon to avoid timezone edge cases
-  if (locale === "ko") {
-    return d.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
-  }
-  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-}
-
-/** Check if a date key represents today. */
-function isToday(dateKey: string): boolean {
-  return dateKey === new Date().toISOString().split("T")[0];
-}
 
 export default function FixturesTabView({ matches, locale }: FixturesTabViewProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("all");
@@ -122,9 +109,9 @@ export default function FixturesTabView({ matches, locale }: FixturesTabViewProp
               {/* Date header */}
               <div className="flex items-center gap-2 mb-3 mt-6 first:mt-0 px-1">
                 <span className="text-sm font-semibold text-gray-500">
-                  {formatDateHeader(dateKey, locale)}
+                  {formatFixtureDateHeader(dateKey, locale, true)}
                 </span>
-                {isToday(dateKey) && (
+                {fixtureDateKey(new Date().toISOString()) === dateKey && (
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
                     {todayLabel}
                   </span>
