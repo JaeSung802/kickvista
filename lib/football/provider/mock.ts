@@ -10,6 +10,7 @@ export class MockFootballProvider implements IFootballProvider {
   readonly isMockMode = true;
 
   async fetchFixtures(leagueId: number, _date?: string, _season?: number): Promise<Fixture[]> {
+    void _date; void _season;
     if (!leagueId) return [...MOCK_FIXTURES];
     return MOCK_FIXTURES.filter((f) => f.leagueId === leagueId);
   }
@@ -73,6 +74,7 @@ export class MockFootballProvider implements IFootballProvider {
   }
 
   async fetchFixturesRange(leagueId: number, _from: string, _to: string, _season?: number): Promise<Fixture[]> {
+    void _from; void _to; void _season;
     return this.fetchFixtures(leagueId);
   }
 
@@ -84,19 +86,18 @@ export class MockFootballProvider implements IFootballProvider {
     return (await this.fetchFixtures(leagueId)).slice(0, n);
   }
 
-  async fetchTeamResults(teamId: number, leagueId: number, _season: number, n: number): Promise<Fixture[]> {
-    const filtered = MOCK_FIXTURES.filter(
-      (f) => f.leagueId === leagueId && (f.homeTeam.id === teamId || f.awayTeam.id === teamId) && FINISHED_SET.has(f.status)
-    );
-    return [...filtered]
+  async fetchTeamResults(teamId: number, n: number): Promise<Fixture[]> {
+    return [...MOCK_FIXTURES]
+      .filter((f) => (f.homeTeam.id === teamId || f.awayTeam.id === teamId) && FINISHED_SET.has(f.status))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, n);
   }
 
-  async fetchTeamFixturesNext(teamId: number, leagueId: number, _season: number, n: number): Promise<Fixture[]> {
-    return MOCK_FIXTURES.filter(
-      (f) => f.leagueId === leagueId && (f.homeTeam.id === teamId || f.awayTeam.id === teamId) && f.status === "NS"
-    ).slice(0, n);
+  async fetchTeamFixturesNext(teamId: number, n: number): Promise<Fixture[]> {
+    return [...MOCK_FIXTURES]
+      .filter((f) => (f.homeTeam.id === teamId || f.awayTeam.id === teamId) && (f.status === "NS" || f.status === "PST"))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, n);
   }
 
   async fetchHeadToHead(team1Id: number, team2Id: number): Promise<H2HData> {
@@ -190,10 +191,12 @@ export class MockFootballProvider implements IFootballProvider {
   }
 
   async fetchTeamStatistics(_leagueId: number, _season: number, _teamId: number): Promise<TeamStatistics | null> {
+    void _leagueId; void _season; void _teamId;
     return null;
   }
 
   async fetchFixturePlayers(_fixtureId: number): Promise<FixturePlayerStats[]> {
+    void _fixtureId;
     return [];
   }
 }

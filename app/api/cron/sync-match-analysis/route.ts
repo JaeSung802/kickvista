@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
         const analysis = await generateMatchAnalysis({ fixture, type, locale, enrichment });
         await saveAnalysis(analysis, {
           leagueId:   fixture.leagueId,
-          leagueSlug: fixture.leagueSlug,
+          leagueSlug: fixture.leagueSlug ?? undefined,
           homeTeam:   fixture.homeTeam.name,
           awayTeam:   fixture.awayTeam.name,
           matchDate:  fixture.date,

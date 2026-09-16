@@ -7,6 +7,15 @@ export interface TeamEntry {
   nameEn:     string;
   nameKo:     string;
   flag:       string;
+  /** false = not currently competing in `leagueSlug`'s top flight (e.g. relegated to a
+   *  division we don't support yet). Excluded from TEAMS_BY_LEAGUE / league-page rosters,
+   *  but the entry's slug and detail page stay valid. Omitted (undefined) means active. */
+  activeInLeague?: boolean;
+  /** Local override path (e.g. "/images/teams/yongin-fc.png"), used in place of the
+   *  API-Football CDN logo when the provider's own asset for this team is broken or
+   *  a placeholder (confirmed case-by-case, not a general escape hatch). Omitted
+   *  (undefined) means use the CDN logo as normal. */
+  logoOverride?: string;
 }
 
 // ─── Registry ──────────────────────────────────────────────────────────────────
@@ -167,19 +176,44 @@ export const TEAM_REGISTRY: Record<string, TeamEntry> = {
   "lafc":              { slug: "lafc",               id: 1612, leagueSlug: "mls",           nameEn: "LAFC",               nameKo: "LAFC",                 flag: "⚫" },
   "columbus-crew":     { slug: "columbus-crew",      id: 1604, leagueSlug: "mls",           nameEn: "Columbus Crew",      nameKo: "콜럼버스 크루",         flag: "🟡" },
   "fc-cincinnati":     { slug: "fc-cincinnati",      id: 16053, leagueSlug: "mls",          nameEn: "FC Cincinnati",      nameKo: "FC 신시내티",           flag: "🔵" },
-  // ── K League 1 (12팀) ────────────────────────────────────────────────────────
-  "jeonbuk":           { slug: "jeonbuk",            id: 2742, leagueSlug: "k-league-1",    nameEn: "Jeonbuk Hyundai",    nameKo: "전북 현대",             flag: "🟢" },
-  "ulsan":             { slug: "ulsan",              id: 2730, leagueSlug: "k-league-1",    nameEn: "Ulsan HD",           nameKo: "울산 HD",               flag: "🔵" },
-  "seoulfc":           { slug: "seoulfc",            id: 2743, leagueSlug: "k-league-1",    nameEn: "Seoul FC",           nameKo: "서울 FC",               flag: "🔵" },
-  "suwon":             { slug: "suwon",              id: 2740, leagueSlug: "k-league-1",    nameEn: "Suwon Samsung",      nameKo: "수원 삼성",             flag: "🔵" },
-  "pohang":            { slug: "pohang",             id: 2738, leagueSlug: "k-league-1",    nameEn: "Pohang Steelers",    nameKo: "포항 스틸러스",         flag: "🔴" },
-  "daegu":             { slug: "daegu",              id: 2729, leagueSlug: "k-league-1",    nameEn: "Daegu FC",           nameKo: "대구 FC",               flag: "🔵" },
-  "incheon":           { slug: "incheon",            id: 2744, leagueSlug: "k-league-1",    nameEn: "Incheon United",     nameKo: "인천 유나이티드",       flag: "🔵" },
-  "gwangju":           { slug: "gwangju",            id: 2741, leagueSlug: "k-league-1",    nameEn: "Gwangju FC",         nameKo: "광주 FC",               flag: "🟡" },
-  "jeju":              { slug: "jeju",               id: 2745, leagueSlug: "k-league-1",    nameEn: "Jeju United",        nameKo: "제주 유나이티드",       flag: "🟠" },
-  "gimcheon":          { slug: "gimcheon",           id: 2736, leagueSlug: "k-league-1",    nameEn: "Gimcheon Sangmu",    nameKo: "김천 상무",             flag: "🔵" },
-  "seongnam":          { slug: "seongnam",           id: 2739, leagueSlug: "k-league-1",    nameEn: "Seongnam FC",        nameKo: "성남 FC",               flag: "🔵" },
+  // ── K League 1 (12팀, 2026 시즌 API teamId 기준 — Phase 4-A3-B1 정정) ─────────
+  "jeonbuk":           { slug: "jeonbuk",            id: 2762, leagueSlug: "k-league-1",    nameEn: "Jeonbuk Motors",     nameKo: "전북현대",              flag: "🟢" },
+  "ulsan":             { slug: "ulsan",              id: 2767, leagueSlug: "k-league-1",    nameEn: "Ulsan Hyundai FC",   nameKo: "울산HD",                flag: "🔵" },
+  "seoulfc":           { slug: "seoulfc",            id: 2766, leagueSlug: "k-league-1",    nameEn: "FC Seoul",           nameKo: "FC서울",                flag: "🔵" },
+  "pohang":            { slug: "pohang",             id: 2764, leagueSlug: "k-league-1",    nameEn: "Pohang Steelers",    nameKo: "포항스틸러스",          flag: "🔴" },
+  "incheon":           { slug: "incheon",            id: 2763, leagueSlug: "k-league-1",    nameEn: "Incheon United",     nameKo: "인천유나이티드",        flag: "🔵" },
+  "gwangju":           { slug: "gwangju",            id: 2759, leagueSlug: "k-league-1",    nameEn: "Gwangju FC",         nameKo: "광주 FC",               flag: "🟡" },
+  "jeju":              { slug: "jeju",               id: 2761, leagueSlug: "k-league-1",    nameEn: "Jeju United FC",     nameKo: "제주SK",                flag: "🟠" },
+  "gimcheon":          { slug: "gimcheon",           id: 2768, leagueSlug: "k-league-1",    nameEn: "Gimcheon Sangmu FC", nameKo: "김천상무",              flag: "🔵" },
   "gangwon":           { slug: "gangwon",            id: 2746, leagueSlug: "k-league-1",    nameEn: "Gangwon FC",         nameKo: "강원 FC",               flag: "🔵" },
+  "daejeon":           { slug: "daejeon",            id: 2750, leagueSlug: "k-league-1",    nameEn: "Daejeon Citizen",    nameKo: "대전하나시티즌",        flag: "🟣" },
+  "fc-anyang":         { slug: "fc-anyang",          id: 2748, leagueSlug: "k-league-1",    nameEn: "FC Anyang",          nameKo: "FC 안양",               flag: "🟡" },
+  "bucheon":           { slug: "bucheon",            id: 2745, leagueSlug: "k-league-1",    nameEn: "Bucheon FC 1995",    nameKo: "부천FC1995",            flag: "🔵" },
+  // ── K League 2 (17팀, 2026 시즌 API teamId 기준 — Phase 4-A3-B1-K2 정식 등록) ──
+  // daegu/suwon/seongnam은 Phase 4-A3-B1에서 K League 1 비활성(activeInLeague:false)
+  // entry로 보존되었던 팀 — 여기서 정식 K League 2 활성 entry로 전환.
+  "suwon":             { slug: "suwon",              id: 2765, leagueSlug: "k-league-2",    nameEn: "Suwon Bluewings",    nameKo: "수원삼성",              flag: "🔵" },
+  "daegu":             { slug: "daegu",              id: 2747, leagueSlug: "k-league-2",    nameEn: "Daegu FC",           nameKo: "대구 FC",               flag: "🔵" },
+  "suwon-city":        { slug: "suwon-city",         id: 2756, leagueSlug: "k-league-2",    nameEn: "Suwon City FC",      nameKo: "수원 FC",               flag: "🔵" },
+  "seoul-eland":       { slug: "seoul-eland",        id: 2749, leagueSlug: "k-league-2",    nameEn: "Seoul E-Land FC",    nameKo: "서울이랜드",            flag: "🔴" },
+  "hwaseong":          { slug: "hwaseong",           id: 7087, leagueSlug: "k-league-2",    nameEn: "Hwaseong",           nameKo: "화성 FC",               flag: "🟡" },
+  "busan-ipark":       { slug: "busan-ipark",        id: 2752, leagueSlug: "k-league-2",    nameEn: "Busan I Park",       nameKo: "부산아이파크",          flag: "🟠" },
+  "gyeongnam":         { slug: "gyeongnam",          id: 2751, leagueSlug: "k-league-2",    nameEn: "Gyeongnam FC",       nameKo: "경남 FC",               flag: "🔵" },
+  "gimpo":             { slug: "gimpo",              id: 7078, leagueSlug: "k-league-2",    nameEn: "Gimpo Citizen",      nameKo: "김포 FC",               flag: "🔵" },
+  "asan":              { slug: "asan",               id: 2753, leagueSlug: "k-league-2",    nameEn: "Asan Mugunghwa",     nameKo: "충남아산 FC",           flag: "🔴" },
+  "seongnam":          { slug: "seongnam",           id: 2757, leagueSlug: "k-league-2",    nameEn: "Seongnam FC",        nameKo: "성남 FC",               flag: "🔵" },
+  // nameEn corrected to the club's official English name "Yongin FC" (Phase Z3e) —
+  // "Yongin City" was a data-provider alternate spelling, kept as a TEAM_NAME_KO
+  // alias below so raw API strings still resolve correctly. logoOverride points at
+  // a locally-stored official crest because API-Football's own CDN asset for this
+  // teamId is a generic placeholder graphic, confirmed by direct visual inspection.
+  "yongin":            { slug: "yongin",             id: 9171, leagueSlug: "k-league-2",    nameEn: "Yongin FC",          nameKo: "용인 FC",               flag: "🟢", logoOverride: "/images/teams/yongin-fc.png" },
+  "cheongju":          { slug: "cheongju",           id: 7061, leagueSlug: "k-league-2",    nameEn: "Cheongju",           nameKo: "충북청주 FC",           flag: "🔵" },
+  "paju":              { slug: "paju",               id: 7098, leagueSlug: "k-league-2",    nameEn: "Paju Citizen",       nameKo: "파주프론티어",          flag: "🔵" },
+  "cheonan":           { slug: "cheonan",            id: 7060, leagueSlug: "k-league-2",    nameEn: "Cheonan City",       nameKo: "천안시티 FC",           flag: "🟢" },
+  "ansan":             { slug: "ansan",              id: 2758, leagueSlug: "k-league-2",    nameEn: "Ansan Greeners",     nameKo: "안산그리너스",          flag: "🟢" },
+  "jeonnam":           { slug: "jeonnam",            id: 2760, leagueSlug: "k-league-2",    nameEn: "Jeonnam Dragons",    nameKo: "전남드래곤즈",          flag: "🔵" },
+  "gimhae":            { slug: "gimhae",             id: 7076, leagueSlug: "k-league-2",    nameEn: "Gimhae City",        nameKo: "김해 FC",               flag: "🔴" },
   // ── J1 League (18팀) ─────────────────────────────────────────────────────────
   "kashima":           { slug: "kashima",            id: 311,  leagueSlug: "j1-league",     nameEn: "Kashima Antlers",    nameKo: "가시마 앤틀러스",       flag: "🔴" },
   "urawa-reds":        { slug: "urawa-reds",         id: 314,  leagueSlug: "j1-league",     nameEn: "Urawa Reds",         nameKo: "우라와 레즈",           flag: "🔴" },
@@ -241,27 +275,60 @@ export const TEAM_REGISTRY: Record<string, TeamEntry> = {
 
 const ALL_ENTRIES = Object.values(TEAM_REGISTRY);
 
+// Entries with activeInLeague === false (e.g. relegated to a division we don't
+// support yet) are excluded from league rosters below, but stay in TEAM_REGISTRY
+// so their slug, detail page, and ID lookups keep working.
+const LISTED_ENTRIES = ALL_ENTRIES.filter((t) => t.activeInLeague !== false);
+
 export const TEAMS_BY_LEAGUE: Record<string, TeamEntry[]> = {
-  "premier-league":        ALL_ENTRIES.filter((t) => t.leagueSlug === "premier-league"),
-  "la-liga":               ALL_ENTRIES.filter((t) => t.leagueSlug === "la-liga"),
-  "bundesliga":            ALL_ENTRIES.filter((t) => t.leagueSlug === "bundesliga"),
-  "serie-a":               ALL_ENTRIES.filter((t) => t.leagueSlug === "serie-a"),
-  "ligue-1":               ALL_ENTRIES.filter((t) => t.leagueSlug === "ligue-1"),
-  "champions-league":      ALL_ENTRIES.filter((t) => t.leagueSlug === "champions-league"),
-  "europa-league":         ALL_ENTRIES.filter((t) => t.leagueSlug === "europa-league"),
-  "eredivisie":            ALL_ENTRIES.filter((t) => t.leagueSlug === "eredivisie"),
-  "primeira-liga":         ALL_ENTRIES.filter((t) => t.leagueSlug === "primeira-liga"),
-  "saudi-pro-league":      ALL_ENTRIES.filter((t) => t.leagueSlug === "saudi-pro-league"),
-  "mls":                   ALL_ENTRIES.filter((t) => t.leagueSlug === "mls"),
-  "k-league-1":            ALL_ENTRIES.filter((t) => t.leagueSlug === "k-league-1"),
-  "j1-league":             ALL_ENTRIES.filter((t) => t.leagueSlug === "j1-league"),
-  "liga-mx":               ALL_ENTRIES.filter((t) => t.leagueSlug === "liga-mx"),
-  "super-lig":             ALL_ENTRIES.filter((t) => t.leagueSlug === "super-lig"),
-  "brasileirao":           ALL_ENTRIES.filter((t) => t.leagueSlug === "brasileirao"),
-  "scottish-premiership":  ALL_ENTRIES.filter((t) => t.leagueSlug === "scottish-premiership"),
+  "premier-league":        LISTED_ENTRIES.filter((t) => t.leagueSlug === "premier-league"),
+  "la-liga":               LISTED_ENTRIES.filter((t) => t.leagueSlug === "la-liga"),
+  "bundesliga":            LISTED_ENTRIES.filter((t) => t.leagueSlug === "bundesliga"),
+  "serie-a":               LISTED_ENTRIES.filter((t) => t.leagueSlug === "serie-a"),
+  "ligue-1":               LISTED_ENTRIES.filter((t) => t.leagueSlug === "ligue-1"),
+  "champions-league":      LISTED_ENTRIES.filter((t) => t.leagueSlug === "champions-league"),
+  "europa-league":         LISTED_ENTRIES.filter((t) => t.leagueSlug === "europa-league"),
+  "eredivisie":            LISTED_ENTRIES.filter((t) => t.leagueSlug === "eredivisie"),
+  "primeira-liga":         LISTED_ENTRIES.filter((t) => t.leagueSlug === "primeira-liga"),
+  "saudi-pro-league":      LISTED_ENTRIES.filter((t) => t.leagueSlug === "saudi-pro-league"),
+  "mls":                   LISTED_ENTRIES.filter((t) => t.leagueSlug === "mls"),
+  "k-league-1":            LISTED_ENTRIES.filter((t) => t.leagueSlug === "k-league-1"),
+  "k-league-2":            LISTED_ENTRIES.filter((t) => t.leagueSlug === "k-league-2"),
+  "j1-league":             LISTED_ENTRIES.filter((t) => t.leagueSlug === "j1-league"),
+  "liga-mx":               LISTED_ENTRIES.filter((t) => t.leagueSlug === "liga-mx"),
+  "super-lig":             LISTED_ENTRIES.filter((t) => t.leagueSlug === "super-lig"),
+  "brasileirao":           LISTED_ENTRIES.filter((t) => t.leagueSlug === "brasileirao"),
+  "scottish-premiership":  LISTED_ENTRIES.filter((t) => t.leagueSlug === "scottish-premiership"),
 };
 
 export const VALID_TEAM_SLUGS = Object.keys(TEAM_REGISTRY);
+
+// Reverse lookup: API-Football teamId -> registry slug. Built once at module
+// init from ALL_ENTRIES (including activeInLeague:false teams, so their own
+// detail pages stay linkable even though they're excluded from league lists).
+const TEAM_SLUG_BY_ID: Record<number, string> = Object.fromEntries(
+  ALL_ENTRIES.map((t) => [t.id, t.slug])
+);
+
+/**
+ * Resolve a team's canonical registry slug from its API-Football teamId, or
+ * null if the team isn't registered. Never guesses a slug from a display
+ * name — only a real registry entry counts.
+ */
+export function getTeamSlugById(teamId: number): string | null {
+  return TEAM_SLUG_BY_ID[teamId] ?? null;
+}
+
+/**
+ * Resolve the logo URL to display for a registry entry: its `logoOverride`
+ * when set (e.g. a team whose API-Football CDN asset is a known placeholder),
+ * otherwise the standard API-Football CDN URL built from its teamId. Use this
+ * anywhere a logo is constructed directly from a registry entry's `id` instead
+ * of going through `normalizeTeam()` (e.g. static team-hub/roster listings).
+ */
+export function getTeamLogoUrl(entry: Pick<TeamEntry, "id" | "logoOverride">): string {
+  return entry.logoOverride ?? `https://media.api-sports.io/football/teams/${entry.id}.png`;
+}
 
 // ---------------------------------------------------------------------------
 // Name-based Korean lookup — 100+ teams across EPL / La Liga / Bundesliga /
@@ -623,19 +690,43 @@ export const TEAM_NAME_KO: Record<string, string> = {
   "Al-Faisaly":                     "알 파이살리",
   "Abha":                           "아브하",
   "Al Khaleej Saihat":              "알 칼리즈",
-  // K League 1 (API name variants)
-  "FC Seoul":                       "서울 FC",
-  "Jeonbuk Motors":                 "전북 현대",
-  "Jeonbuk Hyundai":                "전북 현대",
-  "Ulsan Hyundai FC":               "울산 HD",
-  "Ulsan HD":                       "울산 HD",
-  "Daejeon Citizen":                "대전 시티즌",
-  "Pohang Steelers":                "포항 스틸러스",
+  // K League 1 (API name variants) — 2026 시즌 공식 표기로 통일 (Phase 4-A3-B1)
+  "FC Seoul":                       "FC서울",
+  "Seoul FC":                       "FC서울",
+  "Jeonbuk Motors":                 "전북현대",
+  "Jeonbuk Hyundai":                "전북현대",
+  "Ulsan Hyundai FC":               "울산HD",
+  "Ulsan HD":                       "울산HD",
+  "Jeju United FC":                 "제주SK",
+  "Jeju United":                    "제주SK",
+  "Gangwon FC":                     "강원 FC",
+  "Daejeon Citizen":                "대전하나시티즌",
+  "Pohang Steelers":                "포항스틸러스",
   "FC Anyang":                      "FC 안양",
-  "Incheon United":                 "인천 유나이티드",
-  "Gimcheon Sangmu FC":             "김천 상무",
-  "Gimcheon Sangmu":                "김천 상무",
+  "Bucheon FC 1995":                "부천FC1995",
+  "Incheon United":                 "인천유나이티드",
+  "Gimcheon Sangmu FC":             "김천상무",
+  "Gimcheon Sangmu":                "김천상무",
   "Gwangju FC":                     "광주 FC",
+  // K League 2 (API name variants) — Phase 4-A3-B1-K2 정식 등록
+  "Suwon Bluewings":                "수원삼성",
+  "Daegu FC":                       "대구 FC",
+  "Suwon City FC":                  "수원 FC",
+  "Seoul E-Land FC":                "서울이랜드",
+  "Hwaseong":                       "화성 FC",
+  "Busan I Park":                   "부산아이파크",
+  "Gyeongnam FC":                   "경남 FC",
+  "Gimpo Citizen":                  "김포 FC",
+  "Asan Mugunghwa":                 "충남아산 FC",
+  "Seongnam FC":                    "성남 FC",
+  "Yongin City":                    "용인 FC",
+  "Yongin FC":                      "용인 FC",
+  "Cheongju":                       "충북청주 FC",
+  "Paju Citizen":                   "파주프론티어",
+  "Cheonan City":                   "천안시티 FC",
+  "Ansan Greeners":                 "안산그리너스",
+  "Jeonnam Dragons":                "전남드래곤즈",
+  "Gimhae City":                    "김해 FC",
   // J1 League (API name variants & non-registry teams)
   "Kashima":                        "가시마 앤틀러스",
   "Kashima Antlers":                "가시마 앤틀러스",

@@ -10,6 +10,7 @@
 import type { Locale } from "@/lib/i18n";
 import type { MatchViewModel } from "@/lib/football/adapters";
 import type { StandingRowViewModel } from "@/lib/football/adapters";
+import type { LeagueSlug } from "@/lib/football/types";
 import type { PostListItem } from "@/lib/community/actions";
 
 import NoticeWidget from "./NoticeWidget";
@@ -58,7 +59,8 @@ export function SectionHeader({
 
 // ─── Today's Matches compact list ─────────────────────────────────────────────
 
-function MatchRow({ match, locale }: { match: MatchViewModel; locale: Locale }) {
+function MatchRow({ match, locale: _locale }: { match: MatchViewModel; locale: Locale }) {
+  void _locale;
   const isLive     = match.status === "live";
   const isFinished = match.status === "finished";
   const homeWins   = (match.homeScore ?? 0) > (match.awayScore ?? 0);
@@ -166,6 +168,7 @@ const LEAGUE_LOGO_MAP: Record<string, string> = {
   "champions-league":  `${CDN}/2.png`,
   "europa-league":     `${CDN}/3.png`,
   "k-league-1":        `${CDN}/292.png`,
+  "k-league-2":        `${CDN}/293.png`,
 };
 
 const LEAGUE_PRIORITY: Record<string, number> = {
@@ -204,7 +207,8 @@ interface DayGroup {
 }
 
 interface LeagueGroup {
-  leagueSlug: string;
+  groupKey: string;            // always string: leagueSlug or "league-id:<n>" for unsupported
+  leagueSlug: LeagueSlug | null; // null = unsupported (no KickVista league page)
   leagueName: string;
   leagueFlag: string;
   leagueLogo?: string;
@@ -216,12 +220,13 @@ function groupMatchesByLeague(matches: MatchViewModel[], locale: Locale): League
   const today = kstToday();
   const leagueMap = new Map<string, MatchViewModel[]>();
   for (const m of matches) {
-    if (!leagueMap.has(m.leagueSlug)) leagueMap.set(m.leagueSlug, []);
-    leagueMap.get(m.leagueSlug)!.push(m);
+    const key = m.leagueSlug ?? `league-id:${m.leagueId}`;
+    if (!leagueMap.has(key)) leagueMap.set(key, []);
+    leagueMap.get(key)!.push(m);
   }
 
   return Array.from(leagueMap.entries())
-    .map(([slug, ms]) => {
+    .map(([groupKey, ms]) => {
       const sorted = [...ms].sort((a, b) => {
         if (a.status === "live" && b.status !== "live") return -1;
         if (b.status === "live" && a.status !== "live") return 1;
@@ -244,15 +249,16 @@ function groupMatchesByLeague(matches: MatchViewModel[], locale: Locale): League
       }));
 
       return {
-        leagueSlug: slug,
+        groupKey,
+        leagueSlug: ms[0].leagueSlug,
         leagueName: ms[0].league,
         leagueFlag: ms[0].leagueFlag,
-        leagueLogo: LEAGUE_LOGO_MAP[slug],
+        leagueLogo: LEAGUE_LOGO_MAP[groupKey],
         dayGroups,
         allMatches: sorted,
       };
     })
-    .sort((a, b) => (LEAGUE_PRIORITY[a.leagueSlug] ?? 99) - (LEAGUE_PRIORITY[b.leagueSlug] ?? 99));
+    .sort((a, b) => (LEAGUE_PRIORITY[a.groupKey] ?? 99) - (LEAGUE_PRIORITY[b.groupKey] ?? 99));
 }
 
 // ─── Standings mini sidebar ───────────────────────────────────────────────────
@@ -339,6 +345,7 @@ function StandingsMini({
     </div>
   );
 }
+void StandingsMini;
 
 // ─── Quick links bar ──────────────────────────────────────────────────────────
 
@@ -350,6 +357,7 @@ const LEAGUE_QUICK = [
   { href: "ligue-1",          flag: "🇫🇷",          en: "L1",   ko: "리그1",  logo: `${CDN}/61.png`  },
   { href: "champions-league", flag: "🌍",           en: "UCL",  ko: "UCL",   logo: `${CDN}/2.png`   },
   { href: "k-league-1",       flag: "🇰🇷",          en: "K리그", ko: "K리그", logo: `${CDN}/292.png` },
+  { href: "k-league-2",       flag: "🇰🇷",          en: "K리그2", ko: "K리그2", logo: `${CDN}/293.png` },
 ];
 
 export function QuickLinksBar({ locale }: { locale: Locale }) {
@@ -585,7 +593,7 @@ export default function HomePageContent({
                   <div className="flex flex-col gap-3">
                     {leagueGroups.map((group) => (
                       <div
-                        key={group.leagueSlug}
+                        key={group.groupKey}
                         className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm"
                       >
                         {/* League header */}
@@ -608,12 +616,14 @@ export default function HomePageContent({
                               LIVE
                             </span>
                           )}
-                          <a
-                            href={`/${locale}/league/${group.leagueSlug}`}
-                            className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 shrink-0"
-                          >
-                            {isKo ? "전체 →" : "All →"}
-                          </a>
+                          {group.leagueSlug && (
+                            <a
+                              href={`/${locale}/league/${group.leagueSlug}`}
+                              className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 shrink-0"
+                            >
+                              {isKo ? "전체 →" : "All →"}
+                            </a>
+                          )}
                         </div>
 
                         {/* Match rows — 날짜별 서브 그룹 */}

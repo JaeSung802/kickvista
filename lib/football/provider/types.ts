@@ -81,13 +81,13 @@ export interface IFootballProvider {
   fetchFixturePlayers(fixtureId: number): Promise<FixturePlayerStats[]>;
 
   /**
-   * Fetch the last N finished fixtures for a specific team in a league season.
-   * More precise than fetchResults — filtered by team ID at the API level.
+   * Fetch the last N finished fixtures for a specific team across all competitions.
+   * Filtered by team ID at the API level.
    */
-  fetchTeamResults(teamId: number, leagueId: number, season: number, n: number): Promise<Fixture[]>;
+  fetchTeamResults(teamId: number, n: number): Promise<Fixture[]>;
 
   /**
-   * Fetch the next N scheduled fixtures for a specific team in a league season.
+   * Fetch the next N scheduled fixtures for a specific team across all competitions.
    */
-  fetchTeamFixturesNext(teamId: number, leagueId: number, season: number, n: number): Promise<Fixture[]>;
+  fetchTeamFixturesNext(teamId: number, n: number): Promise<Fixture[]>;
 }

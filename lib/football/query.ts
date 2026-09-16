@@ -356,7 +356,7 @@ export function countLiveByLeague(
 ): Partial<Record<LeagueSlug, number>> {
   const counts: Partial<Record<LeagueSlug, number>> = {};
   for (const f of fixtures) {
-    if (LIVE_SET.has(f.status)) {
+    if (LIVE_SET.has(f.status) && f.leagueSlug) {
       counts[f.leagueSlug] = (counts[f.leagueSlug] ?? 0) + 1;
     }
   }
@@ -427,7 +427,9 @@ export function countByLeague(
 ): Partial<Record<LeagueSlug, number>> {
   const counts: Partial<Record<LeagueSlug, number>> = {};
   for (const f of fixtures) {
-    counts[f.leagueSlug] = (counts[f.leagueSlug] ?? 0) + 1;
+    if (f.leagueSlug) {
+      counts[f.leagueSlug] = (counts[f.leagueSlug] ?? 0) + 1;
+    }
   }
   return counts;
 }

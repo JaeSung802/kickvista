@@ -7,6 +7,7 @@ import {
   ALL_VALID_LEAGUE_URL_SLUGS,
   LEAGUE_URL_REDIRECTS,
   resolveLeagueUrlSlug,
+  canonicalTeamUrl,
 } from "@/lib/football/slugs";
 import {
   queryRecentResults,
@@ -14,13 +15,14 @@ import {
   queryStandings,
 } from "@/lib/football/query";
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
+import { determineStandingZone } from "@/lib/football/standingZones";
 import { formatFixtureDate } from "@/lib/football/date-helpers";
 import LeagueHeader from "@/components/league/LeagueHeader";
 import PostCard from "@/components/community/PostCard";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
 import { getPostsByLeague } from "@/lib/community/teamPosts";
-import { TEAM_REGISTRY } from "@/lib/football/teamRegistry";
+import { TEAM_REGISTRY, getTeamSlugById, getTeamLogoUrl } from "@/lib/football/teamRegistry";
 import { listAnalysesByLeague } from "@/lib/analysis/db";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 
@@ -187,7 +189,7 @@ export default async function LeagueOverviewPage({
     Object.entries(TEAM_REGISTRY).map(([slug, entry]) => [entry.id, slug])
   );
   const leagueTeams = Object.entries(TEAM_REGISTRY)
-    .filter(([, entry]) => entry.leagueSlug === internalSlug)
+    .filter(([, entry]) => entry.leagueSlug === internalSlug && entry.activeInLeague !== false)
     .map(([, entry]) => entry);
 
   // League stats derived from standings
@@ -409,7 +411,7 @@ export default async function LeagueOverviewPage({
                         >
                           <div className="bg-white rounded-full p-0.5 border border-gray-100 shadow-sm shrink-0">
                             <TeamLogo
-                              logo={`https://media.api-sports.io/football/teams/${team.id}.png`}
+                              logo={getTeamLogoUrl(team)}
                               name={isKo ? team.nameKo : team.nameEn}
                               size={28}
                             />
@@ -493,28 +495,54 @@ export default async function LeagueOverviewPage({
                   </div>
                   <div className="divide-y divide-gray-50">
                     {topRows.map((row) => {
-                      const zoneColor =
-                        row.pos <= 4 ? "bg-blue-500" :
-                        row.pos === 5 ? "bg-orange-400" :
-                        totalTeams > 0 && row.pos >= totalTeams - 2 ? "bg-red-500" :
-                        "bg-transparent";
+                      const zone = determineStandingZone({
+                        leagueSlug: internalSlug,
+                        season: league.season,
+                        rank: row.pos,
+                        teamId: row.teamId,
+                        description: row.description,
+                      });
+                      const zoneLabel = zone ? (isKo ? zone.labelKo : zone.labelEn) : undefined;
                       return (
-                        <div key={row.pos} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 transition-colors">
+                        <div
+                          key={row.pos}
+                          title={zoneLabel}
+                          className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 transition-colors"
+                        >
                           <div className="relative flex items-center justify-end w-5">
-                            <span className={`absolute left-0 top-1 bottom-1 w-0.5 rounded-full ${zoneColor}`} />
-                            <span className={`text-xs font-bold tabular-nums ${
-                              row.pos <= 4 ? "text-blue-600" :
-                              row.pos === 5 ? "text-orange-500" :
-                              totalTeams > 0 && row.pos >= totalTeams - 2 ? "text-red-500" :
-                              "text-gray-400"
-                            }`}>
+                            <span
+                              className="absolute left-0 top-1 bottom-1 w-0.5 rounded-full"
+                              style={{ background: zone ? zone.color : "transparent" }}
+                            />
+                            <span
+                              aria-label={zoneLabel ? `${row.pos}, ${zoneLabel}` : undefined}
+                              className="text-xs font-bold tabular-nums"
+                              style={{ color: zone ? zone.color : "#9ca3af" }}
+                            >
                               {row.pos}
                             </span>
                           </div>
-                          <TeamLogo logo={row.logo} name={row.team} size={16} />
-                          <span className="text-xs font-medium text-gray-800 flex-1 truncate">
-                            {row.displayName}
-                          </span>
+                          {(() => {
+                            const teamSlug = getTeamSlugById(row.teamId);
+                            const cellChildren = (
+                              <>
+                                <TeamLogo logo={row.logo} name={row.team} size={16} />
+                                <span className="text-xs font-medium text-gray-800 flex-1 truncate">
+                                  {row.displayName}
+                                </span>
+                              </>
+                            );
+                            return teamSlug ? (
+                              <a
+                                href={`/${loc}/team/${canonicalTeamUrl(teamSlug)}`}
+                                className="flex items-center gap-2 flex-1 min-w-0 no-underline focus-visible:outline-2 focus-visible:outline-emerald-600 focus-visible:outline-offset-2 rounded"
+                              >
+                                {cellChildren}
+                              </a>
+                            ) : (
+                              <div className="flex items-center gap-2 flex-1 min-w-0">{cellChildren}</div>
+                            );
+                          })()}
                           <span className="text-[11px] text-gray-400 tabular-nums w-5 text-right">{row.played}</span>
                           <span className="text-[11px] text-gray-400 tabular-nums w-6 text-right">{row.gd}</span>
                           <span className="text-xs font-bold text-gray-900 tabular-nums w-7 text-right">{row.pts}</span>

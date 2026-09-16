@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { StandingRowViewModel } from "@/lib/football/adapters";
+import type { LeagueSlug } from "@/lib/football/types";
 import type { Locale } from "@/lib/i18n";
 
 interface MatchStandingsTableProps {
@@ -7,7 +8,7 @@ interface MatchStandingsTableProps {
   homeTeamId: number;
   awayTeamId: number;
   locale: Locale;
-  leagueSlug: string;
+  leagueSlug: LeagueSlug | null;
 }
 
 const HEADERS = {
@@ -237,24 +238,26 @@ export default function MatchStandingsTable({
         </div>
       </div>
 
-      {/* Full standings link */}
-      <div style={{ textAlign: "right" }}>
-        <a
-          href={`/${locale}/league/${leagueSlug}/standings`}
-          style={{
-            color: "#059669",
-            fontSize: 12,
-            fontWeight: 600,
-            textDecoration: "none",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-          }}
-        >
-          {isKo ? "전체 순위표 보기" : "View full standings"}
-          <span aria-hidden>→</span>
-        </a>
-      </div>
+      {/* Full standings link — only for supported leagues */}
+      {leagueSlug && (
+        <div style={{ textAlign: "right" }}>
+          <a
+            href={`/${locale}/league/${leagueSlug}/standings`}
+            style={{
+              color: "#059669",
+              fontSize: 12,
+              fontWeight: 600,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            {isKo ? "전체 순위표 보기" : "View full standings"}
+            <span aria-hidden>→</span>
+          </a>
+        </div>
+      )}
     </div>
   );
 }

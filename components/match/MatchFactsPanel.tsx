@@ -2,7 +2,7 @@ import type { Locale } from "@/lib/i18n";
 
 interface MatchFactsPanelProps {
   locale: Locale;
-  leagueSlug: string;
+  leagueName: string;
   round: string;
   formattedDate: string;
   venue?: string;
@@ -12,7 +12,7 @@ interface MatchFactsPanelProps {
 
 export default function MatchFactsPanel({
   locale,
-  leagueSlug,
+  leagueName,
   round,
   formattedDate,
   venue,
@@ -33,7 +33,7 @@ export default function MatchFactsPanel({
             {[
               {
                 label: isKo ? "대회" : "Competition",
-                value: leagueSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+                value: leagueName,
               },
               { label: isKo ? "라운드" : "Round", value: round },
               {

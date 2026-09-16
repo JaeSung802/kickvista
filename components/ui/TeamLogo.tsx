@@ -44,6 +44,14 @@ export function TeamLogo({ logo, name, size = 24 }: TeamLogoProps) {
       alt={name}
       width={size}
       height={size}
+      // Tailwind's preflight (`img { height: auto }`) overrides next/image's
+      // height attribute while leaving width alone, which is exactly what
+      // triggers Next's "width or height modified, but not the other"
+      // warning — and, left alone, would let the browser derive height from
+      // each logo's own intrinsic ratio instead of the fixed square size,
+      // causing shift and non-uniform sizing across teams. Inline style wins
+      // over the stylesheet rule, so both stay pinned at `size` as intended.
+      style={{ width: size, height: size }}
       className="rounded-full object-contain shrink-0"
       onError={() => setFailed(true)}
       loading="lazy"

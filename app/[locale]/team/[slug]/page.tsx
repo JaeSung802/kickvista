@@ -5,9 +5,10 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import { getFootballProvider } from "@/lib/football/provider";
 import { LEAGUE_BY_SLUG } from "@/lib/football/constants";
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
+import { determineStandingZone } from "@/lib/football/standingZones";
 import { formatFixtureDate } from "@/lib/football/date-helpers";
 import { queryStandings } from "@/lib/football/query";
-import { TEAM_REGISTRY } from "@/lib/football/teamRegistry";
+import { TEAM_REGISTRY, getTeamLogoUrl } from "@/lib/football/teamRegistry";
 import {
   TEAM_URL_REDIRECTS,
   resolveTeamUrlSlug,
@@ -123,17 +124,29 @@ export default async function TeamPage({
   const teamName  = isKo ? entry.nameKo : entry.nameEn;
   const leagueName = isKo ? league.nameKo : league.name;
 
-  const jsonLd = sportsTeamJsonLd({ nameEn: entry.nameEn, nameKo: entry.nameKo, leagueName, slug, locale: loc });
+  // Teams flagged `activeInLeague: false` (e.g. relegated to a division we don't
+  // support yet) no longer belong to `entry.leagueSlug`'s current top flight —
+  // skip its standings/league-fixtures lookups and hide the league badge/links
+  // entirely, rather than showing a misleading "K League 1" affiliation.
+  const isActiveInLeague = entry.activeInLeague !== false;
+
+  const jsonLd = sportsTeamJsonLd({
+    nameEn: entry.nameEn,
+    nameKo: entry.nameKo,
+    leagueName: isActiveInLeague ? leagueName : undefined,
+    slug,
+    locale: loc,
+  });
 
   const provider = getFootballProvider();
-  const teamLogo = `https://media.api-sports.io/football/teams/${entry.id}.png`;
+  const teamLogo = getTeamLogoUrl(entry);
 
   const [squadR, recentR, upcomingR, liveAllR, standingsR, latestPostsR, hotPostsR] = await Promise.allSettled([
     getLiveSquad(internalSlug),
-    provider.fetchTeamResults(entry.id, league.id, league.season, 5),
-    provider.fetchTeamFixturesNext(entry.id, league.id, league.season, 5),
-    provider.fetchFixtures(league.id, undefined, league.season),
-    queryStandings(entry.leagueSlug),
+    provider.fetchTeamResults(entry.id, 5),
+    provider.fetchTeamFixturesNext(entry.id, 5),
+    isActiveInLeague ? provider.fetchFixtures(league.id, undefined, league.season) : Promise.resolve([]),
+    isActiveInLeague ? queryStandings(entry.leagueSlug) : Promise.resolve(null),
     getPostsByTeam(internalSlug, { sort: "latest", limit: 10 }),
     getPostsByTeam(internalSlug, { sort: "hot",    limit: 5  }),
   ]);
@@ -159,6 +172,21 @@ export default async function TeamPage({
     ? standingsToRows(standings, loc).find((r) => r.team === entry.nameEn || r.teamKo === entry.nameKo)
     : null;
 
+  // Zone (Final A/B, promotion, continental qualification, etc.) is derived from
+  // the raw API standings row matched by teamId — kept independent of the
+  // name-based `standingRow` lookup above, which is left unchanged for its
+  // existing pts/played/won/drawn/lost/form display uses.
+  const rawStandingEntry = standings?.table.find((row) => row.team.id === entry.id) ?? null;
+  const standingZone = rawStandingEntry
+    ? determineStandingZone({
+        leagueSlug: entry.leagueSlug,
+        season: league.season,
+        rank: rawStandingEntry.rank,
+        teamId: rawStandingEntry.team.id,
+        description: rawStandingEntry.description,
+      })
+    : null;
+
   const ordinal = (n: number) => ["st","nd","rd"][n-1] ?? "th";
 
   return (
@@ -177,16 +205,30 @@ export default async function TeamPage({
             <div>
               <h1 className="text-3xl font-black text-gray-900 leading-tight mb-1">{teamName}</h1>
               <div className="flex items-center gap-2 flex-wrap text-sm">
-                <a
-                  href={`/${loc}/league/${canonicalLeagueUrl(entry.leagueSlug)}`}
-                  className="text-gray-500 hover:text-gray-700 no-underline transition-colors"
-                >
-                  {league.flag} {leagueName}
-                </a>
+                {isActiveInLeague && (
+                  <a
+                    href={`/${loc}/league/${canonicalLeagueUrl(entry.leagueSlug)}`}
+                    className="text-gray-500 hover:text-gray-700 no-underline transition-colors"
+                  >
+                    {league.flag} {leagueName}
+                  </a>
+                )}
                 {standingRow && (
                   <>
                     <span className="text-gray-300">·</span>
-                    <span className={`font-bold ${standingRow.pos <= 4 ? "text-emerald-600" : "text-gray-700"}`}>
+                    {/* Zone color + accessible label (tooltip/aria) — the visible
+                        zone badge lives in the sidebar Standings Position card below,
+                        this compact header stays terse per design. */}
+                    <span
+                      className="font-bold"
+                      style={{ color: standingZone ? standingZone.color : "#374151" }}
+                      title={standingZone ? (isKo ? standingZone.labelKo : standingZone.labelEn) : undefined}
+                      aria-label={
+                        standingZone
+                          ? `${standingRow.pos}, ${isKo ? standingZone.labelKo : standingZone.labelEn}`
+                          : undefined
+                      }
+                    >
                       {isKo ? `${standingRow.pos}위` : `${standingRow.pos}${ordinal(standingRow.pos)}`}
                     </span>
                     <span className="text-gray-300">·</span>
@@ -269,10 +311,12 @@ export default async function TeamPage({
                   <span className="w-1 h-5 rounded-full bg-emerald-600 shrink-0" />
                   <h2 className="text-base font-bold text-gray-900">{t.recentResults}</h2>
                 </div>
-                <a href={`/${loc}/league/${canonicalLeagueUrl(entry.leagueSlug)}/results`}
-                   className="text-sm text-emerald-600 hover:text-emerald-700 font-medium no-underline transition-colors">
-                  {t.viewAllMatches}
-                </a>
+                {isActiveInLeague && (
+                  <a href={`/${loc}/league/${canonicalLeagueUrl(entry.leagueSlug)}/results`}
+                     className="text-sm text-emerald-600 hover:text-emerald-700 font-medium no-underline transition-colors">
+                    {t.viewAllMatches}
+                  </a>
+                )}
               </div>
 
               {recentMatches.length === 0 ? (
@@ -335,10 +379,12 @@ export default async function TeamPage({
                   <span className="w-1 h-5 rounded-full bg-emerald-600 shrink-0" />
                   <h2 className="text-base font-bold text-gray-900">{t.upcomingFixtures}</h2>
                 </div>
-                <a href={`/${loc}/league/${canonicalLeagueUrl(entry.leagueSlug)}/fixtures`}
-                   className="text-sm text-emerald-600 hover:text-emerald-700 font-medium no-underline transition-colors">
-                  {t.viewAllMatches}
-                </a>
+                {isActiveInLeague && (
+                  <a href={`/${loc}/league/${canonicalLeagueUrl(entry.leagueSlug)}/fixtures`}
+                     className="text-sm text-emerald-600 hover:text-emerald-700 font-medium no-underline transition-colors">
+                    {t.viewAllMatches}
+                  </a>
+                )}
               </div>
 
               {upcomingMatches.length === 0 ? (
@@ -501,54 +547,78 @@ export default async function TeamPage({
               )}
             </div>
 
-            {/* Standings Position */}
-            {standingRow ? (
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-gray-900">{t.standingsPosition}</h3>
-                  <a href={`/${loc}/league/${canonicalLeagueUrl(entry.leagueSlug)}/standings`}
-                     className="text-xs font-medium text-emerald-600 hover:text-emerald-700 no-underline transition-colors">
-                    {t.viewFullTable}
-                  </a>
-                </div>
-                <div className="p-4">
-                  {/* Position highlight */}
-                  <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-100">
-                    <span className={`text-4xl font-black leading-none min-w-10 text-center ${standingRow.pos <= 4 ? "text-emerald-600" : "text-amber-500"}`}>
-                      {standingRow.pos}
-                    </span>
-                    <div>
-                      <div className="text-sm font-bold text-gray-900">{teamName}</div>
-                      <div className="text-xs text-gray-500 mt-0.5">{league.flag} {leagueName}</div>
+            {/* Standings Position — hidden entirely for teams not currently active
+                in entry.leagueSlug's top flight (no misleading "not in standings"
+                state either, since that would still imply a league affiliation). */}
+            {isActiveInLeague && (
+              standingRow ? (
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-gray-900">{t.standingsPosition}</h3>
+                    <a href={`/${loc}/league/${canonicalLeagueUrl(entry.leagueSlug)}/standings`}
+                       className="text-xs font-medium text-emerald-600 hover:text-emerald-700 no-underline transition-colors">
+                      {t.viewFullTable}
+                    </a>
+                  </div>
+                  <div className="p-4">
+                    {/* Position highlight — colored by the team's actual standings zone
+                        (Champions League, Final A/B, promotion, etc.), never by a fixed
+                        "top 4" rule. Neutral gray when no zone applies to this row. */}
+                    <div
+                      className="flex items-center gap-3 mb-4 p-3 rounded-xl border"
+                      style={{
+                        background: standingZone ? standingZone.background : "#f9fafb",
+                        borderColor: standingZone ? standingZone.color : "#e5e7eb",
+                      }}
+                    >
+                      <span
+                        className="text-4xl font-black leading-none min-w-10 text-center shrink-0"
+                        style={{ color: standingZone ? standingZone.color : "#374151" }}
+                      >
+                        {standingRow.pos}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-gray-900 truncate">{teamName}</div>
+                        <div className="text-xs text-gray-500 mt-0.5 truncate">{league.flag} {leagueName}</div>
+                        {/* Zone label — accessible text, not color-only */}
+                        {standingZone && (
+                          <div
+                            className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap"
+                            style={{ color: standingZone.color, background: "#ffffff" }}
+                          >
+                            {isKo ? standingZone.labelKo : standingZone.labelEn}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-4 gap-px bg-gray-200 rounded-xl overflow-hidden">
+                      {[
+                        { label: t.played, value: standingRow.played },
+                        { label: t.won,    value: standingRow.won },
+                        { label: t.drawn,  value: standingRow.drawn },
+                        { label: t.lost,   value: standingRow.lost },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="bg-white px-2 py-3 text-center">
+                          <div className="text-base font-black text-gray-900">{value}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">{label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Points */}
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                      <span className="text-sm text-gray-500">{t.pts}</span>
+                      <span className="text-2xl font-black text-gray-900">{standingRow.pts}</span>
                     </div>
                   </div>
-
-                  {/* Stats grid */}
-                  <div className="grid grid-cols-4 gap-px bg-gray-200 rounded-xl overflow-hidden">
-                    {[
-                      { label: t.played, value: standingRow.played },
-                      { label: t.won,    value: standingRow.won },
-                      { label: t.drawn,  value: standingRow.drawn },
-                      { label: t.lost,   value: standingRow.lost },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="bg-white px-2 py-3 text-center">
-                        <div className="text-base font-black text-gray-900">{value}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Points */}
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                    <span className="text-sm text-gray-500">{t.pts}</span>
-                    <span className="text-2xl font-black text-gray-900">{standingRow.pts}</span>
-                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl border border-gray-200 py-8 text-center text-sm text-gray-400">
-                {t.notInStandings}
-              </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-gray-200 py-8 text-center text-sm text-gray-400">
+                  {t.notInStandings}
+                </div>
+              )
             )}
 
             <AdSlot slotId={`team-${slug}-sidebar`} size="rectangle" />

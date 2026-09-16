@@ -33,7 +33,7 @@ interface RawFixture {
     status: { short: string; elapsed?: number };
     venue?: { name?: string };
   };
-  league: { id: number; name: string; round: string };
+  league: { id: number; name: string; round: string; season?: number };
   teams: { home: RawTeam; away: RawTeam };
   goals: { home: number | null; away: number | null };
   score?: { halftime?: { home: number | null; away: number | null } };
@@ -71,22 +71,24 @@ export function normalizeTeam(raw: RawTeam): Team {
     nameKo,
     shortName: raw.code ?? raw.name.slice(0, 3).toUpperCase(),
     flag: registered?.flag ?? "⚽",
-    logo: raw.logo ?? undefined,
+    // registry logoOverride takes priority over the API's own CDN URL — used when
+    // API-Football's asset for this teamId is a confirmed placeholder (see Yongin FC).
+    logo: registered?.logoOverride ?? raw.logo ?? undefined,
     country: raw.country,
   };
 }
 
-export function normalizeFixture(raw: RawFixture, season: number): Fixture | null {
-  const slug = LEAGUE_ID_TO_SLUG[raw.league.id];
-  if (!slug) return null; // Skip unsupported leagues
+export function normalizeFixture(raw: RawFixture, fallbackSeason: number): Fixture | null {
+  const leagueSlug: LeagueSlug | null = LEAGUE_ID_TO_SLUG[raw.league.id] ?? null;
 
   const status = STATUS_MAP[raw.fixture.status.short] ?? "NS";
 
   return {
     id: raw.fixture.id,
     leagueId: raw.league.id,
-    leagueSlug: slug,
-    season,
+    leagueName: raw.league.name,
+    leagueSlug,
+    season: raw.league.season ?? fallbackSeason,
     round: raw.league.round,
     date: raw.fixture.date,
     venue: raw.fixture.venue?.name,
@@ -118,9 +120,9 @@ export function normalizeStandingEntry(raw: RawStandingEntry): StandingEntry {
   };
 }
 
-export function normalizeFixtures(rawList: unknown[], season: number): Fixture[] {
+export function normalizeFixtures(rawList: unknown[], fallbackSeason: number): Fixture[] {
   return (rawList as RawFixture[])
-    .map((r) => normalizeFixture(r, season))
+    .map((raw) => normalizeFixture(raw, fallbackSeason))
     .filter((f): f is Fixture => f !== null);
 }
 

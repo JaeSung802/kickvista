@@ -218,7 +218,7 @@ Match data:
 - Home: ${home}
 - Away: ${away}
 - Date: ${fixture.date}
-- League: ${fixture.leagueSlug}
+- League: ${fixture.leagueName ?? fixture.leagueSlug ?? ""}
 - Status: ${fixture.status}
 
 Statistical context:
@@ -275,7 +275,7 @@ ${JSON_SCHEMA}
 Match data:
 - Home: ${home} ${score} ${away}
 - Date: ${fixture.date}
-- League: ${fixture.leagueSlug}
+- League: ${fixture.leagueName ?? fixture.leagueSlug ?? ""}
 
 ${momLine}
 

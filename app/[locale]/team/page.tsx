@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
-import { TEAMS_BY_LEAGUE } from "@/lib/football/teamRegistry";
+import { TEAMS_BY_LEAGUE, getTeamLogoUrl } from "@/lib/football/teamRegistry";
 import { LEAGUE_BY_SLUG } from "@/lib/football/constants";
 import { canonicalTeamUrl } from "@/lib/football/slugs";
 import { TeamLogo } from "@/components/ui/TeamLogo";
@@ -45,12 +45,9 @@ const DISPLAY_LEAGUES: LeagueSlug[] = [
   "primeira-liga",
   "saudi-pro-league",
   "mls",
+  "k-league-1",
+  "k-league-2",
 ];
-
-// API-Football CDN — already in next.config.ts remotePatterns
-function logoUrl(id: number) {
-  return `https://media.api-sports.io/football/teams/${id}.png`;
-}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -142,7 +139,7 @@ export default async function TeamHubPage({
                     {/* Logo — explicit 48 × 48 prevents layout collapse */}
                     <div className="w-12 h-12 flex items-center justify-center shrink-0">
                       <TeamLogo
-                        logo={logoUrl(team.id)}
+                        logo={getTeamLogoUrl(team)}
                         name={displayName}
                         size={48}
                       />

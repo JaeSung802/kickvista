@@ -36,8 +36,9 @@ export interface MatchViewModel {
   status: "live" | "upcoming" | "finished" | "postponed" | "cancelled";
   time?: string;       // "HH:MM" local kick-off time for upcoming matches
   minute?: number;     // elapsed minute for live matches
+  leagueId: number;    // numeric league ID (always present, even for unsupported leagues)
   league: string;      // display name
-  leagueSlug: string;  // e.g. "premier-league" — for routing and grouping
+  leagueSlug: LeagueSlug | null; // null = unsupported (no KickVista league page)
   leagueFlag: string;  // flag emoji
   venue?: string;
   date?: string;       // ISO date string (YYYY-MM-DD) for grouping by date
@@ -51,7 +52,7 @@ export function fixtureToMatch(
   fixture: Fixture,
   locale: "ko" | "en" = "en"
 ): MatchViewModel {
-  const league = LEAGUE_BY_SLUG[fixture.leagueSlug];
+  const league = fixture.leagueSlug ? LEAGUE_BY_SLUG[fixture.leagueSlug] : undefined;
 
   const status: MatchViewModel["status"] = LIVE_SET.has(fixture.status)
     ? "live"
@@ -79,9 +80,12 @@ export function fixtureToMatch(
     status,
     time: status === "upcoming" ? kickOffTime : undefined,
     minute: fixture.minute,
-    league: locale === "ko" ? league.nameKo : league.name,
+    leagueId: fixture.leagueId,
+    league: league
+      ? locale === "ko" ? league.nameKo : league.name
+      : (fixture.leagueName ?? "Unknown competition"),
     leagueSlug: fixture.leagueSlug,
-    leagueFlag: league.flag,
+    leagueFlag: league?.flag ?? "⚽",
     venue: fixture.venue,
     date: fixture.date ? fixtureDateKey(fixture.date) : undefined,
   };

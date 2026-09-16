@@ -1,4 +1,5 @@
 import type { League, LeagueSlug } from "./types";
+import type { Locale } from "@/lib/i18n";
 
 /**
  * Returns the current football season year.
@@ -173,6 +174,18 @@ export const SUPPORTED_LEAGUES: League[] = [
     totalRounds: 38,
   },
   {
+    id: 293,
+    slug: "k-league-2",
+    name: "K League 2",
+    nameKo: "K리그2",
+    country: "South Korea",
+    countryKo: "대한민국",
+    flag: "🇰🇷",
+    logo: `${CDN}/293.png`,
+    season: SEASON,
+    color: "#00843d",
+  },
+  {
     id: 98,
     slug: "j1-league",
     name: "J1 League",
@@ -249,3 +262,24 @@ export const LEAGUE_IDS = SUPPORTED_LEAGUES.map((l) => l.id);
 export const LIVE_STATUSES: string[] = ["1H", "HT", "2H", "ET", "P"];
 export const FINISHED_STATUSES: string[] = ["FT", "AET", "PEN"];
 export const UPCOMING_STATUSES: string[] = ["NS", "PST"];
+
+// ─── Season display formatting (Phase 4-A3-B1-Z3a) ─────────────────────────────
+// K League runs a single calendar-year season ("2026 시즌"/"2026 season"), not
+// the Aug–May split-year format used by the European leagues this app displays
+// ("2026/27 시즌"/"2026/27 season"). Scoped to exactly the leagues confirmed so
+// far — extending it to the other calendar-year leagues (MLS, J1, Liga MX,
+// Brasileirão) is deferred to Phase 4-A3-B3's season-logic work.
+const CALENDAR_YEAR_LEAGUES: ReadonlySet<LeagueSlug> = new Set(["k-league-1", "k-league-2"]);
+
+/**
+ * Format a league's season as user-facing text, using the calendar-year form
+ * for K League and the Aug–May split-year form for every other league.
+ */
+export function formatSeasonLabel(leagueSlug: LeagueSlug, season: number, locale: Locale): string {
+  const isKo = locale === "ko";
+  if (CALENDAR_YEAR_LEAGUES.has(leagueSlug)) {
+    return isKo ? `${season} 시즌` : `${season} season`;
+  }
+  const label = `${season}/${(season + 1).toString().slice(2)}`;
+  return isKo ? `${label} 시즌` : `${label} season`;
+}

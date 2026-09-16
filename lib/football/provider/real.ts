@@ -1,6 +1,6 @@
 import type { Fixture, Standings, MatchDetail, Team, H2HData, H2HRecord, TeamStatistics, FixturePlayerStats, LineupPlayer } from "../types";
 import type { IFootballProvider } from "./types";
-import { SUPPORTED_LEAGUES } from "../constants";
+import { SUPPORTED_LEAGUES, currentFootballSeason } from "../constants";
 import {
   normalizeFixtures,
   normalizeStandings,
@@ -423,23 +423,22 @@ export class RealFootballProvider implements IFootballProvider {
     return normalizeFixtures(raw, season);
   }
 
-  async fetchTeamResults(teamId: number, leagueId: number, season: number, n: number): Promise<Fixture[]> {
+  async fetchTeamResults(teamId: number, n: number): Promise<Fixture[]> {
     const data = await this.apiFetch<{ response: unknown[] }>(
-      `/fixtures?team=${teamId}&league=${leagueId}&season=${season}&status=FT-AET-PEN&last=${n}&timezone=Asia%2FSeoul`,
+      `/fixtures?team=${teamId}&status=FT-AET-PEN&last=${n}&timezone=Asia%2FSeoul`,
       CACHE_TTL.RESULTS,
-      cacheTags("fixtures", leagueId),
+      cacheTags("team", teamId),
     );
-    return normalizeFixtures(data?.response ?? [], season);
+    return normalizeFixtures(data?.response ?? [], currentFootballSeason());
   }
 
-  async fetchTeamFixturesNext(teamId: number, leagueId: number, season: number, n: number): Promise<Fixture[]> {
+  async fetchTeamFixturesNext(teamId: number, n: number): Promise<Fixture[]> {
     const data = await this.apiFetch<{ response: unknown[] }>(
-      `/fixtures?team=${teamId}&league=${leagueId}&season=${season}&status=NS-PST&next=${n}`,
+      `/fixtures?team=${teamId}&status=NS-PST&next=${n}&timezone=Asia%2FSeoul`,
       CACHE_TTL.FIXTURES_TODAY,
-      cacheTags("fixtures", leagueId),
-      // noStore = false — ISR 캐시 활용
+      cacheTags("team", teamId),
     );
-    return normalizeFixtures(data?.response ?? [], season);
+    return normalizeFixtures(data?.response ?? [], currentFootballSeason());
   }
 
   async fetchHeadToHead(team1Id: number, team2Id: number): Promise<H2HData> {

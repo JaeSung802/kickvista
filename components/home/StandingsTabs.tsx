@@ -12,9 +12,14 @@ import { useState } from "react";
 import type { StandingRowViewModel } from "@/lib/football/adapters";
 import type { StandingsMap } from "./HomePageContent";
 import { TeamLogo } from "@/components/ui/TeamLogo";
+import { determineStandingZone, collectLegendZones } from "@/lib/football/standingZones";
+import { currentFootballSeason } from "@/lib/football/constants";
+import { getTeamSlugById } from "@/lib/football/teamRegistry";
+import { canonicalTeamUrl } from "@/lib/football/slugs";
+import type { LeagueSlug } from "@/lib/football/types";
 
 interface Tab {
-  key: string;
+  key: LeagueSlug;
   labelKo: string;
   labelEn: string;
   flag: string;
@@ -27,14 +32,10 @@ const TABS: Tab[] = [
   { key: "serie-a",        labelKo: "세리에 A",      labelEn: "Serie A",        flag: "🇮🇹" },
 ];
 
-// CL: top 4, EL: 5th, ECL: 6th, relegation: last 3 of the full table
-function zoneColor(pos: number, totalRows: number): string {
-  if (pos <= 4)             return "bg-blue-500";
-  if (pos === 5)            return "bg-orange-400";
-  if (pos === 6)            return "bg-cyan-500";
-  if (pos >= totalRows - 2) return "bg-red-500";
-  return "transparent";
-}
+// Season isn't wired through StandingsMap (only rows are) — the shared
+// zone determiner only needs it for the K League 1 special notice, which
+// isn't shown here, so the current season is a safe, unused-for-color input.
+const CURRENT_SEASON = currentFootballSeason();
 
 function FormDot({ result }: { result: string }) {
   const color =
@@ -46,14 +47,26 @@ function FormDot({ result }: { result: string }) {
 
 function StandingsTable({
   rows,
+  leagueSlug,
   locale,
 }: {
   rows: StandingRowViewModel[];
+  leagueSlug: LeagueSlug;
   locale: "ko" | "en";
 }) {
   const isKo = locale === "ko";
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? rows : rows.slice(0, 10);
+  const zones = rows.map((row) =>
+    determineStandingZone({
+      leagueSlug,
+      season: CURRENT_SEASON,
+      rank: row.pos,
+      teamId: row.teamId,
+      description: row.description,
+    })
+  );
+  const legendZones = collectLegendZones(zones);
 
   return (
     <div className="overflow-x-auto">
@@ -75,38 +88,30 @@ function StandingsTable({
         </thead>
         <tbody>
           {shown.map((row, idx) => {
-            const zone  = zoneColor(row.pos, rows.length);
-            const isCL  = row.pos <= 4;
-            const isEL  = row.pos === 5;
-            const isCCL = row.pos === 6;
-            const isRel = zone === "bg-red-500";
+            const zone = zones[idx];
+            const zoneLabel = zone ? (isKo ? zone.labelKo : zone.labelEn) : undefined;
 
             return (
               <tr
                 key={row.team}
+                title={zoneLabel}
                 className={`border-b border-gray-100 transition-colors relative ${
-                  isRel
-                    ? "bg-red-50/40 hover:bg-red-50"
-                    : idx % 2 === 1
-                    ? "bg-gray-50/40 hover:bg-gray-50"
-                    : "bg-white hover:bg-gray-50"
+                  idx % 2 === 1 ? "bg-gray-50/40 hover:bg-gray-50" : "bg-white hover:bg-gray-50"
                 }`}
+                style={zone ? { background: zone.background } : undefined}
               >
                 {/* Zone bar */}
                 <td className="py-2.5 pl-4 pr-2 relative">
-                  {zone !== "transparent" && (
+                  {zone && (
                     <span
-                      className={`absolute left-0 top-0 bottom-0 w-0.5 ${zone}`}
+                      className="absolute left-0 top-0 bottom-0 w-0.5"
+                      style={{ background: zone.color }}
                     />
                   )}
                   <span
-                    className={`text-sm font-semibold tabular-nums ${
-                      isCL  ? "text-blue-600"
-                      : isEL  ? "text-orange-500"
-                      : isCCL ? "text-cyan-600"
-                      : isRel ? "text-red-500"
-                      : "text-gray-500"
-                    }`}
+                    aria-label={zoneLabel ? `${row.pos}, ${zoneLabel}` : undefined}
+                    className="text-sm font-semibold tabular-nums"
+                    style={{ color: zone ? zone.color : "#6b7280" }}
                   >
                     {row.pos}
                   </span>
@@ -114,12 +119,27 @@ function StandingsTable({
 
                 {/* Team */}
                 <td className="py-2.5 pr-4">
-                  <div className="flex items-center gap-2">
-                    <TeamLogo logo={row.logo} name={row.team} size={20} />
-                    <span className="font-medium text-gray-800 truncate max-w-28">
-                      {row.displayName}
-                    </span>
-                  </div>
+                  {(() => {
+                    const teamSlug = getTeamSlugById(row.teamId);
+                    const cellChildren = (
+                      <>
+                        <TeamLogo logo={row.logo} name={row.team} size={20} />
+                        <span className="font-medium text-gray-800 truncate max-w-28">
+                          {row.displayName}
+                        </span>
+                      </>
+                    );
+                    return teamSlug ? (
+                      <a
+                        href={`/${locale}/team/${canonicalTeamUrl(teamSlug)}`}
+                        className="flex items-center gap-2 no-underline focus-visible:outline-2 focus-visible:outline-emerald-600 focus-visible:outline-offset-2 rounded"
+                      >
+                        {cellChildren}
+                      </a>
+                    ) : (
+                      <div className="flex items-center gap-2">{cellChildren}</div>
+                    );
+                  })()}
                 </td>
 
                 <td className="py-2.5 pr-3 text-center text-gray-500 tabular-nums">{row.played}</td>
@@ -161,26 +181,21 @@ function StandingsTable({
         </tbody>
       </table>
 
-      {/* Legend + Show more */}
+      {/* Legend + Show more — legend only lists zones actually present in this table */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-100">
-        <div className="flex flex-wrap gap-4 text-xs text-gray-400">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
-            {isKo ? "챔피언스리그" : "Champions League"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
-            {isKo ? "유로파리그" : "Europa League"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-cyan-500 inline-block" />
-            {isKo ? "컨퍼런스리그" : "Conference League"}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
-            {isKo ? "강등권" : "Relegation"}
-          </span>
-        </div>
+        {legendZones.length > 0 && (
+          <div className="flex flex-wrap gap-4 text-xs text-gray-400">
+            {legendZones.map((zone) => (
+              <span key={zone.kind} className="flex items-center gap-1.5">
+                <span
+                  className="w-2 h-2 rounded-full inline-block"
+                  style={{ background: zone.color }}
+                />
+                {isKo ? zone.labelKo : zone.labelEn}
+              </span>
+            ))}
+          </div>
+        )}
         {rows.length > 10 && (
           <button
             onClick={() => setShowAll((v) => !v)}
@@ -202,7 +217,7 @@ interface StandingsTabsProps {
 }
 
 export default function StandingsTabs({ standingsData, locale }: StandingsTabsProps) {
-  const [activeKey, setActiveKey] = useState("premier-league");
+  const [activeKey, setActiveKey] = useState<LeagueSlug>("premier-league");
   const isKo = locale === "ko";
 
   const activeRows = standingsData[activeKey] ?? [];
@@ -237,7 +252,7 @@ export default function StandingsTabs({ standingsData, locale }: StandingsTabsPr
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         {activeRows.length > 0 ? (
-          <StandingsTable key={activeKey} rows={activeRows} locale={locale} />
+          <StandingsTable key={activeKey} rows={activeRows} leagueSlug={activeKey} locale={locale} />
         ) : (
           <div className="py-12 text-center text-gray-400 text-sm">
             {isKo ? "순위 데이터를 불러오는 중..." : "Loading standings..."}

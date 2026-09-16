@@ -1,5 +1,5 @@
 import type { LeagueSlug } from "@/lib/football/types";
-import { LEAGUE_BY_SLUG, currentFootballSeason } from "@/lib/football/constants";
+import { LEAGUE_BY_SLUG, currentFootballSeason, formatSeasonLabel } from "@/lib/football/constants";
 import { LeagueLogo } from "@/components/ui/LeagueLogo";
 
 // Compute season labels dynamically so they update automatically each season
@@ -135,6 +135,15 @@ const leagueData: Partial<Record<
     season: CAL_SEASON,
     accentColor: "#003087",
   },
+  "k-league-2": {
+    emoji: "🇰🇷",
+    nameEn: "K League 2",
+    nameKo: "K리그2",
+    countryEn: "South Korea",
+    countryKo: "대한민국",
+    season: CAL_SEASON,
+    accentColor: "#00843d",
+  },
   "j1-league": {
     emoji: "🇯🇵",
     nameEn: "J1 League",
@@ -210,7 +219,13 @@ export default function LeagueHeader({ slug, locale, activeTab = 0 }: LeagueHead
   const isKo = locale === "ko";
   const name = isKo ? staticData.nameKo : staticData.nameEn;
   const country = isKo ? staticData.countryKo : staticData.countryEn;
-  const seasonLabel = isKo ? `${staticData.season} 시즌` : `${staticData.season} Season`;
+  // K League uses a calendar-year season (e.g. "2026 시즌"), not the Aug–May
+  // split-year format below — routed through the shared formatter with the
+  // league's actual season number so it doesn't inherit CAL_SEASON's off-by-one
+  // (Phase 4-A3-B1-Z3a). Every other league's display is unchanged.
+  const seasonLabel = (slug === "k-league-1" || slug === "k-league-2") && constants
+    ? formatSeasonLabel(slug, constants.season, locale)
+    : isKo ? `${staticData.season} 시즌` : `${staticData.season} Season`;
   const tabLabels = tabs[locale];
 
   return (

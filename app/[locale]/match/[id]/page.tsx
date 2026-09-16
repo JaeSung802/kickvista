@@ -9,6 +9,7 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import { sportsEventJsonLd } from "@/lib/seo/jsonld";
 import { queryMatchDetail, queryFixturePlayers, queryStandings, queryHeadToHead } from "@/lib/football/query";
 import { standingsToRows } from "@/lib/football/adapters";
+import { LEAGUE_BY_SLUG } from "@/lib/football/constants";
 import { getAnalysesByFixture } from "@/lib/analysis/db";
 import MatchStandingsTable from "@/components/match/MatchStandingsTable";
 import MatchHeadToHead from "@/components/match/MatchHeadToHead";
@@ -319,6 +320,10 @@ export default async function MatchDetailPage({
 
   const homeName = isKo ? (match.homeTeam.nameKo ?? match.homeTeam.name) : match.homeTeam.name;
   const awayName = isKo ? (match.awayTeam.nameKo ?? match.awayTeam.name) : match.awayTeam.name;
+  const leagueInfo = match.leagueSlug ? LEAGUE_BY_SLUG[match.leagueSlug] : undefined;
+  const leagueDisplayName = leagueInfo
+    ? (isKo ? leagueInfo.nameKo : leagueInfo.name)
+    : (match.leagueName ?? "Unknown competition");
   const isLive      = ["1H", "HT", "2H", "ET", "P"].includes(match.status);
   const isFinished  = ["FT", "AET", "PEN"].includes(match.status);
   const isPostponed = match.status === "PST";
@@ -369,8 +374,8 @@ export default async function MatchDetailPage({
         .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.goals - a.goals || b.assists - a.assists)[0] ?? null
     : null;
 
-  // Standings — only fetched when Standings tab is active
-  const standings = activeTab === "standings"
+  // Standings — only fetched when Standings tab is active (unsupported-league fixtures have no standings)
+  const standings = activeTab === "standings" && match.leagueSlug
     ? await queryStandings(match.leagueSlug)
     : null;
   const standingRows = standings ? standingsToRows(standings, loc) : [];
@@ -434,7 +439,7 @@ export default async function MatchDetailPage({
           awayScore={match.awayScore}
           homeScoreHT={match.homeScoreHT}
           awayScoreHT={match.awayScoreHT}
-          leagueSlug={match.leagueSlug}
+          leagueName={leagueDisplayName}
           round={match.round}
           venue={match.venue}
           statusLabel={statusLabel}
@@ -465,7 +470,7 @@ export default async function MatchDetailPage({
                 <>
                   <MatchFactsPanel
                     locale={loc}
-                    leagueSlug={match.leagueSlug}
+                    leagueName={leagueDisplayName}
                     round={match.round}
                     formattedDate={formatMatchTime(match.date, loc)}
                     venue={match.venue}
@@ -611,7 +616,7 @@ export default async function MatchDetailPage({
               locale={loc}
               loginUrl={`/${loc}/auth/login`}
               sidebarAdSlotId={`match-${id}-sidebar`}
-              leagueSlug={match.leagueSlug}
+              leagueName={leagueDisplayName}
               round={match.round}
               date={match.date}
               venue={match.venue}

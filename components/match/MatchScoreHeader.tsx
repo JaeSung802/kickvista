@@ -11,7 +11,7 @@ interface MatchScoreHeaderProps {
   awayScore: number | null | undefined;
   homeScoreHT?: number;
   awayScoreHT?: number;
-  leagueSlug: string;
+  leagueName: string;
   round?: string;
   venue?: string;
   statusLabel: string;
@@ -31,7 +31,7 @@ export default function MatchScoreHeader({
   awayScore,
   homeScoreHT,
   awayScoreHT,
-  leagueSlug,
+  leagueName,
   round,
   venue,
   statusLabel,
@@ -52,7 +52,7 @@ export default function MatchScoreHeader({
 
         <div className="flex items-center justify-center gap-2 mb-6">
           <span style={{ color: "#6b7280", fontSize: 13 }}>
-            {leagueSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+            {leagueName}
           </span>
           <span style={{ color: "#d1d5db" }}>·</span>
           <span style={{ color: "#6b7280", fontSize: 13 }}>{round}</span>

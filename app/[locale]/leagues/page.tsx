@@ -46,7 +46,7 @@ const LEAGUE_GROUPS = [
   {
     titleKo: "🌏 아시아 리그",
     titleEn: "🌏 Asian Leagues",
-    slugs: ["k-league-1", "j1-league", "saudi-pro-league"],
+    slugs: ["k-league-1", "k-league-2", "j1-league", "saudi-pro-league"],
   },
   {
     titleKo: "🌎 아메리카 리그",

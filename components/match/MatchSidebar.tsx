@@ -16,7 +16,7 @@ interface MatchSidebarProps {
   locale: Locale;
   loginUrl: string;
   sidebarAdSlotId: string;
-  leagueSlug: string;
+  leagueName: string;
   round: string;
   date: string;
   venue?: string;
@@ -35,7 +35,7 @@ export default function MatchSidebar({
   locale,
   loginUrl,
   sidebarAdSlotId,
-  leagueSlug,
+  leagueName,
   round,
   date,
   venue,
@@ -67,7 +67,7 @@ export default function MatchSidebar({
           {isKo ? "경기 정보" : "Match Info"}
         </h4>
         {[
-          { label: isKo ? "대회" : "Competition", value: leagueSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) },
+          { label: isKo ? "대회" : "Competition", value: leagueName },
           { label: isKo ? "라운드" : "Round", value: round },
           { label: isKo ? "날짜" : "Date", value: date.split("T")[0] },
           { label: isKo ? "경기장" : "Venue", value: venue ?? "–" },

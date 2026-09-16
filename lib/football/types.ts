@@ -14,6 +14,7 @@ export type LeagueSlug =
   | "saudi-pro-league"
   | "mls"
   | "k-league-1"
+  | "k-league-2"
   | "j1-league"
   | "liga-mx"
   | "super-lig"
@@ -63,7 +64,8 @@ export type FixtureStatus =
 export interface Fixture {
   id: number;
   leagueId: number;
-  leagueSlug: LeagueSlug;
+  leagueName?: string;
+  leagueSlug: LeagueSlug | null;
   season: number;
   round: string;
   date: string;       // ISO date string

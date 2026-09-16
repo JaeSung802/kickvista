@@ -32,6 +32,7 @@ export const CANONICAL_LEAGUE_URL_SLUGS = [
   "saudi-pro-league",
   "mls",
   "k-league-1",
+  "k-league-2",
   "j1-league",
   "liga-mx",
   "super-lig",

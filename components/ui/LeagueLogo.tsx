@@ -73,6 +73,8 @@ export function LeagueLogo({
     );
   }
 
+  const imageSize = Math.round(size * 0.72);
+
   return (
     <div
       style={containerStyle}
@@ -89,8 +91,14 @@ export function LeagueLogo({
       <Image
         src={logo}
         alt={name}
-        width={Math.round(size * 0.72)}
-        height={Math.round(size * 0.72)}
+        width={imageSize}
+        height={imageSize}
+        // Tailwind preflight (`img { height: auto }`) overrides next/image's
+        // height attribute while leaving width alone, triggering Next's
+        // "width or height modified, but not the other" warning. Inline
+        // style wins over the stylesheet rule, so both stay pinned at
+        // imageSize as intended (same fix as TeamLogo.tsx).
+        style={{ width: imageSize, height: imageSize }}
         className="object-contain"
         onLoad={() => setLoading(false)}
         onError={() => { setLoading(false); setFailed(true); }}

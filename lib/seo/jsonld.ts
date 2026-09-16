@@ -38,7 +38,8 @@ export function sportsTeamJsonLd({
 }: {
   nameEn: string;
   nameKo: string;
-  leagueName: string;
+  /** Omit when the team isn't currently active in a supported league — no memberOf is emitted. */
+  leagueName?: string;
   slug: string;
   locale: Locale;
 }) {
@@ -48,10 +49,12 @@ export function sportsTeamJsonLd({
     "@type": "SportsTeam",
     "name": name,
     "sport": "Soccer",
-    "memberOf": {
-      "@type": "SportsOrganization",
-      "name": leagueName,
-    },
+    ...(leagueName && {
+      "memberOf": {
+        "@type": "SportsOrganization",
+        "name": leagueName,
+      },
+    }),
     "url": `${BASE_URL}/${locale}/team/${slug}`,
     "sameAs": `${BASE_URL}/en/team/${slug}`,
   };
