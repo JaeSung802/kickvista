@@ -40,6 +40,34 @@ function authError(req: NextRequest): NextResponse | null {
   return null;
 }
 
+// ─── Structured run logs ──────────────────────────────────────────────────────
+// One JSON line per event with fixed fields and reason codes only. Never log
+// user data, keys/tokens/headers, request or response bodies, or raw errors.
+
+type LogValue = string | number | boolean | null;
+
+function logSettle(
+  runId: string | null,
+  event: string,
+  fields: Record<string, LogValue> = {},
+  level: "info" | "warn" | "error" = "info"
+): void {
+  const line = JSON.stringify({ scope: "settle", run_id: runId, event, ...fields });
+  if (level === "error") console.error(line);
+  else if (level === "warn") console.warn(line);
+  else console.log(line);
+}
+
+/** Fixed error code for a failed settlement; the error message is not logged. */
+function settleErrorCode(err: unknown): string {
+  const message = err instanceof Error ? err.message : "";
+  if (/permission denied/i.test(message)) return "rpc_permission_denied";
+  if (/SUPABASE_SERVICE_ROLE_KEY/.test(message)) return "service_key_missing";
+  return "settle_failed";
+}
+
+const asCount = (n: unknown): number | null => (typeof n === "number" && Number.isFinite(n) ? n : null);
+
 // ─── Football API helper ──────────────────────────────────────────────────────
 
 const FINISHED_STATUSES = new Set(["FT", "AET", "PEN"]);
@@ -60,7 +88,7 @@ function isFootballMockMode(): boolean {
  * Returns null in mock mode, on any API error, or when the response is not
  * clearly the requested fixture.
  */
-async function fetchMatchResult(fixtureId: number): Promise<MatchApiResult | null> {
+async function fetchMatchResult(fixtureId: number, runId: string | null = null): Promise<MatchApiResult | null> {
   const apiKey = process.env.API_FOOTBALL_KEY;
   if (!apiKey || isFootballMockMode()) return null;
 
@@ -73,7 +101,10 @@ async function fetchMatchResult(fixtureId: number): Promise<MatchApiResult | nul
       cache: "no-store",
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      logSettle(runId, "football_api_failed", { match_id: fixtureId, reason: "http_error", http_status: res.status }, "error");
+      return null;
+    }
 
     const json = await res.json() as {
       response?: Array<{
@@ -84,7 +115,11 @@ async function fetchMatchResult(fixtureId: number): Promise<MatchApiResult | nul
 
     const fixture = json.response?.[0];
     const status = fixture?.fixture?.status?.short;
-    if (!fixture || fixture.fixture?.id !== fixtureId || typeof status !== "string") return null;
+    if (!fixture || fixture.fixture?.id !== fixtureId || typeof status !== "string") {
+      const reason = !fixture ? "no_fixture" : fixture.fixture?.id !== fixtureId ? "fixture_mismatch" : "missing_status";
+      logSettle(runId, "football_api_failed", { match_id: fixtureId, reason }, "warn");
+      return null;
+    }
 
     // Missing scores stay null — never default them to 0.
     return {
@@ -92,8 +127,8 @@ async function fetchMatchResult(fixtureId: number): Promise<MatchApiResult | nul
       homeGoals: typeof fixture.goals?.home === "number" ? fixture.goals.home : null,
       awayGoals: typeof fixture.goals?.away === "number" ? fixture.goals.away : null,
     };
-  } catch (err) {
-    console.error(`[settle] Football API error for fixture ${fixtureId}:`, err);
+  } catch {
+    logSettle(runId, "football_api_failed", { match_id: fixtureId, reason: "request_failed" }, "error");
     return null;
   }
 }
@@ -134,9 +169,12 @@ export async function GET(req: NextRequest) {
   const denied = authError(req);
   if (denied) return denied;
 
+  // Ties together every log line of this run.
+  const runId = crypto.randomUUID();
   const isMockMode = isFootballMockMode();
 
   if (isMockMode) {
+    logSettle(runId, "run_end", { outcome: "mock_mode" });
     return NextResponse.json({
       success: true,
       mode: "mock",
@@ -151,6 +189,7 @@ export async function GET(req: NextRequest) {
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
+    logSettle(runId, "run_end", { outcome: "supabase_not_configured" }, "error");
     return NextResponse.json(
       { error: "Supabase is not configured" },
       { status: 500 }
@@ -164,7 +203,7 @@ export async function GET(req: NextRequest) {
   );
 
   if (rpcError) {
-    console.error("[settle] get_pending_match_ids RPC error:", rpcError);
+    logSettle(runId, "run_end", { outcome: "pending_query_failed", db_code: rpcError.code ?? null }, "error");
     return NextResponse.json(
       {
         error: "Failed to fetch pending match IDs. " +
@@ -179,6 +218,7 @@ export async function GET(req: NextRequest) {
     (pendingRows as Array<{ match_id: number }> | null)?.map((r) => r.match_id) ?? [];
 
   if (matchIds.length === 0) {
+    logSettle(runId, "run_end", { outcome: "no_pending", checked_matches: 0 });
     return NextResponse.json({
       success: true,
       message: "No pending predictions to settle.",
@@ -198,22 +238,40 @@ export async function GET(req: NextRequest) {
     skipped?: string;
   }> = [];
 
+  // rpc_ok_matches counts successful RPC calls; settled/rewarded_predictions
+  // count the predictions those calls actually changed (can be 0).
+  const counts = {
+    rpc_ok_matches: 0,
+    settled_predictions: 0,
+    rewarded_predictions: 0,
+    skipped_not_finished: 0,
+    skipped_api_no_data: 0,
+    skipped_invalid_score: 0,
+    failed_matches: 0,
+  };
+
   for (const matchId of matchIds) {
     try {
-      const matchData = await fetchMatchResult(matchId);
+      const matchData = await fetchMatchResult(matchId, runId);
 
       if (!matchData) {
+        counts.skipped_api_no_data++;
+        logSettle(runId, "match", { match_id: matchId, result: "skipped", reason: "api_no_data" }, "warn");
         summary.push({ matchId, status: "api_error", skipped: "Football API returned no data" });
         continue;
       }
 
       if (!FINISHED_STATUSES.has(matchData.status)) {
+        counts.skipped_not_finished++;
+        logSettle(runId, "match", { match_id: matchId, result: "skipped", reason: "not_finished", api_status: matchData.status });
         summary.push({ matchId, status: matchData.status, skipped: "Match not yet finished" });
         continue;
       }
 
       const finalResult = verifiedFinalResult(matchData);
       if (!finalResult) {
+        counts.skipped_invalid_score++;
+        logSettle(runId, "match", { match_id: matchId, result: "skipped", reason: "invalid_score", api_status: matchData.status }, "warn");
         summary.push({ matchId, status: matchData.status, skipped: "Score missing or invalid" });
         continue;
       }
@@ -221,12 +279,22 @@ export async function GET(req: NextRequest) {
       // ── Step 3: Settle this match ─────────────────────────────────────────
       const { settled, rewarded } = await settlePredictions(matchId, finalResult);
 
+      counts.rpc_ok_matches++;
+      counts.settled_predictions += asCount(settled) ?? 0;
+      counts.rewarded_predictions += asCount(rewarded) ?? 0;
+      logSettle(runId, "match", {
+        match_id: matchId, result: "settled", api_status: matchData.status, final_result: finalResult,
+        settled: asCount(settled), rewarded: asCount(rewarded),
+      });
       summary.push({ matchId, status: matchData.status, result: finalResult, settled, rewarded });
     } catch (err) {
-      console.error(`[settle] Error processing match ${matchId}:`, err);
+      counts.failed_matches++;
+      logSettle(runId, "match", { match_id: matchId, result: "failed", error_code: settleErrorCode(err) }, "error");
       summary.push({ matchId, status: "error", skipped: String(err) });
     }
   }
+
+  logSettle(runId, "run_end", { outcome: "completed", checked_matches: matchIds.length, ...counts });
 
   const settledMatches = summary.filter((s) => s.settled !== undefined).length;
   const totalRewarded  = summary.reduce((sum, s) => sum + (s.rewarded ?? 0), 0);
