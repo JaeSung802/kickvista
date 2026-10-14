@@ -1,6 +1,9 @@
 /**
  * Cron endpoint: Google News RSS → Claude AI 요약 → 커뮤니티 자동 포스팅
- * Schedule: 매시 정각 (0 * * * *) — vercel.json 참고
+ * Schedule: Vercel cron에 등록되어 있지 않음 (vercel.json에서 제거됨).
+ *   이 endpoint는 인증된 수동 실행 또는 향후 스케줄 재등록을 위해 유지합니다.
+ *   CRON_SECRET 미설정 시 503, Authorization 불일치 시 401로 차단합니다.
+ *   월드컵 전용 쿼리·카테고리 분류·제목 접두어는 제거되었습니다.
  *
  * Flow:
  *  1. rss-parser로 Google News RSS 수집 (손흥민, 토트넘, 프리미어리그)
@@ -30,7 +33,6 @@ interface NewsQuery {
   query:    string;
   tags:     string[];
   category: string;
-  maxItems?: number; // 미지정 시 MAX_ITEMS_PER_QUERY 사용
 }
 
 const NEWS_QUERIES: NewsQuery[] = [
@@ -38,26 +40,12 @@ const NEWS_QUERIES: NewsQuery[] = [
   { query: "손흥민",           tags: ["손흥민", "토트넘", "EPL"],               category: "match-discussion" },
   { query: "토트넘",           tags: ["토트넘", "EPL", "프리미어리그"],         category: "match-discussion" },
   { query: "프리미어리그 이적", tags: ["이적", "EPL", "프리미어리그"],          category: "transfer-news"   },
-  // 월드컵 — 한국 우선 (Google News에서 실제 결과가 나오는 단순 쿼리 사용)
-  { query: "한국 국가대표",     tags: ["대한민국", "월드컵", "국대"],           category: "worldcup-2026", maxItems: 3 },
-  { query: "월드컵 2026",       tags: ["월드컵", "2026", "FIFA"],               category: "worldcup-2026", maxItems: 3 },
-  { query: "홍명보 감독",       tags: ["홍명보", "감독", "국가대표"],            category: "worldcup-2026", maxItems: 2 },
-  { query: "FIFA 월드컵",       tags: ["월드컵", "2026", "북중미", "FIFA"],     category: "worldcup-2026", maxItems: 2 },
 ];
 
 // ─── 카테고리 / 태그 감지 ────────────────────────────────────────────────────
 
-// 월드컵 키워드 — 다른 쿼리에서 감지되면 worldcup-2026으로 오버라이드
-const WORLDCUP_KEYWORDS = ["월드컵", "world cup", "worldcup", "북중미", "2026 fifa", "월드컵 예선", "월드컵 본선"];
-
 // 한국 관련 키워드 — 감지 시 [KOR] 접두어 추가
 const KOREA_KEYWORDS = ["대한민국", "태극전사", "홍명보", "한국 축구", "한국대표", "국가대표팀", "korea national", "korean team", "손흥민 국대"];
-
-function resolveCategory(defaultCategory: string, title: string, description: string): string {
-  const haystack = `${title} ${description}`.toLowerCase();
-  if (WORLDCUP_KEYWORDS.some((kw) => haystack.includes(kw))) return "worldcup-2026";
-  return defaultCategory;
-}
 
 function isKoreanRelated(title: string, description: string): boolean {
   const haystack = `${title} ${description}`.toLowerCase();
@@ -68,7 +56,7 @@ function isKoreanRelated(title: string, description: string): boolean {
 
 /**
  * 태그·카테고리 기반으로 제목 앞에 붙일 SEO 키워드를 반환합니다.
- * 예: [월드컵], [손흥민], [이적]
+ * 예: [손흥민], [이적]
  */
 const TAG_KEYWORD_PRIORITY: [string, string][] = [
   // [태그 값,  노출 키워드]  — 순서 = 우선순위
@@ -77,12 +65,9 @@ const TAG_KEYWORD_PRIORITY: [string, string][] = [
   ["토트넘",        "토트넘"],
   ["이적",          "이적"],
   ["프리미어리그",  "EPL"],
-  ["월드컵",        "월드컵"],
-  ["FIFA",          "월드컵"],
 ];
 
 function getKeywordPrefix(category: string, tags: string[]): string {
-  if (category === "worldcup-2026") return "[월드컵] ";
   if (category === "transfer-news") return "[이적] ";
   for (const [tag, label] of TAG_KEYWORD_PRIORITY) {
     if (tags.includes(tag)) return `[${label}] `;
@@ -112,18 +97,6 @@ export function titleToSlug(title: string): string {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 80);
-}
-
-// ─── D-Day 계산 ──────────────────────────────────────────────────────────────
-
-const WORLDCUP_OPENING = new Date("2026-06-11T00:00:00+09:00"); // KST 기준
-
-function getDDayPrefix(): string {
-  const diffMs  = WORLDCUP_OPENING.getTime() - Date.now();
-  const days    = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (days > 0)   return `[D-${days}]`;
-  if (days === 0)  return `[D-Day]`;
-  return `[D+${Math.abs(days)}]`;
 }
 
 const MAX_ITEMS_PER_QUERY = 3; // 키워드당 3건, 총 최대 9건
@@ -241,9 +214,14 @@ function extractImageUrl(item: any): string | null {
 // ─── Cron handler ─────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
+  // Fail closed: without a configured secret the job never runs, so the
+  // endpoint can't be triggered anonymously (RSS + Anthropic cost, posting).
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    return NextResponse.json({ error: "Cron is not configured." }, { status: 503 });
+  }
+  const authHeader = request.headers.get("authorization");
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -273,7 +251,7 @@ export async function GET(request: NextRequest) {
     try {
       const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(queryConfig.query)}&hl=ko&gl=KR&ceid=KR:ko`;
       const feed   = await parser.parseURL(rssUrl);
-      const items  = feed.items.slice(0, queryConfig.maxItems ?? MAX_ITEMS_PER_QUERY);
+      const items  = feed.items.slice(0, MAX_ITEMS_PER_QUERY);
       console.log(`[sync-news] query "${queryConfig.query}" — ${items.length} items fetched`);
 
       for (const item of items) {
@@ -299,8 +277,8 @@ export async function GET(request: NextRequest) {
         const imageUrl = extractImageUrl(item);
         console.log(`[sync-news] image: ${imageUrl ?? "none"} — ${title.slice(0, 30)}`);
 
-        // 카테고리 결정 (월드컵 키워드 감지 시 오버라이드)
-        const category = resolveCategory(queryConfig.category, title, description);
+        // 카테고리: 쿼리에 선언된 기본 카테고리를 그대로 사용
+        const category = queryConfig.category;
 
         // Claude 요약 생성
         const { post, error: claudeError } = await generatePost(title, description, anthropicKey, link);
@@ -312,14 +290,11 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
-        // 제목 접두어 조립: [키워드] [D-XX] [KOR] AI제목
+        // 제목 접두어 조립: [키워드] [KOR] AI제목
         const isKorea    = isKoreanRelated(title, description);
         const kwPrefix   = getKeywordPrefix(category, queryConfig.tags);
-        const ddayPrefix = category === "worldcup-2026" ? `${getDDayPrefix()} ` : "";
-        // worldcup 카테고리는 kwPrefix([월드컵])로 커버되므로 [KOR] 중복 생략
-        const korPrefix  = isKorea && category !== "worldcup-2026" ? "[KOR] " : "";
-        const finalTitle = `${kwPrefix}${ddayPrefix}${korPrefix}${post.title}`.slice(0, 120);
-        const slug       = titleToSlug(finalTitle); // DB migration 후 사용: slug 컬럼에 저장
+        const korPrefix  = isKorea ? "[KOR] " : "";
+        const finalTitle = `${kwPrefix}${korPrefix}${post.title}`.slice(0, 120);
 
         // DB insert
         const { error: dbError } = await supabase.from("community_posts").insert({
@@ -329,7 +304,6 @@ export async function GET(request: NextRequest) {
           content:   post.content,
           tags:      [
             ...queryConfig.tags,
-            ...(category === "worldcup-2026" ? ["월드컵", "2026"] : []),
             ...(isKorea ? ["대한민국", "태극전사"] : []),
             "AI뉴스", "자동포스팅",
           ],
