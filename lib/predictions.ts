@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type PredictionResult = "HOME_WIN" | "DRAW" | "AWAY_WIN";
 export type PredictionStatus = "PENDING" | "WON" | "LOST" | "CANCELLED";
@@ -153,7 +154,10 @@ export async function getPredictionStats(matchId: number): Promise<PredictionSta
 
 /**
  * Settle all PENDING predictions for a match via the SECURITY DEFINER DB function.
- * Winners receive bet_amount * 2. Called by the settle API route.
+ * Winners receive bet_amount * 2. Called only by the settle API route, after it
+ * has verified the final result itself. Uses the service role key because
+ * EXECUTE on settle_predictions is restricted to service_role
+ * (supabase/settle-predictions-lockdown.sql).
  */
 export async function settlePredictions(
   matchId: number,
@@ -161,7 +165,7 @@ export async function settlePredictions(
 ): Promise<{ settled: number; rewarded: number }> {
   if (!isSupabaseConfigured()) return { settled: 0, rewarded: 0 };
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data, error } = await supabase.rpc("settle_predictions", {
     p_match_id: matchId,
     p_final_result: finalResult,

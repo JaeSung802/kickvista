@@ -1,0 +1,4 @@
+# Some files were committed with CRLF line endings. Treat the CR as part of
+# the EOL (not trailing whitespace) for `git diff --check` on these files.
+# Whitespace rule only — no text/eol attributes, so nothing is renormalized.
+app/\[locale\]/admin/users/page.tsx whitespace=cr-at-eol

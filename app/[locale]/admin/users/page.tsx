@@ -70,7 +70,10 @@ export default async function AdminUsersPage({
     if (q.trim()) {
       query = query.ilike("nickname", `%${q.trim()}%`);
     }
-    if (roleFilter !== "all") {
+    if (roleFilter === "user") {
+      // A NULL role counts as a regular user (get_my_role / getServerRole agree).
+      query = query.or("role.eq.user,role.is.null");
+    } else if (roleFilter !== "all") {
       query = query.eq("role", roleFilter);
     }
 
