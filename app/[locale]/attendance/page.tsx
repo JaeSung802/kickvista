@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import AttendanceWidget from "@/components/attendance/AttendanceWidget";
+import { ATTENDANCE_CHECKIN_PAUSED } from "@/lib/attendance-pause";
 import AttendanceHistory from "@/components/attendance/AttendanceHistory";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
@@ -316,7 +317,7 @@ export default async function AttendancePage({
                 {/* Attendance widget */}
                 <div>
                   <h2 className="text-lg font-extrabold text-gray-900 mb-4">{t.checkInTitle}</h2>
-                  <AttendanceWidget {...widgetProps} />
+                  <AttendanceWidget {...widgetProps} checkInPaused={ATTENDANCE_CHECKIN_PAUSED} />
                 </div>
 
                 {/* Attendance history */}

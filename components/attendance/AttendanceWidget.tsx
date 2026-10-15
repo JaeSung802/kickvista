@@ -10,6 +10,8 @@ interface AttendanceWidgetProps {
   rankBadge: string;
   hasCheckedInToday: boolean;
   onCheckIn?: () => void;
+  /** server-controlled temporary pause of check-in (lib/attendance-pause.ts) */
+  checkInPaused?: boolean;
   locale: "ko" | "en";
   progressToNextRank: number; // 0–100
 }
@@ -23,6 +25,8 @@ const t = {
     checkIn: "Check In Today",
     checkedIn: "Checked In",
     nextRank: "Progress to next rank",
+    paused: "Check-in paused",
+    pausedNote: "Check-in is temporarily paused. Please try again later.",
   },
   ko: {
     attendance: "출석 체크",
@@ -32,6 +36,8 @@ const t = {
     checkIn: "오늘 출석 체크",
     checkedIn: "출석 완료",
     nextRank: "다음 등급까지",
+    paused: "출석 체크 일시 중지",
+    pausedNote: "출석 체크가 잠시 중지되었습니다. 잠시 후 다시 이용해 주세요.",
   },
 };
 
@@ -44,10 +50,13 @@ export default function AttendanceWidget({
   rankBadge,
   hasCheckedInToday,
   onCheckIn,
+  checkInPaused = false,
   locale,
   progressToNextRank,
 }: AttendanceWidgetProps) {
   const tx = t[locale];
+  // The API also rejects check-in while paused; the button just matches it.
+  const canCheckIn = !hasCheckedInToday && !checkInPaused;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -113,16 +122,21 @@ export default function AttendanceWidget({
 
         {/* Check-in button */}
         <button
-          onClick={hasCheckedInToday ? undefined : () => { onCheckIn?.(); fetch("/api/attendance/check-in", { method: "POST" }); }}
-          disabled={hasCheckedInToday}
+          onClick={canCheckIn ? () => { onCheckIn?.(); fetch("/api/attendance/check-in", { method: "POST" }); } : undefined}
+          disabled={!canCheckIn}
           className={`w-full py-3 rounded-lg text-sm font-bold transition-opacity ${
-            hasCheckedInToday
+            !canCheckIn
               ? "bg-gray-100 text-gray-400 cursor-default"
               : "bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
           }`}
         >
-          {hasCheckedInToday ? `✓ ${tx.checkedIn}` : tx.checkIn}
+          {hasCheckedInToday ? `✓ ${tx.checkedIn}` : checkInPaused ? tx.paused : tx.checkIn}
         </button>
+        {checkInPaused && !hasCheckedInToday && (
+          <p role="status" className="text-xs text-gray-500 text-center -mt-2">
+            {tx.pausedNote}
+          </p>
+        )}
       </div>
     </div>
   );

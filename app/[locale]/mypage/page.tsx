@@ -3,6 +3,7 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import AdSidebar from "@/components/ads/AdSidebar";
 import AttendanceWidget from "@/components/attendance/AttendanceWidget";
+import { ATTENDANCE_CHECKIN_PAUSED } from "@/lib/attendance-pause";
 import type { Metadata } from "next";
 import { getServerUser, getServerProfile } from "@/lib/auth";
 import { hasCheckedInToday } from "@/lib/attendance";
@@ -433,7 +434,7 @@ export default async function MyPage({
                 {/* 3. Attendance widget */}
                 <section>
                   <h2 className="text-sm font-bold text-gray-900 mb-3">{tx.attendance}</h2>
-                  <AttendanceWidget {...attendanceWidgetProps} />
+                  <AttendanceWidget {...attendanceWidgetProps} checkInPaused={ATTENDANCE_CHECKIN_PAUSED} />
                 </section>
 
                 {/* 4. Points summary */}

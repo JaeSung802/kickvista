@@ -2,8 +2,17 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { recordCheckIn } from "@/lib/attendance";
 import type { Profile } from "@/lib/auth";
+import { ATTENDANCE_CHECKIN_PAUSED } from "@/lib/attendance-pause";
 
 export async function POST() {
+  // Temporary pause: return before the session lookup and any database work.
+  if (ATTENDANCE_CHECKIN_PAUSED) {
+    return NextResponse.json(
+      { error: "Check-in is temporarily paused.", code: "attendance_paused" },
+      { status: 503 }
+    );
+  }
+
   // Supabase not configured — return mock success for UI development
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
