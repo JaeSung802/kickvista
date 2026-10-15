@@ -6,6 +6,7 @@ import {
   getPredictionStats,
   type PredictionResult,
 } from "@/lib/predictions";
+import { PREDICTION_PLACEMENT_PAUSED } from "@/lib/predictions-pause";
 
 /** GET /api/predictions?matchId=123 — returns user's prediction + community stats */
 export async function GET(req: NextRequest) {
@@ -36,6 +37,15 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/predictions — place a prediction */
 export async function POST(req: NextRequest) {
+  // Temporary pause: return before the session lookup, point deduction,
+  // prediction insert and point log.
+  if (PREDICTION_PLACEMENT_PAUSED) {
+    return NextResponse.json(
+      { error: "Predictions are temporarily paused.", code: "predictions_paused" },
+      { status: 503 }
+    );
+  }
+
   try {
     const supabase = await createClient();
     const {

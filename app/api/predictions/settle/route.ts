@@ -8,6 +8,8 @@
  *         a finalResult that disagrees is rejected.
  *
  * Both require: Authorization: Bearer {CRON_SECRET} (no secret → 503).
+ * While PREDICTION_SETTLEMENT_PAUSED (lib/predictions-pause.ts) is true, both
+ * return 503 settlement_paused right after the auth check.
  *
  * Required environment variables:
  *   CRON_SECRET              — shared secret (set in Vercel → Project → Env Vars)
@@ -21,6 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { settlePredictions, type PredictionResult } from "@/lib/predictions";
+import { PREDICTION_SETTLEMENT_PAUSED } from "@/lib/predictions-pause";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +41,14 @@ function authError(req: NextRequest): NextResponse | null {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return null;
+}
+
+// Temporary pause (after auth): no Football API call, DB query or RPC.
+function pausedResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "Settlement is temporarily paused.", code: "settlement_paused" },
+    { status: 503 }
+  );
 }
 
 // ─── Structured run logs ──────────────────────────────────────────────────────
@@ -171,6 +182,12 @@ export async function GET(req: NextRequest) {
 
   // Ties together every log line of this run.
   const runId = crypto.randomUUID();
+
+  if (PREDICTION_SETTLEMENT_PAUSED) {
+    logSettle(runId, "run_end", { outcome: "paused" }, "warn");
+    return pausedResponse();
+  }
+
   const isMockMode = isFootballMockMode();
 
   if (isMockMode) {
@@ -315,6 +332,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const denied = authError(req);
   if (denied) return denied;
+
+  if (PREDICTION_SETTLEMENT_PAUSED) {
+    logSettle(null, "manual_settle", { outcome: "paused" }, "warn");
+    return pausedResponse();
+  }
 
   try {
     const { matchId, finalResult } = (await req.json()) as {

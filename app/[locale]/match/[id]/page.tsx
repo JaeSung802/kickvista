@@ -10,6 +10,7 @@ import AdSlot from "@/components/ads/AdSlot";
 import MatchTabNav from "@/components/match/MatchTabNav";
 import RecapCTACard from "@/components/match/RecapCTACard";
 import PredictionCard from "@/components/match/PredictionCard";
+import { PREDICTION_PLACEMENT_PAUSED, PREDICTION_SETTLEMENT_PAUSED } from "@/lib/predictions-pause";
 import { getServerUser, getServerProfile } from "@/lib/auth";
 import { getUserPrediction, getPredictionStats } from "@/lib/predictions";
 import type { Fixture, LineupPlayer } from "@/lib/football/types";
@@ -1715,6 +1716,8 @@ export default async function MatchDetailPage({
                 initialStats={predictionStats}
                 locale={loc}
                 loginUrl={`/${loc}/auth/login`}
+                placementPaused={PREDICTION_PLACEMENT_PAUSED}
+                settlementPaused={PREDICTION_SETTLEMENT_PAUSED}
               />
 
               <AdSlot slotId={`match-${id}-sidebar`} size="rectangle" />

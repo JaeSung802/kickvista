@@ -24,6 +24,10 @@ interface PredictionCardProps {
   initialStats: PredictionStats;
   locale: "ko" | "en";
   loginUrl: string;
+  /** server-controlled temporary pause of new predictions (lib/predictions-pause.ts) */
+  placementPaused: boolean;
+  /** server-controlled temporary pause of settlement */
+  settlementPaused: boolean;
 }
 
 const labels = {
@@ -46,6 +50,10 @@ const labels = {
     communityVotes: "Community Votes",
     minBetError: "Minimum bet is {min} pts",
     insufficientPoints: "Not enough points. You need {amount} pts.",
+    paused: "Paused",
+    pausedBoth: "Predictions and settlement are temporarily paused. Predictions you already made are kept as they are. We'll announce when they resume.",
+    pausedPlacement: "New predictions are temporarily paused. Predictions you already made are kept as they are.",
+    pausedSettlement: "Settlement is temporarily paused. Predictions you already made are kept as they are. We'll announce when it resumes.",
   },
   ko: {
     title: "승부 예측",
@@ -66,6 +74,10 @@ const labels = {
     communityVotes: "커뮤니티 투표",
     minBetError: "최소 배팅은 {min} pts입니다",
     insufficientPoints: "포인트가 부족합니다. {amount} pts가 필요합니다.",
+    paused: "일시 중지",
+    pausedBoth: "승부 예측 참여와 정산이 일시 중지되었습니다. 이미 참여한 예측은 그대로 보관됩니다. 재개 일정은 별도로 안내드리겠습니다.",
+    pausedPlacement: "새 승부 예측 참여가 일시 중지되었습니다. 이미 참여한 예측은 그대로 보관됩니다.",
+    pausedSettlement: "예측 정산이 일시 중지되었습니다. 이미 참여한 예측은 그대로 보관됩니다. 재개 일정은 별도로 안내드리겠습니다.",
   },
 };
 
@@ -140,6 +152,8 @@ export default function PredictionCard({
   initialStats,
   locale,
   loginUrl,
+  placementPaused,
+  settlementPaused,
 }: PredictionCardProps) {
   const t = labels[locale];
 
@@ -151,6 +165,15 @@ export default function PredictionCard({
   const [stats, setStats] = useState<PredictionStats>(initialStats);
 
   const isPredictionOpen = !isLive && !isFinished && !isInactive;
+  // The API rejects placement while paused; the form is hidden to match.
+  const canPlace = isPredictionOpen && !placementPaused;
+  const pauseNotice = placementPaused && settlementPaused
+    ? t.pausedBoth
+    : placementPaused
+      ? t.pausedPlacement
+      : settlementPaused
+        ? t.pausedSettlement
+        : null;
   const isLoggedIn = userPoints !== null;
 
   const resultLabels: Record<PredictionResult, string> = {
@@ -224,12 +247,20 @@ export default function PredictionCard({
         <h4 className="text-sm font-bold" style={{ color: "#78350f" }}>
           {t.title}
         </h4>
-        {isPredictionOpen && (
+        {canPlace && (
           <span
             className="ml-auto text-xs font-bold rounded-full px-2 py-0.5"
             style={{ backgroundColor: "#fef3c7", color: "#b45309", border: "1px solid #fde68a" }}
           >
             OPEN
+          </span>
+        )}
+        {isPredictionOpen && placementPaused && (
+          <span
+            className="ml-auto text-xs font-bold rounded-full px-2 py-0.5"
+            style={{ backgroundColor: "#f3f4f6", color: "#6b7280", border: "1px solid #e5e7eb" }}
+          >
+            {t.paused}
           </span>
         )}
         {(isLive || isFinished) && (
@@ -243,6 +274,17 @@ export default function PredictionCard({
       </div>
 
       <div className="p-4 flex flex-col gap-4">
+
+        {/* ── Temporary pause notice ───────────────────────────────────── */}
+        {pauseNotice && (
+          <p
+            role="status"
+            className="text-xs leading-relaxed rounded-lg px-3 py-2.5"
+            style={{ backgroundColor: "#f9fafb", color: "#4b5563", border: "1px solid #e5e7eb" }}
+          >
+            {pauseNotice}
+          </p>
+        )}
 
         {/* ── Existing prediction ──────────────────────────────────────── */}
         {prediction && (
@@ -282,7 +324,7 @@ export default function PredictionCard({
         )}
 
         {/* ── Prediction form ──────────────────────────────────────────── */}
-        {!prediction && isPredictionOpen && (
+        {!prediction && canPlace && (
           <>
             {!isLoggedIn ? (
               <div className="text-center py-2 flex flex-col gap-3">
