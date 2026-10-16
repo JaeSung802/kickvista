@@ -36,25 +36,34 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const result = await recordCheckIn(user.id);
+    const result = await recordCheckIn();
 
-    if (result.alreadyCheckedIn) {
-      return NextResponse.json(
-        { error: "Already checked in today" },
-        { status: 409 }
-      );
+    switch (result.status) {
+      case "checked_in":
+        return NextResponse.json({
+          success: true,
+          pointsEarned: result.pointsEarned,
+          newStreak: result.newStreak,
+        });
+      case "already_checked_in":
+        return NextResponse.json(
+          { error: "Already checked in today" },
+          { status: 409 }
+        );
+      case "paused":
+        return NextResponse.json(
+          { error: "Check-in is temporarily paused.", code: "attendance_paused" },
+          { status: 503 }
+        );
+      case "unauthenticated":
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      case "profile_missing":
+        return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+      default:
+        return NextResponse.json({ error: "Check-in failed" }, { status: 500 });
     }
-
-    return NextResponse.json({
-      success: true,
-      pointsEarned: result.pointsEarned,
-      newStreak: result.newStreak,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Check-in failed", detail: String(error) },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Check-in failed" }, { status: 500 });
   }
 }
 

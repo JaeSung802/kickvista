@@ -1,11 +1,3 @@
-function calculatePoints(streakDay: number): number {
-  if (streakDay >= 30) return 10 + 100;
-  if (streakDay >= 14) return 10 + 30;
-  if (streakDay >= 7) return 10 + 15;
-  if (streakDay >= 3) return 10 + 5;
-  return 10;
-}
-
 /** Check whether the given user has already checked in today. */
 export async function hasCheckedInToday(userId: string): Promise<boolean> {
   const { createClient } = await import("@/lib/supabase/server");
@@ -63,76 +55,43 @@ export async function getAttendanceHistory(userId: string): Promise<
   return result;
 }
 
+export type CheckInResult =
+  | { status: "checked_in"; pointsEarned: number; newStreak: number }
+  | { status: "already_checked_in" }
+  | { status: "paused" }
+  | { status: "unauthenticated" }
+  | { status: "profile_missing" }
+  | { status: "failed" };
+
 /**
- * Record today's check-in for a user.
- * Returns the points earned and new streak, or signals already-checked-in.
+ * Record today's check-in for the signed-in user through the
+ * public.kv_daily_checkin() RPC (supabase/attendance-checkin-rpc.sql).
+ *
+ * The RPC identifies the caller with auth.uid() and computes the UTC day,
+ * streak and points itself; it takes no input from the client. The
+ * check-in record, ledger entry and balance change happen in one
+ * transaction, and a retry on the same day pays nothing. While the DB payout
+ * switch (kv_private.flags) is off the RPC returns { paused: true } and writes
+ * nothing.
  */
-export async function recordCheckIn(userId: string): Promise<{
-  alreadyCheckedIn: boolean;
-  pointsEarned: number;
-  newStreak: number;
-}> {
+export async function recordCheckIn(): Promise<CheckInResult> {
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = await createClient();
 
-  const today = new Date().toISOString().split("T")[0];
-
-  // Idempotency check
-  const { data: existing } = await supabase
-    .from("attendance_logs")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("attendance_date", today)
-    .maybeSingle();
-
-  if (existing) {
-    return { alreadyCheckedIn: true, pointsEarned: 0, newStreak: 0 };
+  const { data, error } = await supabase.rpc("kv_daily_checkin");
+  if (error) {
+    if (error.code === "28000") return { status: "unauthenticated" };
+    if (error.code === "P0002") return { status: "profile_missing" };
+    console.error(JSON.stringify({ scope: "attendance", event: "checkin_failed", db_code: error.code ?? null }));
+    return { status: "failed" };
   }
 
-  // Get profile for current streak
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select("current_streak, total_points")
-    .eq("id", userId)
-    .single();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const profile = profileData as any;
-
-  // Check if yesterday was checked in
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-  const { data: yesterdayLog } = await supabase
-    .from("attendance_logs")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("attendance_date", yesterdayStr)
-    .maybeSingle();
-
-  const newStreak = yesterdayLog
-    ? (profile?.current_streak ?? 0) + 1
-    : 1;
-  const pointsEarned = calculatePoints(newStreak);
-
-  // Insert log
-  await supabase.from("attendance_logs").insert({
-    user_id: userId,
-    attendance_date: today,
-    points_earned: pointsEarned,
-    streak_day: newStreak,
-  });
-
-  // Update profile
-  await supabase
-    .from("profiles")
-    .update({
-      current_streak: newStreak,
-      total_points: (profile?.total_points ?? 0) + pointsEarned,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", userId);
-
-  return { alreadyCheckedIn: false, pointsEarned, newStreak };
+  const r = data as { checked_in?: boolean; already?: boolean; paused?: boolean; points_earned?: number; streak?: number } | null;
+  if (r?.paused) return { status: "paused" };
+  if (r?.already) return { status: "already_checked_in" };
+  if (r?.checked_in && typeof r.points_earned === "number" && typeof r.streak === "number") {
+    return { status: "checked_in", pointsEarned: r.points_earned, newStreak: r.streak };
+  }
+  console.error(JSON.stringify({ scope: "attendance", event: "checkin_unexpected_result" }));
+  return { status: "failed" };
 }

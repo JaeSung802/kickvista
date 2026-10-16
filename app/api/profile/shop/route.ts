@@ -1,48 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { buyOrEquip, equip, getCatalog } from "@/lib/shop";
 
-// ─── Shop items catalogue ─────────────────────────────────────────────────────
+// Item ids offered by the shop UI. Prices and values live in the server-side
+// catalog (kv_private.shop_items, supabase/shop-rpc.sql); the client sends only an id.
+export const SHOP_ITEM_IDS = ["silver_border", "gold_border", "diamond_border", "expert_badge", "champion_badge"] as const;
 
-export const SHOP_ITEMS = {
-  silver_border: {
-    id: "silver_border",
-    cost: 300,
-    type: "border" as const,
-    value: "#64748b",
-  },
-  gold_border: {
-    id: "gold_border",
-    cost: 1000,
-    type: "border" as const,
-    value: "#eab308",
-  },
-  diamond_border: {
-    id: "diamond_border",
-    cost: 3000,
-    type: "border" as const,
-    value: "#0ea5e9",
-  },
-  expert_badge: {
-    id: "expert_badge",
-    cost: 2000,
-    type: "badge" as const,
-    value: "Expert",
-  },
-  champion_badge: {
-    id: "champion_badge",
-    cost: 5000,
-    type: "badge" as const,
-    value: "Champion",
-  },
-} as const;
+export type ShopItemId = (typeof SHOP_ITEM_IDS)[number] | "remove_border";
 
-export type ShopItemId = keyof typeof SHOP_ITEMS | "remove_border";
+/**
+ * GET /api/profile/shop
+ * Active items with prices, the caller's own owned item ids, whether sales
+ * are open, balance and equipped values (kv_shop_catalog()).
+ */
+export async function GET() {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    return NextResponse.json({ error: "Supabase not configured" }, { status: 500 });
+  }
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const result = await getCatalog();
+    if (result.status === "ok") return NextResponse.json(result.catalog);
+    if (result.status === "unauthenticated") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (result.status === "profile_missing") return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    return NextResponse.json({ error: "Failed to load the shop" }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Failed to load the shop" }, { status: 500 });
+  }
+}
 
 /**
  * POST /api/profile/shop
- * Body: { itemId: ShopItemId }
+ * Body: { itemId: ShopItemId, action?: "buy" | "equip" }
  *
- * Deducts points and applies the item to the user's profile.
+ * "buy" (default): kv_shop_purchase(); an already owned item is applied
+ * without a charge. "equip": kv_shop_equip() only — applies an owned item,
+ * also while sales are paused. "remove_border" always equips.
  */
 export async function POST(req: NextRequest) {
   if (
@@ -62,72 +64,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { itemId } = (await req.json()) as { itemId: ShopItemId };
-
-    // Free action: remove avatar border
-    if (itemId === "remove_border") {
-      await supabase.from("profiles").update({ avatar_border_color: null }).eq("id", user.id);
-      return NextResponse.json({ success: true, item: { type: "border", value: null } });
-    }
-
-    const item = SHOP_ITEMS[itemId as keyof typeof SHOP_ITEMS];
-
-    if (!item) {
+    const body = (await req.json().catch(() => null)) as { itemId?: unknown; action?: unknown } | null;
+    const itemId = body?.itemId;
+    const action = body?.action ?? "buy";
+    if (itemId !== "remove_border" && !(SHOP_ITEM_IDS as readonly unknown[]).includes(itemId)) {
       return NextResponse.json({ error: "Invalid item" }, { status: 400 });
     }
-
-    // Check current points
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("total_points")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile) {
-      return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+    if (action !== "buy" && action !== "equip") {
+      return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    if (profile.total_points < item.cost) {
-      return NextResponse.json({ error: "Insufficient points" }, { status: 400 });
+    const result =
+      itemId === "remove_border" || action === "equip"
+        ? await equip(itemId as string)
+        : await buyOrEquip(itemId as string);
+
+    switch (result.status) {
+      case "purchased":
+      case "equipped":
+        return NextResponse.json({ success: true, newPoints: result.totalPoints, item: result.item });
+      case "insufficient_points":
+        return NextResponse.json({ error: "Insufficient points" }, { status: 400 });
+      case "invalid_item":
+        return NextResponse.json({ error: "Invalid item" }, { status: 400 });
+      case "not_owned":
+        return NextResponse.json({ error: "Item not owned", code: "not_owned" }, { status: 400 });
+      case "paused":
+        return NextResponse.json(
+          { error: "The shop is temporarily unavailable.", code: "shop_paused" },
+          { status: 503 }
+        );
+      case "unauthenticated":
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      case "profile_missing":
+        return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+      default:
+        return NextResponse.json({ error: "Purchase failed" }, { status: 500 });
     }
-
-    // Build the profile update
-    const profileUpdate: Record<string, unknown> = {
-      total_points: profile.total_points - item.cost,
-    };
-
-    if (item.type === "border") {
-      profileUpdate.avatar_border_color = item.value;
-    } else if (item.type === "badge") {
-      profileUpdate.title_badge = item.value;
-    }
-
-    const { error: updateErr } = await supabase
-      .from("profiles")
-      .update(profileUpdate)
-      .eq("id", user.id);
-
-    if (updateErr) {
-      return NextResponse.json({ error: updateErr.message }, { status: 500 });
-    }
-
-    // Log the deduction
-    await supabase.from("point_logs").insert({
-      user_id: user.id,
-      amount: -item.cost,
-      reason: "match_bet", // reusing closest reason; extend enum if needed
-      reference_id: itemId,
-    });
-
-    return NextResponse.json({
-      success: true,
-      newPoints: profile.total_points - item.cost,
-      item: { type: item.type, value: item.value },
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Purchase failed", detail: String(error) },
-      { status: 500 }
-    );
+  } catch {
+    return NextResponse.json({ error: "Purchase failed" }, { status: 500 });
   }
 }
