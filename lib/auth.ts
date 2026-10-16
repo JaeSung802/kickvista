@@ -71,6 +71,37 @@ export const getServerProfile = cache(async (userId: string): Promise<Profile | 
   }
 });
 
+export type ProfileLoad =
+  | { status: "ok"; profile: Profile }
+  | { status: "missing" }
+  | { status: "error" };
+
+/**
+ * Like getServerProfile(), but tells "no profile row" apart from a failed
+ * query, so pages can show an error instead of default (0-point) values.
+ */
+export async function loadServerProfile(userId: string): Promise<ProfileLoad> {
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    return { status: "error" };
+  }
+  try {
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) return { status: "error" };
+    return data ? { status: "ok", profile: data as Profile } : { status: "missing" };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 /**
  * Upserts a profile row for a new user.
  * Called from the OAuth callback to ensure a profile exists.

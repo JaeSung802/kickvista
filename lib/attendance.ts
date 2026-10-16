@@ -62,7 +62,12 @@ export async function getMyCheckInStatus(): Promise<CheckInStatus> {
   }
 }
 
-/** Fetch the last 30 days of attendance logs for a user. */
+/**
+ * Fetch the last 30 days of attendance logs for a user (display only; policy A
+ * keeps old rows visible but never uses them for streaks or rewards).
+ * Throws when the query fails, so callers can tell a failure from a month
+ * without check-ins.
+ */
 export async function getAttendanceHistory(userId: string): Promise<
   { date: string; checkedIn: boolean; streakDay: number; pointsEarned: number }[]
 > {
@@ -73,12 +78,15 @@ export async function getAttendanceHistory(userId: string): Promise<
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
   const fromDate = thirtyDaysAgo.toISOString().split("T")[0];
 
-  const { data: rawLogs } = await supabase
+  const { data: rawLogs, error } = await supabase
     .from("attendance_logs")
     .select("attendance_date, points_earned, streak_day")
     .eq("user_id", userId)
     .gte("attendance_date", fromDate)
     .order("attendance_date", { ascending: true });
+  if (error || !Array.isArray(rawLogs)) {
+    throw new Error(`attendance history query failed${error?.code ? ` (${error.code})` : ""}`);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const logs = (rawLogs ?? []) as any[];

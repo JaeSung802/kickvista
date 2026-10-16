@@ -1,36 +1,21 @@
 "use client";
 
 /**
- * PointRankingWidget — client component
+ * PointRankingWidget — points ranking by CURRENT balance.
  *
- * Exact bugs fixed in this revision
- * ──────────────────────────────────
- * 1. LOGIN GATE FLICKER  — added `initializing` state.  While we haven't yet
- *    received the first onAuthStateChange event we show a spinner, not the
- *    guest gate.  This kills the "Login Required" flash for already-logged-in
- *    users.
+ * Data: only the kv_points_leaderboard() RPC (supabase/points-leaderboard-rpc.sql),
+ * which must be applied before an app version using it is deployed. It returns
+ * the top 10 by profiles.total_points with competition ranking (1, 1, 3), every
+ * profile tied at the 10th place (at most 30 rows, `tied_hidden` for the rest),
+ * streaks from the trusted check-in records (UTC date) and the caller's own
+ * position. No period filter.
  *
- * 2. DOUBLE-FETCH RACE   — removed the separate getSession() call.
- *    onAuthStateChange fires INITIAL_SESSION synchronously on subscribe,
- *    giving us the stored session in one place.  Previously both paths called
- *    fetchRankings() in parallel.
- *
- * 3. WRONG FETCH ORDER   — the leaderboard VIEW runs as SECURITY INVOKER.
- *    With the profiles RLS policy `auth.uid() = id` it returns exactly ONE row
- *    (the current user's own profile) — never the full top-10.  Because the
- *    old code only fell through to the RPC when the view returned ZERO rows,
- *    the RPC was never reached.  New order: RPC first → view second → fallback.
- *
- * 4. STALE FETCH         — a `cancelled` ref stops setState calls after the
- *    effect cleans up (component unmount / dep change).
- *
- * 5. EMPTY-STATE COPY    — updated to match spec ("아직 등록된 랭킹이 없습니다.
- *    첫 번째 주인공이 되어보세요!").
- *
- * 6. OWN-ROW HIGHLIGHT   — the logged-in user's row is highlighted in green.
+ * No fallback: a failed or malformed response shows the error state with a
+ * retry — never 0 values, sample users or the old leaderboard view.
+ * Signed-out visitors see the sign-in gate (the RPC is not executable by anon).
  */
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getRank } from "@/lib/ranks";
 import type { Locale } from "@/lib/i18n";
@@ -38,68 +23,90 @@ import type { Session } from "@supabase/supabase-js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-/** Columns returned by the leaderboard view and the get_leaderboard() RPC */
 interface LeaderboardRow {
-  nickname: string;       // profiles.nickname  NOT NULL DEFAULT ''
-  total_points: number;   // profiles.total_points  NOT NULL DEFAULT 0
-  current_streak: number; // profiles.current_streak  NOT NULL DEFAULT 0
-}
-
-/** Public display model consumed by the render tree */
-export interface RankingEntry {
   rank: number;
   nickname: string;
-  totalPoints: number;    // always a number — renders "0 P" when 0
-  currentStreak: number;
-  badge: string;
-  tier: string;
+  total_points: number;
+  streak: number;
+  is_me: boolean;
+}
+
+type NotRankedReason = "no_nickname" | "no_points" | "not_eligible";
+
+interface LeaderboardMe {
+  ranked: boolean;
+  /** why the caller is not ranked (own row only); null when ranked */
+  reason: NotRankedReason | null;
+  rank: number | null;
+  nickname: string | null;
+  total_points: number;
+  streak: number;
+  in_list: boolean;
+}
+
+interface Leaderboard {
+  rows: LeaderboardRow[];
+  tiedHidden: number;
+  me: LeaderboardMe | null;
 }
 
 type FetchState = "idle" | "loading" | "done" | "error";
 
 export interface PointRankingWidgetProps {
   locale: Locale;
-  /**
-   * Fallback entries shown while Supabase is not yet configured, or when every
-   * live query path returns 0 rows.  Pass the page-level mock array here so the
-   * widget is never blank on a fresh deployment.
-   */
-  fallbackEntries?: RankingEntry[];
 }
 
 // ── i18n ──────────────────────────────────────────────────────────────────────
 
 const labels = {
   en: {
-    rank: "Rank", user: "User", tier: "Tier", streak: "Streak", points: "Points",
-    days: "days", pts: "P",
+    rank: "Rank", user: "Nickname", points: "Points held",
+    days: (n: number) => `${n}-day streak`, pts: "P",
     loading: "Loading rankings…",
-    loginTitle: "Log in to view the full rankings",
-    loginSubtitle: "Check in daily to earn points and climb to the top of the leaderboard.",
+    loginTitle: "Sign in to view the ranking",
+    loginSubtitle: "The ranking shows nicknames and the points each fan currently holds.",
     loginBtn: "Sign In to See Rankings",
-    empty: "No rankings found yet. Be the first!",
-    emptySubtitle: "Check in daily to start earning points.",
-    error: "Failed to load rankings. Please try again.",
+    empty: "Nobody is on the ranking yet.",
+    emptySubtitle: "Fans with a nickname and more than 0 points appear here.",
+    error: "Couldn't load the ranking.",
+    retry: "Try again",
     you: "YOU",
+    myRank: "My position",
+    notRankedZero: "You're not on the ranking yet: it lists balances above 0 points.",
+    notRankedNick: "Set a nickname to appear on the ranking.",
+    notRankedOther: "This account is not shown on the ranking.",
+    tiedHidden: (n: number) => `${n} more ${n === 1 ? "fan is" : "fans are"} tied at the last rank shown.`,
+    notes: [
+      "Top 10 by points currently held. Equal points share a rank (1, 1, 3); everyone tied at 10th is listed, up to 30 rows.",
+      "Streaks come from check-in records; a new day starts at 9:00 AM KST.",
+    ],
   },
   ko: {
-    rank: "순위", user: "유저", tier: "등급", streak: "연속", points: "포인트",
-    days: "일", pts: "P",
+    rank: "순위", user: "닉네임", points: "보유 포인트",
+    days: (n: number) => `연속 ${n}일`, pts: "P",
     loading: "랭킹 불러오는 중…",
-    loginTitle: "로그인하여 전체 랭킹을 확인하세요",
-    loginSubtitle: "매일 출석 체크로 포인트를 쌓고 상위 팬으로 올라가세요.",
+    loginTitle: "로그인하여 랭킹을 확인하세요",
+    loginSubtitle: "랭킹에는 닉네임과 현재 보유 포인트가 표시됩니다.",
     loginBtn: "로그인하고 랭킹 보기",
-    // ← spec-exact copy
-    empty: "아직 등록된 랭킹이 없습니다. 첫 번째 주인공이 되어보세요!",
-    emptySubtitle: "매일 출석 체크로 포인트를 모아보세요.",
-    error: "랭킹을 불러오지 못했습니다. 다시 시도해주세요.",
+    empty: "아직 랭킹에 오른 사용자가 없습니다.",
+    emptySubtitle: "닉네임이 있고 보유 포인트가 0보다 많은 사용자가 표시됩니다.",
+    error: "랭킹을 불러오지 못했습니다.",
+    retry: "다시 시도",
     you: "나",
+    myRank: "내 순위",
+    notRankedZero: "보유 포인트가 0보다 많아야 랭킹에 표시됩니다.",
+    notRankedNick: "닉네임을 설정하면 랭킹에 표시됩니다.",
+    notRankedOther: "현재 이 계정은 랭킹에 표시되지 않습니다.",
+    tiedHidden: (n: number) => `마지막 순위 동점자 ${n}명이 더 있습니다.`,
+    notes: [
+      "현재 보유 포인트 기준 TOP 10입니다. 같은 점수는 같은 순위(1, 1, 3)이며, 10위 동점자는 최대 30명까지 모두 표시합니다.",
+      "연속 출석은 출석 기록 기준이며 매일 오전 9시(KST)에 날짜가 바뀝니다.",
+    ],
   },
 } as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Pure CSS spinner — no icon library required */
 function Spinner() {
   return (
     <div
@@ -110,201 +117,127 @@ function Spinner() {
   );
 }
 
-const MEDALS: readonly string[] = ["🥇", "🥈", "🥉"];
-
 /** True when NEXT_PUBLIC_SUPABASE_* env vars are present in the JS bundle */
 const SUPABASE_CONFIGURED =
   typeof process !== "undefined" &&
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-/** Maps raw Supabase rows → typed RankingEntry[] */
-function mapRows(rows: LeaderboardRow[], locale: Locale): RankingEntry[] {
-  return rows.map((row, i) => {
-    const rankInfo = getRank(row.total_points ?? 0);
-    return {
-      rank: i + 1,
-      nickname:      row.nickname?.trim() || "—",
-      // NOT NULL DEFAULT 0 in schema — coerce defensively
-      totalPoints:   typeof row.total_points   === "number" ? row.total_points   : 0,
-      currentStreak: typeof row.current_streak === "number" ? row.current_streak : 0,
-      badge: rankInfo.badge,
-      tier:  rankInfo.label[locale],
-    };
-  });
+const isInt = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v);
+
+/** Validates the RPC payload; null when anything is missing or of the wrong type. */
+export function parseLeaderboard(data: unknown): Leaderboard | null {
+  const d = data as { rows?: unknown; tied_hidden?: unknown; me?: unknown } | null;
+  if (!d || !Array.isArray(d.rows) || !isInt(d.tied_hidden)) return null;
+  const rows: LeaderboardRow[] = [];
+  for (const r of d.rows as Record<string, unknown>[]) {
+    if (!r || !isInt(r.rank) || typeof r.nickname !== "string" || !isInt(r.total_points) || !isInt(r.streak) || typeof r.is_me !== "boolean") return null;
+    rows.push({ rank: r.rank, nickname: r.nickname, total_points: r.total_points, streak: r.streak, is_me: r.is_me });
+  }
+  let me: LeaderboardMe | null = null;
+  if (d.me !== null && d.me !== undefined) {
+    const m = d.me as Record<string, unknown>;
+    if (typeof m.ranked !== "boolean" || !(m.rank === null || isInt(m.rank)) || !isInt(m.total_points) || !isInt(m.streak) || typeof m.in_list !== "boolean") return null;
+    const reason = m.reason ?? null;
+    if (!(reason === null || reason === "no_nickname" || reason === "no_points" || reason === "not_eligible")) return null;
+    if (m.ranked !== (reason === null) || m.ranked !== (m.rank !== null)) return null;
+    me = { ranked: m.ranked, reason, rank: m.rank as number | null, nickname: typeof m.nickname === "string" ? m.nickname : null,
+      total_points: m.total_points, streak: m.streak, in_list: m.in_list };
+  }
+  return { rows, tiedHidden: d.tied_hidden, me };
+}
+
+// ── Row ───────────────────────────────────────────────────────────────────────
+
+function RankRow({ rank, nickname, points, streak, isMe, locale }: {
+  rank: number | null; nickname: string; points: number; streak: number; isMe: boolean; locale: Locale;
+}) {
+  const t = labels[locale];
+  const tier = getRank(points);
+  return (
+    <div className={`flex items-center gap-3 px-4 sm:px-5 py-3 ${isMe ? "bg-emerald-50 ring-1 ring-inset ring-emerald-200" : ""}`}>
+      {/* Numbers, not medals: 🥇🥈🥉 are already the rank-tier icons. */}
+      <span className="w-9 shrink-0 flex justify-center">
+        <span
+          className={`min-w-7 h-7 px-1 rounded-full flex items-center justify-center text-sm font-black tabular-nums ${
+            rank !== null && rank <= 3 ? "bg-amber-100 text-amber-700" : "text-gray-500"
+          }`}
+        >
+          {rank ?? "—"}
+        </span>
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-sm font-semibold text-gray-900 truncate" title={nickname}>{nickname}</span>
+          {isMe && (
+            <span className="shrink-0 text-[10px] font-black text-emerald-700 bg-white border border-emerald-200 rounded px-1.5 py-0.5 leading-none">
+              {t.you}
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-gray-500 mt-0.5 truncate">
+          <span aria-hidden>{tier.badge}</span> {tier.label[locale]}
+          <span className="mx-1.5 text-gray-300">·</span>
+          <span className="text-amber-600">🔥 {t.days(streak)}</span>
+        </div>
+      </div>
+      <span className="shrink-0 text-sm font-extrabold text-emerald-600 tabular-nums">
+        {points.toLocaleString("en-US")}&nbsp;{t.pts}
+      </span>
+    </div>
+  );
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function PointRankingWidget({
-  locale,
-  fallbackEntries = [],
-}: PointRankingWidgetProps) {
+export default function PointRankingWidget({ locale }: PointRankingWidgetProps) {
   const t = labels[locale];
 
-  /**
-   * `initializing` starts true and flips to false on the first
-   * onAuthStateChange event (INITIAL_SESSION).  While true we show a spinner
-   * so already-logged-in users never see the "Login Required" gate flash.
-   */
-  const [initializing, setInitializing]           = useState(true);
-  const [session, setSession]                     = useState<Session | null>(null);
-  const [currentUserNickname, setCurrentUserNickname] = useState<string | null>(null);
-  const [entries, setEntries]                     = useState<RankingEntry[]>([]);
-  const [fetchState, setFetchState]               = useState<FetchState>("idle");
+  const [initializing, setInitializing] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
+  const [board, setBoard] = useState<Leaderboard | null>(null);
+  const [fetchState, setFetchState] = useState<FetchState>("idle");
 
-  /** Stable Supabase browser client — one instance per component lifetime */
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
-  if (!supabaseRef.current) supabaseRef.current = createClient();
+  if (!supabaseRef.current && SUPABASE_CONFIGURED) supabaseRef.current = createClient();
   const supabase = supabaseRef.current;
+  const seq = useRef(0);
 
-  // ── Auth listener + fetch ──────────────────────────────────────────────────
+  const fetchRankings = useCallback(async () => {
+    const my = ++seq.current;
+    setFetchState("loading");
+    try {
+      if (!supabase) throw new Error("not configured");
+      const { data, error } = await supabase.rpc("kv_points_leaderboard");
+      const parsed = error ? null : parseLeaderboard(data);
+      if (my !== seq.current) return;
+      if (!parsed) { setBoard(null); setFetchState("error"); return; }
+      setBoard(parsed);
+      setFetchState("done");
+    } catch {
+      if (my === seq.current) { setBoard(null); setFetchState("error"); }
+    }
+  }, [supabase]);
 
   useEffect(() => {
-    /**
-     * `cancelled` prevents setState calls if the component unmounts while a
-     * fetch is in flight (stale-update guard).
-     */
+    if (!supabase) { setInitializing(false); setFetchState("error"); return; }
     let cancelled = false;
-
-    // ── fetchRankings ──────────────────────────────────────────────────────
-    /**
-     * Three-tier fetch strategy:
-     *
-     *   1. rpc("get_leaderboard")       ← SECURITY DEFINER; bypasses RLS
-     *      Returns real top-10 once schema.sql is applied in Supabase.
-     *
-     *   2. .from("leaderboard").select  ← SECURITY INVOKER view
-     *      With current RLS returns 1 row (the user's own) unless the view is
-     *      also updated to SECURITY DEFINER.  Kept as a future-proof secondary.
-     *
-     *   3. fallbackEntries              ← always non-blank for guests / dev
-     *
-     * Table / column verification:
-     *   Table  : public.profiles
-     *   Columns: nickname (text), total_points (integer), current_streak (integer)
-     *   Order  : total_points DESC (enforced inside the view and RPC)
-     *   Limit  : 10
-     */
-    async function fetchRankings(sess: Session) {
+    const requests = seq; // invalidates in-flight fetches on cleanup
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       if (cancelled) return;
-
-      // ── Supabase not configured (local dev without .env.local) ──────────
-      if (!SUPABASE_CONFIGURED) {
-        if (!cancelled) {
-          setEntries(fallbackEntries.length > 0 ? fallbackEntries : []);
-          setFetchState("done");
-        }
-        return;
-      }
-
-      if (!cancelled) setFetchState("loading");
-
-      try {
-        // ── Fetch current user's nickname for row highlight ──────────────
-        // profiles RLS allows authenticated users to read their own row.
-        const { data: profileRow } = await supabase
-          .from("profiles")
-          .select("nickname")
-          .eq("id", sess.user.id)
-          .maybeSingle();
-
-        if (!cancelled) {
-          setCurrentUserNickname(profileRow?.nickname?.trim() || null);
-        }
-
-        // ── Tier 1: SECURITY DEFINER RPC ─────────────────────────────────
-        // get_leaderboard() is defined in supabase/schema.sql with
-        // `security definer` — it runs as the DB owner, bypassing the
-        // per-row RLS that blocks the view from returning the full top-10.
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc("get_leaderboard");
-
-        if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
-          if (!cancelled) {
-            setEntries(mapRows(rpcData as LeaderboardRow[], locale));
-            setFetchState("done");
-          }
-          return;
-        }
-
-        // ── Tier 2: leaderboard view (SECURITY INVOKER fallback) ─────────
-        const { data: viewData, error: viewError } = await supabase
-          .from("leaderboard")
-          .select("nickname, total_points, current_streak")
-          .limit(10);
-
-        if (!viewError && Array.isArray(viewData) && viewData.length > 0) {
-          if (!cancelled) {
-            setEntries(mapRows(viewData as LeaderboardRow[], locale));
-            setFetchState("done");
-          }
-          return;
-        }
-
-        // ── Tier 3: static fallback — widget is never blank ──────────────
-        if (!cancelled) {
-          setEntries(fallbackEntries.length > 0 ? fallbackEntries : []);
-          setFetchState("done");
-        }
-
-      } catch {
-        if (!cancelled) {
-          // Show fallback rather than an error screen when we have data
-          if (fallbackEntries.length > 0) {
-            setEntries(fallbackEntries);
-            setFetchState("done");
-          } else {
-            setFetchState("error");
-          }
-        }
-      }
-    }
-
-    // ── Single auth subscription ───────────────────────────────────────────
-    /**
-     * onAuthStateChange is the ONLY auth source here (getSession() removed).
-     * It fires INITIAL_SESSION on subscribe with whatever session is stored in
-     * the browser cookie — no separate getSession() call needed, and the old
-     * double-fetch race is gone.
-     *
-     * Events we care about:
-     *   INITIAL_SESSION  — page load (logged-in or not)
-     *   SIGNED_IN        — user just logged in (OAuth redirect, email+pw, etc.)
-     *   TOKEN_REFRESHED  — silent token refresh
-     *   SIGNED_OUT       — explicit logout
-     */
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      if (cancelled) return;
-
       setSession(newSession);
-      setInitializing(false); // first event received — safe to show real UI
-
-      if (newSession) {
-        fetchRankings(newSession);
-      } else {
-        // No session → reset to guest state
-        setEntries([]);
-        setCurrentUserNickname(null);
-        setFetchState("idle");
-      }
+      setInitializing(false);
+      if (newSession) fetchRankings();
+      else { requests.current++; setBoard(null); setFetchState("idle"); }
     });
+    return () => { cancelled = true; requests.current++; subscription.unsubscribe(); };
+  }, [supabase, fetchRankings]);
 
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
-  }, [supabase, locale, fallbackEntries]); // all three are stable across renders
+  const box = "bg-white border border-gray-200 rounded-xl shadow-sm min-h-75";
 
-  // ── Render: initializing ───────────────────────────────────────────────────
-  // Show spinner while we wait for the first INITIAL_SESSION event.
-  // This prevents the "Login Required" gate from flashing for logged-in users.
-
-  if (initializing) {
+  if (initializing || (session && (fetchState === "loading" || fetchState === "idle"))) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm min-h-75 flex items-center justify-center">
+      <div className={`${box} flex items-center justify-center`}>
         <div className="flex flex-col items-center gap-3">
           <Spinner />
           <p className="text-sm text-gray-400">{t.loading}</p>
@@ -313,7 +246,22 @@ export default function PointRankingWidget({
     );
   }
 
-  // ── Render: guest gate ────────────────────────────────────────────────────
+  if (fetchState === "error") {
+    return (
+      <div role="alert" className={`${box} flex flex-col items-center justify-center gap-3 p-8 text-center`}>
+        <p className="text-sm font-semibold text-gray-700">{t.error}</p>
+        {supabase && session && (
+          <button
+            type="button"
+            onClick={fetchRankings}
+            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-100"
+          >
+            {t.retry}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (!session) {
     return (
@@ -323,21 +271,18 @@ export default function PointRankingWidget({
           <h3 className="text-lg font-extrabold text-gray-900">{t.loginTitle}</h3>
           <p className="text-sm text-gray-500 max-w-xs leading-relaxed">{t.loginSubtitle}</p>
         </div>
-
-        {/* Blurred preview — hints at hidden content without leaking data */}
+        {/* Neutral placeholder rows — no names or numbers */}
         <div className="w-full max-w-sm select-none pointer-events-none" aria-hidden>
           <div className="bg-white rounded-xl border border-emerald-100 overflow-hidden">
-            {["👑 footballking_kr", "👑 premierleaguefan", "👑 bundesligaboss"].map((row, i) => (
-              <div
-                key={i}
-                className="px-4 py-2.5 text-sm text-gray-400 border-b border-gray-50 last:border-0 blur-[3px]"
-              >
-                {row}
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-3 border-b border-gray-50 last:border-0">
+                <span className="h-3 w-5 rounded bg-gray-100" />
+                <span className="h-3 flex-1 rounded bg-gray-100" />
+                <span className="h-3 w-12 rounded bg-emerald-100" />
               </div>
             ))}
           </div>
         </div>
-
         <a
           href={`/${locale}/auth/login`}
           className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold px-7 py-3 rounded-xl transition-colors shadow-sm"
@@ -348,116 +293,56 @@ export default function PointRankingWidget({
     );
   }
 
-  // ── Render: loading ────────────────────────────────────────────────────────
-
-  if (fetchState === "loading" || fetchState === "idle") {
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm min-h-75 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Spinner />
-          <p className="text-sm text-gray-400">{t.loading}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Render: error ──────────────────────────────────────────────────────────
-
-  if (fetchState === "error") {
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm min-h-75 flex items-center justify-center p-8 text-center">
-        <p className="text-sm text-gray-500">{t.error}</p>
-      </div>
-    );
-  }
-
-  // ── Render: empty ──────────────────────────────────────────────────────────
-
-  if (entries.length === 0) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm min-h-75 flex flex-col items-center justify-center gap-3 p-8 text-center">
-        <span className="text-4xl leading-none">🏆</span>
-        <p className="text-base font-bold text-gray-900">{t.empty}</p>
-        <p className="text-sm text-gray-400">{t.emptySubtitle}</p>
-      </div>
-    );
-  }
-
-  // ── Render: data table ────────────────────────────────────────────────────
+  const rows = board?.rows ?? [];
+  const me = board?.me ?? null;
+  const showMe = me !== null && !me.in_list;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-75">
-
-      {/* Column headers */}
-      <div className="grid grid-cols-[48px_1fr_80px_72px_88px] px-5 py-2.5 bg-gray-50 border-b border-gray-100">
-        {[t.rank, t.user, t.tier, t.streak, t.points].map((h) => (
-          <span key={h} className="text-xs font-bold text-gray-400 uppercase tracking-wide">
-            {h}
-          </span>
-        ))}
-      </div>
-
-      {/* Ranking rows */}
-      {entries.map((entry, i) => {
-        const isCurrentUser =
-          !!currentUserNickname && entry.nickname === currentUserNickname;
-
-        return (
-          <div
-            key={entry.rank}
-            className={[
-              "grid grid-cols-[48px_1fr_80px_72px_88px] px-5 py-3",
-              "border-b border-gray-100 last:border-0",
-              "items-center bg-white",          // explicit white bg — no dark-mode leakage
-              isCurrentUser
-                ? "ring-1 ring-inset ring-emerald-200 bg-emerald-50"
-                : i < 3
-                ? "bg-yellow-50/50"
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-          >
-            {/* ── Rank / medal ── */}
-            <span
-              className={`flex items-center font-bold leading-none ${
-                i < 3 ? "text-base" : "text-sm text-gray-400"
-              }`}
-            >
-              {i < 3 ? MEDALS[i] : entry.rank}
-            </span>
-
-            {/* ── Nickname — text-gray-900 per spec ── */}
-            <div className="flex items-center gap-2 overflow-hidden">
-              <span className="text-sm shrink-0" aria-hidden>{entry.badge}</span>
-              <span className="text-sm font-semibold text-gray-900 truncate">
-                {entry.nickname}
-              </span>
-              {isCurrentUser && (
-                <span className="ml-1 shrink-0 text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 leading-none uppercase tracking-wide">
-                  {t.you}
-                </span>
-              )}
-            </div>
-
-            {/* ── Tier ── */}
-            <span className="flex items-center text-xs text-gray-500">
-              {entry.tier}
-            </span>
-
-            {/* ── Streak ── */}
-            <span className="flex items-center text-xs font-bold text-amber-600">
-              {entry.currentStreak}
-              <span className="font-normal text-gray-400 ml-1">{t.days}</span>
-            </span>
-
-            {/* ── Points — "0 P" when totalPoints === 0 — text-emerald-600 font-bold ── */}
-            <span className="flex items-center text-xs font-bold text-emerald-600">
-              {entry.totalPoints.toLocaleString()}&nbsp;{t.pts}
-            </span>
+    <div className={`${box} overflow-hidden`}>
+      {rows.length > 0 ? (
+        <>
+          <div className="hidden sm:flex items-center gap-3 px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-400">
+            <span className="w-9 text-center">{t.rank}</span>
+            <span className="flex-1">{t.user}</span>
+            <span>{t.points}</span>
           </div>
-        );
-      })}
+          <ol className="divide-y divide-gray-100">
+            {rows.map((r, i) => (
+              <li key={`${r.rank}-${i}`} aria-current={r.is_me ? "true" : undefined}>
+                <RankRow rank={r.rank} nickname={r.nickname} points={r.total_points} streak={r.streak} isMe={r.is_me} locale={locale} />
+              </li>
+            ))}
+          </ol>
+          {board && board.tiedHidden > 0 && (
+            <p className="px-5 py-2.5 text-xs text-gray-500 border-t border-gray-100">{t.tiedHidden(board.tiedHidden)}</p>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center gap-2 p-8 text-center min-h-48">
+          <span className="text-4xl leading-none">🏆</span>
+          <p className="text-base font-bold text-gray-900">{t.empty}</p>
+          <p className="text-sm text-gray-400">{t.emptySubtitle}</p>
+        </div>
+      )}
+
+      {showMe && me && (
+        <div className="border-t-2 border-dashed border-gray-200">
+          <p className="px-5 pt-2.5 text-xs font-bold text-gray-500">{t.myRank}</p>
+          {me.ranked && me.rank !== null ? (
+            <RankRow rank={me.rank} nickname={me.nickname ?? "—"} points={me.total_points} streak={me.streak} isMe locale={locale} />
+          ) : (
+            <p className="px-5 pb-3 pt-1 text-sm text-gray-600">
+              {me.reason === "no_nickname" ? t.notRankedNick : me.reason === "no_points" ? t.notRankedZero : t.notRankedOther}
+            </p>
+          )}
+        </div>
+      )}
+
+      <ul className="px-5 py-3 border-t border-gray-100 bg-gray-50 space-y-1">
+        {t.notes.map((n) => (
+          <li key={n} className="text-xs text-gray-500 leading-relaxed">· {n}</li>
+        ))}
+      </ul>
     </div>
   );
 }

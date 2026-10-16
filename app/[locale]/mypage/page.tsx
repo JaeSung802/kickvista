@@ -258,7 +258,7 @@ export default async function MyPage({
   };
 
   const attendanceWidgetProps = {
-    totalDays: 0,
+    totalDays: null, // this page does not load the 30-day history; "—" instead of a wrong 0
     currentStreak: checkInStatus ? checkInStatus.streak : null,
     totalPoints: profile?.total_points ?? 0,
     rankTier: (rank?.tier ?? "bronze") as import("@/lib/ranks").RankTier,

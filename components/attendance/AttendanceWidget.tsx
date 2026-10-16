@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface AttendanceWidgetProps {
-  totalDays: number;
+  /** days checked in during the last 30 days; null = not loaded (shown as "—") */
+  totalDays: number | null;
   /** trusted streak (kv_my_checkin_status); null = could not be read */
   currentStreak: number | null;
   totalPoints: number;
@@ -232,7 +233,7 @@ export default function AttendanceWidget({
 
           {/* Total days */}
           <div className="flex flex-col items-center gap-0.5">
-            <span className="text-xl font-black text-gray-800 tabular-nums">{totalDays}</span>
+            <span className="text-xl font-black text-gray-800 tabular-nums">{totalDays ?? "—"}</span>
             <span className="text-xs text-gray-400">{tx.days}</span>
           </div>
         </div>

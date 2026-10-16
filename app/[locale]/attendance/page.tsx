@@ -4,12 +4,14 @@ import { buildMetadata } from "@/lib/seo/metadata";
 import AttendanceWidget from "@/components/attendance/AttendanceWidget";
 import { ATTENDANCE_CHECKIN_PAUSED, ATTENDANCE_RESUME_NOTICE } from "@/lib/attendance-pause";
 import AttendanceHistory from "@/components/attendance/AttendanceHistory";
+import LoadError from "@/components/attendance/LoadError";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
-import { getServerUser, getServerProfile } from "@/lib/auth";
+import { getServerUser, loadServerProfile, type ProfileLoad } from "@/lib/auth";
 import { getAttendanceHistory, getMyCheckInStatus } from "@/lib/attendance";
 import { getRank, getProgressToNextRank } from "@/lib/ranks";
-import PointRankingWidget, { type RankingEntry } from "@/components/ranking/PointRankingWidget";
+import PointRankingWidget from "@/components/ranking/PointRankingWidget";
+import RankTierList from "@/components/attendance/RankTierList";
 
 export const dynamic = "force-dynamic";
 
@@ -32,138 +34,6 @@ export async function generateMetadata({
   });
 }
 
-// ─── Mock 30-day attendance history ──────────────────────────────────────────
-
-function generateMockHistory() {
-  const history: {
-    date: string;
-    checkedIn: boolean;
-    streakDay: number;
-    pointsEarned: number;
-  }[] = [];
-  const today = new Date();
-  const missedOffsets = new Set([4, 9, 15, 22, 26]);
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split("T")[0];
-    const checkedIn = !missedOffsets.has(i);
-    history.push({
-      date: dateStr,
-      checkedIn,
-      streakDay: checkedIn ? Math.max(1, 3 - Math.floor(i / 10)) : 0,
-      pointsEarned: checkedIn ? (i < 3 ? 15 : i < 7 ? 12 : 10) : 0,
-    });
-  }
-  history[27].checkedIn = true;
-  history[27].pointsEarned = 10;
-  history[28].checkedIn = true;
-  history[28].pointsEarned = 12;
-  history[29].checkedIn = true;
-  history[29].pointsEarned = 15;
-  return history;
-}
-
-const MOCK_HISTORY = generateMockHistory();
-
-// ─── Rank tier data ───────────────────────────────────────────────────────────
-
-const RANK_TIERS = [
-  {
-    tier: "bronze",
-    badge: "🥉",
-    colorEn: "Bronze",
-    colorKo: "브론즈",
-    color: "#cd7f32",
-    requireEn: "0 – 99 pts",
-    requireKo: "0 – 99 포인트",
-    perksEn: ["Access to daily check-in", "Basic leaderboard visibility"],
-    perksKo: ["일일 출석 체크 기능", "기본 리더보드 표시"],
-  },
-  {
-    tier: "silver",
-    badge: "🥈",
-    colorEn: "Silver",
-    colorKo: "실버",
-    color: "#64748b", // slate-500, matches lib/ranks.ts — visible on white backgrounds
-    requireEn: "100 – 499 pts",
-    requireKo: "100 – 499 포인트",
-    perksEn: ["Silver badge on profile"],
-    perksKo: ["프로필에 실버 뱃지 표시"],
-  },
-  {
-    tier: "gold",
-    badge: "🥇",
-    colorEn: "Gold",
-    colorKo: "골드",
-    color: "#eab308",
-    requireEn: "500 – 1,999 pts",
-    requireKo: "500 – 1,999 포인트",
-    perksEn: [
-      "Gold badge on profile",
-      "Early access to AI analysis",
-    ],
-    perksKo: [
-      "프로필에 골드 뱃지 표시",
-      "AI 분석 조기 접근",
-    ],
-  },
-  {
-    tier: "platinum",
-    badge: "💎",
-    colorEn: "Platinum",
-    colorKo: "플래티넘",
-    color: "#0ea5e9",
-    requireEn: "2,000 – 4,999 pts",
-    requireKo: "2,000 – 4,999 포인트",
-    perksEn: [
-      "Platinum badge & animated border",
-      "Community post pinning",
-    ],
-    perksKo: [
-      "플래티넘 뱃지 & 애니메이션 테두리",
-      "커뮤니티 게시글 고정 기능",
-    ],
-  },
-  {
-    tier: "legend",
-    badge: "👑",
-    colorEn: "Legend",
-    colorKo: "레전드",
-    color: "#34d399",
-    requireEn: "5,000+ pts",
-    requireKo: "5,000 포인트 이상",
-    perksEn: [
-      "Legend crown badge & exclusive glow",
-      "Early beta feature access",
-      "Featured on site leaderboard",
-    ],
-    perksKo: [
-      "레전드 왕관 뱃지 & 특별 글로우 효과",
-      "신기능 베타 조기 접근",
-      "사이트 전체 리더보드 노출",
-    ],
-  },
-];
-
-// ─── Fallback leaderboard ─────────────────────────────────────────────────────
-// Shown by PointRankingWidget while Supabase is not yet configured, or when the
-// live query returns 0 rows due to the leaderboard view's SECURITY INVOKER mode.
-// See supabase/schema.sql → get_leaderboard() for the permanent DB-side fix.
-
-const FALLBACK_LEADERBOARD: RankingEntry[] = [
-  { rank: 1,  nickname: "footballking_kr",   badge: "👑", tier: "Legend",   totalPoints: 8240, currentStreak: 127 },
-  { rank: 2,  nickname: "premierleaguefan",  badge: "👑", tier: "Legend",   totalPoints: 7310, currentStreak: 98  },
-  { rank: 3,  nickname: "bundesligaboss",    badge: "👑", tier: "Legend",   totalPoints: 6890, currentStreak: 82  },
-  { rank: 4,  nickname: "seriea_fanatic",    badge: "💎", tier: "Platinum", totalPoints: 4670, currentStreak: 56  },
-  { rank: 5,  nickname: "laliganerd",        badge: "💎", tier: "Platinum", totalPoints: 3820, currentStreak: 44  },
-  { rank: 6,  nickname: "championsleague_x", badge: "💎", tier: "Platinum", totalPoints: 2540, currentStreak: 31  },
-  { rank: 7,  nickname: "kickvista_gold7",   badge: "🥇", tier: "Gold",     totalPoints: 1820, currentStreak: 22  },
-  { rank: 8,  nickname: "goalgetter_88",     badge: "🥇", tier: "Gold",     totalPoints: 1540, currentStreak: 18  },
-  { rank: 9,  nickname: "silverstreak_kr",   badge: "🥈", tier: "Silver",   totalPoints: 380,  currentStreak: 12  },
-  { rank: 10, nickname: "kickvista_user10",  badge: "🥈", tier: "Silver",   totalPoints: 290,  currentStreak: 7   },
-];
-
 const labels = {
   en: {
     pageTitle: "Daily Attendance",
@@ -171,6 +41,11 @@ const labels = {
     systemBadge: "Attendance Rewards System",
     checkInTitle: "Today's Check-In",
     historyTitle: "Your 30-Day History",
+    profileError: "Couldn't load your points and check-in details.",
+    profileMissing: "Your profile wasn't found. Sign in again or try again in a moment.",
+    historyError: "Couldn't load your attendance history.",
+    retry: "Try again",
+    retrying: "Loading…",
     pointsSystemTitle: "Points System",
     basePoints: "Base: 10 pts / day",
     streak3: "Streak day 3–6: +5 pts",
@@ -179,10 +54,9 @@ const labels = {
     streak30: "Streak day 30+: +100 pts",
     pointsNote: "One bonus applies per day (e.g. day 7 = 10 + 15 = 25 pts). Same for every rank.",
     ranksTitle: "Rank Tiers",
-    ranksSubtitle: "Earn points to unlock higher ranks and exclusive perks",
-    currentBadge: "Current",
-    leaderboardTitle: "Points Leaderboard",
-    leaderboardSubtitle: "Top 10 most dedicated fans this month",
+    ranksSubtitle: "Your rank follows the points you currently hold.",
+    leaderboardTitle: "Points Ranking",
+    leaderboardSubtitle: "Ranked by points currently held — all time, not monthly.",
     rank: "Rank",
     user: "User",
     tier: "Tier",
@@ -197,6 +71,11 @@ const labels = {
     systemBadge: "출석 보상 시스템",
     checkInTitle: "오늘 출석 체크",
     historyTitle: "최근 30일 출석 기록",
+    profileError: "내 포인트와 출석 정보를 불러오지 못했습니다.",
+    profileMissing: "프로필 정보를 찾지 못했습니다. 다시 로그인하거나 잠시 후 다시 시도해 주세요.",
+    historyError: "출석 기록을 불러오지 못했습니다.",
+    retry: "다시 시도",
+    retrying: "불러오는 중…",
     pointsSystemTitle: "포인트 시스템",
     basePoints: "기본: 하루 10 포인트",
     streak3: "연속 3–6일차: +5 포인트",
@@ -205,10 +84,9 @@ const labels = {
     streak30: "연속 30일차 이상: +100 포인트",
     pointsNote: "보너스는 하루에 한 구간만 적용됩니다 (예: 7일차 = 10 + 15 = 25 포인트). 등급과 관계없이 같습니다.",
     ranksTitle: "등급 시스템",
-    ranksSubtitle: "포인트를 모아 더 높은 등급과 특별 혜택을 잠금 해제하세요",
-    currentBadge: "현재 등급",
-    leaderboardTitle: "포인트 랭킹",
-    leaderboardSubtitle: "이번 달 가장 열정적인 팬 TOP 10",
+    ranksSubtitle: "등급은 현재 보유 포인트에 따라 정해집니다.",
+    leaderboardTitle: "보유 포인트 랭킹",
+    leaderboardSubtitle: "현재 보유 포인트가 많은 순서입니다. 월간 집계가 아닙니다.",
     rank: "순위",
     user: "유저",
     tier: "등급",
@@ -230,16 +108,18 @@ export default async function AttendancePage({
   const t = labels[loc];
   const isKo = loc === "ko";
 
-  // Try to load real user data; fall back to defaults when not authenticated
+  // Signed-in data only. A failed read is shown as an error (with a retry),
+  // never as sample data, "missed" days or 0 points.
   const supabaseUser = await getServerUser();
-  let realHistory = MOCK_HISTORY;
+  let profileLoad: ProfileLoad | null = null;
+  let history: Awaited<ReturnType<typeof getAttendanceHistory>> | null = null; // null = failed
 
   // Default to Bronze (0 pts) — the correct starting rank for any new / unauthenticated user.
   // This is what renders inside <AttendanceWidget> only when supabaseUser is truthy;
   // the widget is hidden for guests (login prompt shown instead).
   const BRONZE = getRank(0);
   let widgetProps = {
-    totalDays: 0,
+    totalDays: null as number | null,
     currentStreak: null as number | null,
     totalPoints: 0,
     rankTier: BRONZE.tier as import("@/lib/ranks").RankTier,
@@ -253,12 +133,13 @@ export default async function AttendancePage({
 
   if (supabaseUser) {
     const [profileR, historyR, statusR] = await Promise.allSettled([
-      getServerProfile(supabaseUser.id),
+      loadServerProfile(supabaseUser.id),
       getAttendanceHistory(supabaseUser.id),
       getMyCheckInStatus(),
     ]);
-    const profile  = profileR.status  === "fulfilled" ? profileR.value  : null;
-    const history  = historyR.status  === "fulfilled" ? historyR.value  : [];
+    profileLoad = profileR.status === "fulfilled" ? profileR.value : { status: "error" };
+    history = historyR.status === "fulfilled" ? historyR.value : null;
+    const profile  = profileLoad.status === "ok" ? profileLoad.profile : null;
     // Streak and "checked in today" come only from the trusted status RPC;
     // when it fails they stay unknown (null) instead of using legacy values.
     const status   = statusR.status   === "fulfilled" && statusR.value.ok ? statusR.value : null;
@@ -266,7 +147,7 @@ export default async function AttendancePage({
     if (profile) {
       const rank = getRank(profile.total_points);
       widgetProps = {
-        totalDays: history.filter((h) => h.checkedIn).length,
+        totalDays: history ? history.filter((h) => h.checkedIn).length : null,
         currentStreak: status ? status.streak : null,
         totalPoints: profile.total_points,
         rankTier: rank.tier,
@@ -277,13 +158,12 @@ export default async function AttendancePage({
         progressToNextRank: getProgressToNextRank(profile.total_points),
         locale: loc,
       };
-      realHistory = history;
     }
   }
 
-  // Rank to highlight in the tier cards section.
-  // null for unauthenticated users — no tier should show "Current".
-  const currentRankTier: string | null = supabaseUser ? widgetProps.rankTier : null;
+  // Balance for the rank ladder's current position; null when signed out or
+  // the profile could not be read (no position is shown then).
+  const currentPoints: number | null = profileLoad?.status === "ok" ? profileLoad.profile.total_points : null;
 
   return (
     <main className="bg-gray-50 min-h-screen">
@@ -315,17 +195,29 @@ export default async function AttendancePage({
                 {/* Attendance widget */}
                 <div>
                   <h2 className="text-lg font-extrabold text-gray-900 mb-4">{t.checkInTitle}</h2>
-                  <AttendanceWidget
-                    {...widgetProps}
-                    checkInPaused={ATTENDANCE_CHECKIN_PAUSED}
-                    resumeNotice={ATTENDANCE_RESUME_NOTICE}
-                  />
+                  {profileLoad?.status === "ok" ? (
+                    <AttendanceWidget
+                      {...widgetProps}
+                      checkInPaused={ATTENDANCE_CHECKIN_PAUSED}
+                      resumeNotice={ATTENDANCE_RESUME_NOTICE}
+                    />
+                  ) : (
+                    <LoadError
+                      message={profileLoad?.status === "missing" ? t.profileMissing : t.profileError}
+                      retryLabel={t.retry}
+                      retryingLabel={t.retrying}
+                    />
+                  )}
                 </div>
 
                 {/* Attendance history */}
                 <div>
                   <h2 className="text-lg font-extrabold text-gray-900 mb-4">{t.historyTitle}</h2>
-                  <AttendanceHistory history={realHistory} locale={loc} />
+                  {history ? (
+                    <AttendanceHistory history={history} locale={loc} />
+                  ) : (
+                    <LoadError message={t.historyError} retryLabel={t.retry} retryingLabel={t.retrying} />
+                  )}
                 </div>
               </>
             ) : (
@@ -422,68 +314,24 @@ export default async function AttendancePage({
           </div>
         </div>
 
-        {/* ── Rank tiers section ───────────────────────────────────────── */}
-        <section className="mb-12">
-          <div className="mb-6">
+        {/* ── Rank tiers (current balance) ─────────────────────────────── */}
+        <section className="mb-12 max-w-3xl">
+          <div className="mb-4">
             <h2 className="text-2xl font-black text-gray-900 mb-1">{t.ranksTitle}</h2>
             <p className="text-sm text-gray-500">{t.ranksSubtitle}</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {RANK_TIERS.map((rank) => {
-              const isCurrentRank = rank.tier === currentRankTier;
-              return (
-                <div
-                  key={rank.tier}
-                  className={`bg-white rounded-xl border shadow-sm p-5 flex flex-col items-center gap-3 relative overflow-hidden ${
-                    isCurrentRank ? "border-gray-300 ring-2 ring-emerald-500 ring-offset-1" : "border-gray-200"
-                  }`}
-                >
-                  {/* Current rank ribbon */}
-                  {isCurrentRank && (
-                    <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2.5 py-1 rounded-bl-lg tracking-wide">
-                      {t.currentBadge}
-                    </div>
-                  )}
-
-                  {/* Badge circle */}
-                  <div className="w-12 h-12 rounded-full bg-gray-50 border-2 border-gray-200 flex items-center justify-center text-2xl">
-                    {rank.badge}
-                  </div>
-
-                  {/* Tier name */}
-                  <div className="text-center">
-                    <div className="text-sm font-extrabold text-gray-800 mb-1">
-                      {isKo ? rank.colorKo : rank.colorEn}
-                    </div>
-                    <div className="text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded px-2 py-0.5 inline-block">
-                      {isKo ? rank.requireKo : rank.requireEn}
-                    </div>
-                  </div>
-
-                  {/* Perks */}
-                  <ul className="w-full space-y-1">
-                    {(isKo ? rank.perksKo : rank.perksEn).map((perk) => (
-                      <li key={perk} className="flex items-start gap-1.5 text-xs text-gray-500 leading-snug">
-                        <span className="text-emerald-500 text-[9px] mt-0.5 shrink-0">✓</span>
-                        {perk}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-          </div>
+          <RankTierList locale={loc} currentPoints={currentPoints} />
         </section>
 
-        {/* ── Leaderboard preview (top 10) ────────────────────────────── */}
+        {/* ── Points ranking (top 10 by current balance) ──────────────── */}
         {/* Auth gating, live fetch, loading/empty/error states are all handled
             inside PointRankingWidget (client component with onAuthStateChange). */}
-        <section className="mb-12">
+        <section className="mb-12 max-w-3xl">
           <div className="mb-5">
             <h2 className="text-2xl font-black text-gray-900 mb-1">{t.leaderboardTitle}</h2>
             <p className="text-sm text-gray-500">{t.leaderboardSubtitle}</p>
           </div>
-          <PointRankingWidget locale={loc} fallbackEntries={FALLBACK_LEADERBOARD} />
+          <PointRankingWidget locale={loc} />
         </section>
 
         {/* ── Bottom ad ───────────────────────────────────────────────── */}
