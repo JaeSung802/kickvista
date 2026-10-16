@@ -3,10 +3,10 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import AdSidebar from "@/components/ads/AdSidebar";
 import AttendanceWidget from "@/components/attendance/AttendanceWidget";
-import { ATTENDANCE_CHECKIN_PAUSED } from "@/lib/attendance-pause";
+import { ATTENDANCE_CHECKIN_PAUSED, ATTENDANCE_RESUME_NOTICE } from "@/lib/attendance-pause";
 import type { Metadata } from "next";
 import { getServerUser, getServerProfile } from "@/lib/auth";
-import { hasCheckedInToday } from "@/lib/attendance";
+import { getMyCheckInStatus } from "@/lib/attendance";
 import { getRank, getProgressToNextRank } from "@/lib/ranks";
 import { createClient } from "@/lib/supabase/server";
 
@@ -221,22 +221,24 @@ export default async function MyPage({
   }
 
   // Authenticated — fetch all real data in parallel
-  const [profileR, checkedInR, myPostsR, myCommentsR, pointsHistoryR, thisMonthPointsR, countsR] = await Promise.allSettled([
+  const [profileR, myPostsR, myCommentsR, pointsHistoryR, thisMonthPointsR, countsR, checkInStatusR] = await Promise.allSettled([
     getServerProfile(supabaseUser.id),
-    hasCheckedInToday(supabaseUser.id),
     fetchMyPosts(supabaseUser.id),
     fetchMyComments(supabaseUser.id),
     fetchPointsHistory(supabaseUser.id),
     fetchThisMonthPoints(supabaseUser.id),
     fetchCounts(supabaseUser.id),
+    getMyCheckInStatus(),
   ]);
   const profile         = profileR.status         === "fulfilled" ? profileR.value         : null;
-  const checkedIn       = checkedInR.status       === "fulfilled" ? checkedInR.value       : false;
   const myPosts         = myPostsR.status         === "fulfilled" ? myPostsR.value         : [];
   const myComments      = myCommentsR.status      === "fulfilled" ? myCommentsR.value      : [];
   const pointsHistory   = pointsHistoryR.status   === "fulfilled" ? pointsHistoryR.value   : [];
   const thisMonthPoints = thisMonthPointsR.status === "fulfilled" ? thisMonthPointsR.value : 0;
   const counts          = countsR.status          === "fulfilled" ? countsR.value          : { postCount: 0, commentCount: 0 };
+  // Streak and "checked in today" come only from the trusted status RPC;
+  // when it fails they stay unknown (null) instead of using legacy values.
+  const checkInStatus   = checkInStatusR.status   === "fulfilled" && checkInStatusR.value.ok ? checkInStatusR.value : null;
 
   const rank = profile ? getRank(profile.total_points) : null;
 
@@ -249,7 +251,7 @@ export default async function MyPage({
     totalPoints: profile?.total_points ?? 0,
     postCount: counts.postCount,
     commentCount: counts.commentCount,
-    streak: profile?.current_streak ?? 0,
+    streak: checkInStatus ? checkInStatus.streak : null,
     joinDate: profile?.created_at.split("T")[0] ?? "",
     email: supabaseUser.email ?? "",
     provider: (supabaseUser.app_metadata?.provider as string) ?? "email",
@@ -257,13 +259,13 @@ export default async function MyPage({
 
   const attendanceWidgetProps = {
     totalDays: 0,
-    currentStreak: profile?.current_streak ?? 0,
+    currentStreak: checkInStatus ? checkInStatus.streak : null,
     totalPoints: profile?.total_points ?? 0,
     rankTier: (rank?.tier ?? "bronze") as import("@/lib/ranks").RankTier,
     rankLabel: rank ? rank.label[loc] : isKo ? "브론즈" : "Bronze",
     rankColor: rank?.color ?? "#cd7f32",
     rankBadge: rank?.badge ?? "🥉",
-    hasCheckedInToday: checkedIn,
+    hasCheckedInToday: checkInStatus ? checkInStatus.checkedInToday : null,
     progressToNextRank: profile ? getProgressToNextRank(profile.total_points) : 0,
     locale: loc,
   };
@@ -385,7 +387,7 @@ export default async function MyPage({
                     { value: u.totalPoints.toLocaleString(), label: tx.totalPoints, accent: true },
                     { value: u.postCount, label: tx.posts, accent: false },
                     { value: u.commentCount, label: tx.comments, accent: false },
-                    { value: `🔥 ${u.streak}`, label: tx.streak, accent: false },
+                    { value: `🔥 ${u.streak ?? "—"}`, label: tx.streak, accent: false },
                   ].map((s) => (
                     <div key={s.label} className="flex flex-col gap-0.5">
                       <span className={`text-lg font-extrabold ${s.accent ? "text-emerald-600" : "text-gray-900"}`}>{s.value}</span>
@@ -434,7 +436,11 @@ export default async function MyPage({
                 {/* 3. Attendance widget */}
                 <section>
                   <h2 className="text-sm font-bold text-gray-900 mb-3">{tx.attendance}</h2>
-                  <AttendanceWidget {...attendanceWidgetProps} checkInPaused={ATTENDANCE_CHECKIN_PAUSED} />
+                  <AttendanceWidget
+                    {...attendanceWidgetProps}
+                    checkInPaused={ATTENDANCE_CHECKIN_PAUSED}
+                    resumeNotice={ATTENDANCE_RESUME_NOTICE}
+                  />
                 </section>
 
                 {/* 4. Points summary */}
@@ -590,7 +596,7 @@ export default async function MyPage({
                       <StatCard label={tx.totalPoints} value={u.totalPoints} accent />
                       <StatCard label={tx.thisMonth} value={thisMonthPoints} />
                       <StatCard label={tx.rank} value={u.rankLabel} />
-                      <StatCard label={tx.streak} value={`🔥 ${u.streak}`} />
+                      <StatCard label={tx.streak} value={`🔥 ${u.streak ?? "—"}`} />
                       <StatCard label={tx.posts} value={u.postCount} />
                       <StatCard label={tx.comments} value={u.commentCount} />
                     </div>

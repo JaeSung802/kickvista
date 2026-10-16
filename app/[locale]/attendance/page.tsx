@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import AttendanceWidget from "@/components/attendance/AttendanceWidget";
-import { ATTENDANCE_CHECKIN_PAUSED } from "@/lib/attendance-pause";
+import { ATTENDANCE_CHECKIN_PAUSED, ATTENDANCE_RESUME_NOTICE } from "@/lib/attendance-pause";
 import AttendanceHistory from "@/components/attendance/AttendanceHistory";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
 import { getServerUser, getServerProfile } from "@/lib/auth";
-import { hasCheckedInToday, getAttendanceHistory } from "@/lib/attendance";
+import { getAttendanceHistory, getMyCheckInStatus } from "@/lib/attendance";
 import { getRank, getProgressToNextRank } from "@/lib/ranks";
 import PointRankingWidget, { type RankingEntry } from "@/components/ranking/PointRankingWidget";
 
@@ -88,8 +88,8 @@ const RANK_TIERS = [
     color: "#64748b", // slate-500, matches lib/ranks.ts — visible on white backgrounds
     requireEn: "100 – 499 pts",
     requireKo: "100 – 499 포인트",
-    perksEn: ["Double points on weekends", "Silver badge on profile"],
-    perksKo: ["주말 포인트 2배", "프로필에 실버 뱃지 표시"],
+    perksEn: ["Silver badge on profile"],
+    perksKo: ["프로필에 실버 뱃지 표시"],
   },
   {
     tier: "gold",
@@ -100,12 +100,10 @@ const RANK_TIERS = [
     requireEn: "500 – 1,999 pts",
     requireKo: "500 – 1,999 포인트",
     perksEn: [
-      "Triple points on streak milestone",
       "Gold badge on profile",
       "Early access to AI analysis",
     ],
     perksKo: [
-      "연속 출석 마일스톤 3배 포인트",
       "프로필에 골드 뱃지 표시",
       "AI 분석 조기 접근",
     ],
@@ -119,12 +117,10 @@ const RANK_TIERS = [
     requireEn: "2,000 – 4,999 pts",
     requireKo: "2,000 – 4,999 포인트",
     perksEn: [
-      "5× points on 30-day streaks",
       "Platinum badge & animated border",
       "Community post pinning",
     ],
     perksKo: [
-      "30일 연속 출석 시 5배 포인트",
       "플래티넘 뱃지 & 애니메이션 테두리",
       "커뮤니티 게시글 고정 기능",
     ],
@@ -138,13 +134,11 @@ const RANK_TIERS = [
     requireEn: "5,000+ pts",
     requireKo: "5,000 포인트 이상",
     perksEn: [
-      "10× points on 90-day streaks",
       "Legend crown badge & exclusive glow",
       "Early beta feature access",
       "Featured on site leaderboard",
     ],
     perksKo: [
-      "90일 연속 출석 시 10배 포인트",
       "레전드 왕관 뱃지 & 특별 글로우 효과",
       "신기능 베타 조기 접근",
       "사이트 전체 리더보드 노출",
@@ -179,10 +173,11 @@ const labels = {
     historyTitle: "Your 30-Day History",
     pointsSystemTitle: "Points System",
     basePoints: "Base: 10 pts / day",
-    streak3: "3-day streak: +5 pts",
-    streak7: "7-day streak: +15 pts",
-    streak14: "14-day streak: +30 pts",
-    streak30: "30-day streak: +100 pts",
+    streak3: "Streak day 3–6: +5 pts",
+    streak7: "Streak day 7–13: +15 pts",
+    streak14: "Streak day 14–29: +30 pts",
+    streak30: "Streak day 30+: +100 pts",
+    pointsNote: "One bonus applies per day (e.g. day 7 = 10 + 15 = 25 pts). Same for every rank.",
     ranksTitle: "Rank Tiers",
     ranksSubtitle: "Earn points to unlock higher ranks and exclusive perks",
     currentBadge: "Current",
@@ -204,10 +199,11 @@ const labels = {
     historyTitle: "최근 30일 출석 기록",
     pointsSystemTitle: "포인트 시스템",
     basePoints: "기본: 하루 10 포인트",
-    streak3: "3일 연속: +5 포인트",
-    streak7: "7일 연속: +15 포인트",
-    streak14: "14일 연속: +30 포인트",
-    streak30: "30일 연속: +100 포인트",
+    streak3: "연속 3–6일차: +5 포인트",
+    streak7: "연속 7–13일차: +15 포인트",
+    streak14: "연속 14–29일차: +30 포인트",
+    streak30: "연속 30일차 이상: +100 포인트",
+    pointsNote: "보너스는 하루에 한 구간만 적용됩니다 (예: 7일차 = 10 + 15 = 25 포인트). 등급과 관계없이 같습니다.",
     ranksTitle: "등급 시스템",
     ranksSubtitle: "포인트를 모아 더 높은 등급과 특별 혜택을 잠금 해제하세요",
     currentBadge: "현재 등급",
@@ -244,38 +240,40 @@ export default async function AttendancePage({
   const BRONZE = getRank(0);
   let widgetProps = {
     totalDays: 0,
-    currentStreak: 0,
+    currentStreak: null as number | null,
     totalPoints: 0,
     rankTier: BRONZE.tier as import("@/lib/ranks").RankTier,
     rankLabel: BRONZE.label[loc],
     rankColor: BRONZE.color,
     rankBadge: BRONZE.badge,
-    hasCheckedInToday: false,
+    hasCheckedInToday: null as boolean | null,
     progressToNextRank: 0,
     locale: loc,
   };
 
   if (supabaseUser) {
-    const [profileR, checkedInR, historyR] = await Promise.allSettled([
+    const [profileR, historyR, statusR] = await Promise.allSettled([
       getServerProfile(supabaseUser.id),
-      hasCheckedInToday(supabaseUser.id),
       getAttendanceHistory(supabaseUser.id),
+      getMyCheckInStatus(),
     ]);
     const profile  = profileR.status  === "fulfilled" ? profileR.value  : null;
-    const checkedIn = checkedInR.status === "fulfilled" ? checkedInR.value : false;
     const history  = historyR.status  === "fulfilled" ? historyR.value  : [];
+    // Streak and "checked in today" come only from the trusted status RPC;
+    // when it fails they stay unknown (null) instead of using legacy values.
+    const status   = statusR.status   === "fulfilled" && statusR.value.ok ? statusR.value : null;
 
     if (profile) {
       const rank = getRank(profile.total_points);
       widgetProps = {
         totalDays: history.filter((h) => h.checkedIn).length,
-        currentStreak: profile.current_streak,
+        currentStreak: status ? status.streak : null,
         totalPoints: profile.total_points,
         rankTier: rank.tier,
         rankLabel: rank.label[loc],
         rankColor: rank.color,
         rankBadge: rank.badge,
-        hasCheckedInToday: checkedIn,
+        hasCheckedInToday: status ? status.checkedInToday : null,
         progressToNextRank: getProgressToNextRank(profile.total_points),
         locale: loc,
       };
@@ -317,7 +315,11 @@ export default async function AttendancePage({
                 {/* Attendance widget */}
                 <div>
                   <h2 className="text-lg font-extrabold text-gray-900 mb-4">{t.checkInTitle}</h2>
-                  <AttendanceWidget {...widgetProps} checkInPaused={ATTENDANCE_CHECKIN_PAUSED} />
+                  <AttendanceWidget
+                    {...widgetProps}
+                    checkInPaused={ATTENDANCE_CHECKIN_PAUSED}
+                    resumeNotice={ATTENDANCE_RESUME_NOTICE}
+                  />
                 </div>
 
                 {/* Attendance history */}
@@ -412,6 +414,7 @@ export default async function AttendancePage({
                   </div>
                 ))}
               </div>
+              <p className="px-4 py-3 border-t border-gray-100 text-xs text-gray-500 leading-relaxed">{t.pointsNote}</p>
             </div>
 
             {/* Sidebar ad */}

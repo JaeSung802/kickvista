@@ -14,6 +14,54 @@ export async function hasCheckedInToday(userId: string): Promise<boolean> {
   return !!data;
 }
 
+export type CheckInStatusFailure = "not_installed" | "permission_denied" | "unauthenticated" | "error";
+
+export type CheckInStatus =
+  | {
+      ok: true;
+      checkedInToday: boolean;
+      /** streak from the trusted check-in records only (0 when the last one is older than yesterday) */
+      streak: number;
+    }
+  | { ok: false; reason: CheckInStatusFailure };
+
+/**
+ * Today's check-in status for the signed-in user from the read-only
+ * public.kv_my_checkin_status() RPC (supabase/attendance-status-rpc.sql),
+ * which must be applied before an app version using it is deployed.
+ *
+ * There is no fallback to profiles.current_streak / attendance_logs: on any
+ * failure the result says why, and callers show the status as unknown.
+ *   not_installed      function missing (PGRST202 / 42883)
+ *   permission_denied  EXECUTE not granted (42501)
+ *   unauthenticated    no / expired session (28000, PGRST3xx)
+ *   error              network, DB or malformed result
+ */
+export async function getMyCheckInStatus(): Promise<CheckInStatus> {
+  const fail = (reason: CheckInStatusFailure, code: string | null): CheckInStatus => {
+    console.error(JSON.stringify({ scope: "attendance", event: "status_unavailable", reason, db_code: code }));
+    return { ok: false, reason };
+  };
+  try {
+    const { createClient } = await import("@/lib/supabase/server");
+    const supabase = await createClient();
+
+    const { data, error } = await supabase.rpc("kv_my_checkin_status");
+    if (error) {
+      const code = error.code ?? "";
+      if (code === "PGRST202" || code === "42883") return fail("not_installed", code);
+      if (code === "42501") return fail("permission_denied", code);
+      if (code === "28000" || code.startsWith("PGRST3")) return fail("unauthenticated", code);
+      return fail("error", code || null);
+    }
+    const r = data as { checked_in_today?: unknown; streak?: unknown } | null;
+    if (typeof r?.checked_in_today !== "boolean" || typeof r?.streak !== "number") return fail("error", "unexpected_result");
+    return { ok: true, checkedInToday: r.checked_in_today, streak: r.streak };
+  } catch {
+    return fail("error", "exception");
+  }
+}
+
 /** Fetch the last 30 days of attendance logs for a user. */
 export async function getAttendanceHistory(userId: string): Promise<
   { date: string; checkedIn: boolean; streakDay: number; pointsEarned: number }[]
@@ -56,7 +104,7 @@ export async function getAttendanceHistory(userId: string): Promise<
 }
 
 export type CheckInResult =
-  | { status: "checked_in"; pointsEarned: number; newStreak: number }
+  | { status: "checked_in"; pointsEarned: number; newStreak: number; totalPoints: number | null }
   | { status: "already_checked_in" }
   | { status: "paused" }
   | { status: "unauthenticated" }
@@ -86,11 +134,16 @@ export async function recordCheckIn(): Promise<CheckInResult> {
     return { status: "failed" };
   }
 
-  const r = data as { checked_in?: boolean; already?: boolean; paused?: boolean; points_earned?: number; streak?: number } | null;
+  const r = data as { checked_in?: boolean; already?: boolean; paused?: boolean; points_earned?: number; streak?: number; total_points?: number } | null;
   if (r?.paused) return { status: "paused" };
   if (r?.already) return { status: "already_checked_in" };
   if (r?.checked_in && typeof r.points_earned === "number" && typeof r.streak === "number") {
-    return { status: "checked_in", pointsEarned: r.points_earned, newStreak: r.streak };
+    return {
+      status: "checked_in",
+      pointsEarned: r.points_earned,
+      newStreak: r.streak,
+      totalPoints: typeof r.total_points === "number" ? r.total_points : null,
+    };
   }
   console.error(JSON.stringify({ scope: "attendance", event: "checkin_unexpected_result" }));
   return { status: "failed" };

@@ -12,3 +12,11 @@ import "server-only";
  * type-checked.
  */
 export const ATTENDANCE_CHECKIN_PAUSED: boolean = true;
+
+/**
+ * Shows the streak notice of the check-in resume (policy A: streaks start
+ * again from day 1 with the first check-in after resuming; history and
+ * points are kept) on the attendance widget. Display only; does not change
+ * check-in or the payout.
+ */
+export const ATTENDANCE_RESUME_NOTICE: boolean = false;
