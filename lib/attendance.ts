@@ -63,6 +63,17 @@ export async function getMyCheckInStatus(): Promise<CheckInStatus> {
 }
 
 /**
+ * The check-in day `offsetDays` days before `now`, as YYYY-MM-DD in UTC — the
+ * same day kv_daily_checkin() uses ((now() at time zone 'UTC')::date), so the
+ * day changes at 09:00 KST whatever the server's time zone is.
+ */
+export function utcCheckInDay(offsetDays = 0, now: Date = new Date()): string {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - offsetDays))
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
  * Fetch the last 30 days of attendance logs for a user (display only; policy A
  * keeps old rows visible but never uses them for streaks or rewards).
  * Throws when the query fails, so callers can tell a failure from a month
@@ -74,9 +85,9 @@ export async function getAttendanceHistory(userId: string): Promise<
   const { createClient } = await import("@/lib/supabase/server");
   const supabase = await createClient();
 
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-  const fromDate = thirtyDaysAgo.toISOString().split("T")[0];
+  // One clock reading for the whole window; the last entry is today (UTC day).
+  const now = new Date();
+  const fromDate = utcCheckInDay(29, now);
 
   const { data: rawLogs, error } = await supabase
     .from("attendance_logs")
@@ -96,9 +107,7 @@ export async function getAttendanceHistory(userId: string): Promise<
 
   const result: { date: string; checkedIn: boolean; streakDay: number; pointsEarned: number }[] = [];
   for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = utcCheckInDay(i, now);
     const log = logMap.get(dateStr);
     result.push({
       date: dateStr,

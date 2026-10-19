@@ -34,7 +34,7 @@ const t = {
     checkedIn: "Checked In",
     nextRank: "Progress to next rank",
     paused: "Check-in paused",
-    pausedNote: "Check-in is temporarily paused. Please try again later.",
+    pausedNote: "Check-in is paused for now. We'll announce when it resumes.",
     working: "Checking in…",
     success: (p: number, s: number) => `Checked in! +${p} points · ${s}-day streak`,
     successPlain: "Checked in!",
@@ -49,7 +49,7 @@ const t = {
     statusRetryFailed: "Still couldn't load it. Please try again later.",
     unknownValue: "Unavailable",
     resumeNote:
-      "After check-in resumes, streaks start again from day 1 with your first check-in. Your past attendance history stays visible, and your points are kept.",
+      "After check-in resumes, streaks start again from day 1 with your first check-in. Your past attendance history stays visible, and your points are kept. A new day starts at 9:00 AM KST.",
   },
   ko: {
     attendance: "출석 체크",
@@ -60,7 +60,7 @@ const t = {
     checkedIn: "출석 완료",
     nextRank: "다음 등급까지",
     paused: "출석 체크 일시 중지",
-    pausedNote: "출석 체크가 잠시 중지되었습니다. 잠시 후 다시 이용해 주세요.",
+    pausedNote: "출석 체크가 일시 중지된 상태입니다. 다시 시작하면 공지로 안내해 드립니다.",
     working: "출석 처리 중…",
     success: (p: number, s: number) => `출석 완료! +${p} 포인트 · 연속 ${s}일`,
     successPlain: "출석 완료!",
@@ -75,7 +75,7 @@ const t = {
     statusRetryFailed: "여전히 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
     unknownValue: "확인할 수 없음",
     resumeNote:
-      "출석 체크 재개 후 첫 출석부터 연속 출석이 1일차로 다시 시작됩니다. 지금까지의 출석 기록은 그대로 볼 수 있고, 보유 포인트도 그대로 유지됩니다.",
+      "출석 체크 재개 후 첫 출석부터 연속 출석이 1일차로 다시 시작됩니다. 지금까지의 출석 기록은 그대로 볼 수 있고, 보유 포인트도 그대로 유지됩니다. 날짜는 매일 오전 9시(KST)에 바뀝니다.",
   },
 };
 

@@ -8,10 +8,13 @@
 --
 -- What it ranks: the CURRENT balance (profiles.total_points) of eligible
 -- profiles. No period filter (not monthly), no cumulative activity score.
---   eligible      nickname not blank, total_points > 0 and not banned
+--   eligible      nickname not blank, total_points > 0, not banned
 --                 (is_banned true = banned; false or NULL = not banned — NULL
---                 is what self-service sign-ups may insert). One rule, used
---                 for the list, the ranks, the ties, tied_hidden and me.
+--                 is what self-service sign-ups may insert) and not listed in
+--                 kv_ranking.ranking_exclusions (seed / test accounts; rows are
+--                 added by the owner only, e.g. ranking-exclude-seed-accounts.sql).
+--                 One rule, used for the list, the ranks, the ties,
+--                 tied_hidden and me.
 --   rank          competition ranking (1, 1, 3): rank() over total_points desc
 --   order in tie  nickname (C collation), then id — stable; id is not returned
 --   list          every profile with rank <= 10 (ties at the 10th place are
@@ -22,11 +25,16 @@
 --   me            the caller's own rank / balance / streak (auth.uid()),
 --                 also when outside the list; null without a session. When
 --                 not eligible: ranked false, rank null and reason
---                 no_nickname | no_points | not_eligible (banned) — returned
---                 only to that caller.
+--                 no_nickname | no_points | not_eligible (banned or excluded)
+--                 — returned only to that caller.
 -- Returned per row: rank, nickname, total_points, streak, is_me. No user id,
 -- e-mail, role, ban flag or other profile column; banned profiles are left
--- out without any marker. Writes nothing.
+-- out without any marker; so are excluded ones. Writes nothing.
+-- v2 (2026-10-16): adds schema kv_ranking with ranking_exclusions (owner-only,
+-- no API access) and excludes its rows. v1 (c3a41856…) had no exclusion list.
+-- The table is NOT in kv_private on purpose: attendance-checkin-rpc.sql and
+-- shop-rpc.sql refuse to re-run when kv_private holds objects outside their
+-- allow-list (checkins, point_ledger, flags, shop_items, shop_purchases).
 -- SECURITY DEFINER, search_path = '', EXECUTE for authenticated only.
 -- kv_private stays without USAGE for the API roles.
 -- Safe to re-run; refuses a same-name function it did not create.
@@ -48,8 +56,39 @@ begin
              where n.nspname = 'public' and p.proname = 'kv_points_leaderboard' and p.pronargs > 0) then
     raise exception 'another public.kv_points_leaderboard(...) signature exists; resolve it first';
   end if;
+  -- never take over a same-name schema / table this migration did not create
+  if exists (select 1 from pg_namespace where nspname = 'kv_ranking')
+     and coalesce(obj_description((select oid from pg_namespace where nspname = 'kv_ranking'), 'pg_namespace'), '')
+         not like 'kickvista:kv_ranking%' then
+    raise exception 'schema kv_ranking exists and is not managed by this migration';
+  end if;
+  if exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+             where n.nspname = 'kv_ranking' and c.relkind in ('r', 'p', 'v', 'm', 'f') and c.relname <> 'ranking_exclusions') then
+    raise exception 'kv_ranking contains objects not managed by this migration';
+  end if;
+  if to_regclass('kv_ranking.ranking_exclusions') is not null
+     and coalesce(obj_description(to_regclass('kv_ranking.ranking_exclusions'), 'pg_class'), '') not like 'kickvista:ranking_exclusions%' then
+    raise exception 'kv_ranking.ranking_exclusions exists and is not managed by this migration';
+  end if;
 end
 $$;
+
+-- Owner-maintained list of profiles kept off the ranking (never deletes or
+-- changes the account, its points or its posts). `batch` names the operation
+-- that added a row, so a rollback removes only that operation's rows.
+create schema if not exists kv_ranking;
+comment on schema kv_ranking is 'kickvista:kv_ranking — owner-only ranking exclusion list, no API access';
+revoke all on schema kv_ranking from public, anon, authenticated, service_role;
+create table if not exists kv_ranking.ranking_exclusions (
+  user_id    uuid        primary key references public.profiles (id) on delete cascade,
+  reason     text        not null check (reason in ('seed_account', 'test_account')),
+  batch      text        not null,
+  note       text,
+  created_at timestamptz not null default now(),
+  created_by text        not null default current_user
+);
+comment on table kv_ranking.ranking_exclusions is 'kickvista:ranking_exclusions — profiles kept off the points ranking (owner SQL only)';
+revoke all on table kv_ranking.ranking_exclusions from public, anon, authenticated, service_role;
 
 create or replace function public.kv_points_leaderboard()
 returns jsonb
@@ -71,6 +110,7 @@ begin
       from public.profiles p
      where p.nickname is not null and pg_catalog.btrim(p.nickname) <> '' and p.total_points > 0
        and p.is_banned is not true
+       and not exists (select 1 from kv_ranking.ranking_exclusions x where x.user_id = p.id)
   ), top as (
     select e.*, row_number() over (order by e.rnk, e.nickname collate "C", e.id) as pos
       from eligible e
@@ -98,6 +138,7 @@ begin
                           then 1 + (select count(*) from public.profiles o
                                      where o.nickname is not null and pg_catalog.btrim(o.nickname) <> ''
                                        and o.total_points > 0 and o.is_banned is not true
+                                       and not exists (select 1 from kv_ranking.ranking_exclusions e where e.user_id = o.id)
                                        and o.total_points > x.total_points)
                      end,
              'nickname', x.nickname,
@@ -108,7 +149,8 @@ begin
                                   order by c.checkin_date desc limit 1), 0))
       into v_me
       from (select p.id, p.nickname, p.total_points,
-                   case when p.is_banned is true then 'not_eligible'
+                   case when p.is_banned is true
+                          or exists (select 1 from kv_ranking.ranking_exclusions e where e.user_id = p.id) then 'not_eligible'
                         when p.nickname is null or pg_catalog.btrim(p.nickname) = '' then 'no_nickname'
                         when p.total_points <= 0 then 'no_points'
                    end as reason
@@ -143,12 +185,25 @@ begin
   if has_schema_privilege('anon', 'kv_private', 'USAGE') or has_schema_privilege('authenticated', 'kv_private', 'USAGE') then
     raise exception 'kv_private must stay without USAGE for anon / authenticated';
   end if;
+  if has_schema_privilege('anon', 'kv_ranking', 'USAGE') or has_schema_privilege('authenticated', 'kv_ranking', 'USAGE')
+     or has_schema_privilege('service_role', 'kv_ranking', 'USAGE') then
+    raise exception 'kv_ranking must stay without USAGE for the API roles';
+  end if;
+  if has_table_privilege('anon', 'kv_ranking.ranking_exclusions', 'SELECT')
+     or has_table_privilege('authenticated', 'kv_ranking.ranking_exclusions', 'SELECT')
+     or has_table_privilege('service_role', 'kv_ranking.ranking_exclusions', 'SELECT')
+     or has_table_privilege('authenticated', 'kv_ranking.ranking_exclusions', 'INSERT') then
+    raise exception 'kv_ranking.ranking_exclusions must not be readable or writable by the API roles';
+  end if;
 end
 $$;
 
 commit;
 
 -- ─── Rollback ────────────────────────────────────────────────────
+-- v2 -> v1: re-run the v1 file (git show 12dd149:supabase/points-leaderboard-rpc.sql,
+-- sha256 c3a41856…). The exclusion schema may stay (v1 ignores it), or:
+--   drop schema if exists kv_ranking cascade;   -- only kv_ranking.ranking_exclusions lives there
 -- Dropping the function does NOT bring back the old leaderboard view path: an
 -- app version that reads it then shows the ranking error state (with a retry)
 -- until it is re-applied. Roll the app back first if that is not acceptable.
