@@ -19,4 +19,4 @@ export const ATTENDANCE_CHECKIN_PAUSED: boolean = true;
  * points are kept) on the attendance widget. Display only; does not change
  * check-in or the payout.
  */
-export const ATTENDANCE_RESUME_NOTICE: boolean = false;
+export const ATTENDANCE_RESUME_NOTICE: boolean = true;

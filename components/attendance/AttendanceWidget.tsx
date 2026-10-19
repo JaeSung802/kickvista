@@ -42,14 +42,17 @@ const t = {
     unauthorized: "Please sign in again to check in.",
     profileMissing: "We couldn't find your profile. Please try again later.",
     failed: "Check-in failed. Please try again in a moment.",
-    resumeTitle: "About streaks",
+    resumeTitle: "Check-in is resuming soon",
+    resumeTitleLive: "Check-in has resumed",
     statusUnknown: "We couldn't load your streak and today's check-in status. Please try again in a moment.",
     statusRetry: "Try again",
     statusChecking: "Checking…",
     statusRetryFailed: "Still couldn't load it. Please try again later.",
     unknownValue: "Unavailable",
     resumeNote:
-      "After check-in resumes, streaks start again from day 1 with your first check-in. Your past attendance history stays visible, and your points are kept. A new day starts at 9:00 AM KST.",
+      "Check-in will resume soon; we'll announce the exact time separately. Streaks start again from day 1 with your first check-in after the resume. Your past attendance history and your points are kept, and there is no retroactive payout for the pause. A new day starts at 9:00 AM KST.",
+    resumeNoteLive:
+      "Streaks start again from day 1 with your first check-in after the resume. Your past attendance history and your points are kept. A new day starts at 9:00 AM KST.",
   },
   ko: {
     attendance: "출석 체크",
@@ -68,14 +71,17 @@ const t = {
     unauthorized: "로그인이 필요합니다. 다시 로그인한 뒤 출석해 주세요.",
     profileMissing: "프로필 정보를 찾지 못했습니다. 잠시 후 다시 시도해 주세요.",
     failed: "출석 체크에 실패했습니다. 잠시 후 다시 시도해 주세요.",
-    resumeTitle: "연속 출석 안내",
+    resumeTitle: "출석 체크 재개 예정",
+    resumeTitleLive: "출석 체크 재개 안내",
     statusUnknown: "연속 출석과 오늘 출석 여부를 확인할 수 없습니다. 잠시 후 다시 확인해 주세요.",
     statusRetry: "다시 확인",
     statusChecking: "확인 중…",
     statusRetryFailed: "여전히 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
     unknownValue: "확인할 수 없음",
     resumeNote:
-      "출석 체크 재개 후 첫 출석부터 연속 출석이 1일차로 다시 시작됩니다. 지금까지의 출석 기록은 그대로 볼 수 있고, 보유 포인트도 그대로 유지됩니다. 날짜는 매일 오전 9시(KST)에 바뀝니다.",
+      "출석 체크를 곧 다시 시작합니다. 정확한 재개 시각은 공지로 따로 안내해 드립니다. 재개 후 첫 출석부터 연속 출석이 1일차로 새로 시작되며, 지금까지의 출석 기록과 보유 포인트는 그대로 유지됩니다. 중지 기간에 대한 소급 지급은 없습니다. 날짜는 매일 오전 9시(KST)에 바뀝니다.",
+    resumeNoteLive:
+      "재개 후 첫 출석부터 연속 출석이 1일차로 새로 시작됩니다. 지금까지의 출석 기록과 보유 포인트는 그대로 유지됩니다. 날짜는 매일 오전 9시(KST)에 바뀝니다.",
   },
 };
 
@@ -268,8 +274,9 @@ export default function AttendanceWidget({
 
         {resumeNotice && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-            <p className="text-xs font-bold text-amber-800">{tx.resumeTitle}</p>
-            <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">{tx.resumeNote}</p>
+            {/* While paused: "resuming soon, time announced separately"; after the pause is lifted: "has resumed". */}
+            <p className="text-xs font-bold text-amber-800">{isPaused ? tx.resumeTitle : tx.resumeTitleLive}</p>
+            <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">{isPaused ? tx.resumeNote : tx.resumeNoteLive}</p>
           </div>
         )}
 
