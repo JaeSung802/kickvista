@@ -11,7 +11,7 @@ import "server-only";
  * Typed as boolean (not a literal) so the code after the check stays
  * type-checked.
  */
-export const ATTENDANCE_CHECKIN_PAUSED: boolean = true;
+export const ATTENDANCE_CHECKIN_PAUSED: boolean = false;
 
 /**
  * Shows the streak notice of the check-in resume (policy A: streaks start
