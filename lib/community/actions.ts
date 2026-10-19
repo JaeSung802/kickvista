@@ -3,8 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getServerUser } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
-import { getServerRole, isAdmin } from "@/lib/admin/roles";
-import type { PostCategory } from "./types";
+import { getServerRole, isAdmin, canModerate } from "@/lib/admin/roles";
+import { USER_POST_CATEGORIES, type PostCategory } from "./types";
 
 // ─── Rank helpers ─────────────────────────────────────────────────
 
@@ -243,6 +243,8 @@ export interface PostDetail {
   createdAt: string;
   isLikedByUser: boolean;
   imageUrl: string | null;
+  /** Soft-deleted or hidden (only moderators can still open it). */
+  isRemoved: boolean;
 }
 
 export async function getPost(id: string): Promise<PostDetail | null> {
@@ -254,6 +256,7 @@ export async function getPost(id: string): Promise<PostDetail | null> {
     .select(
       `id, category, title, content, tags, image_url,
        view_count, like_count, comment_count, is_pinned, is_hot, created_at,
+       deleted_at, is_hidden,
        author:profiles!author_id(id, nickname, total_points)`
     )
     .eq("id", id)
@@ -304,6 +307,7 @@ export async function getPost(id: string): Promise<PostDetail | null> {
     createdAt:    row.created_at,
     isLikedByUser,
     imageUrl:     row.image_url     ?? null,
+    isRemoved:    !!row.deleted_at || !!row.is_hidden,
   };
 }
 
@@ -352,6 +356,151 @@ export async function createPost(input: CreatePostInput): Promise<CreatePostResu
   revalidatePath("/[locale]/community", "page");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { id: (data as any).id };
+}
+
+// ─── Author edit / delete ─────────────────────────────────────────
+// Only the author may edit or delete their own post; notices also need
+// the admin role (same rule as createPost and the notice RLS policies).
+// RLS enforces the same on the database side.
+
+export type OwnPostError = "unauthenticated" | "forbidden" | "not_found" | "invalid" | "unavailable" | "failed";
+
+export interface EditablePost {
+  id: string;
+  category: PostCategory;
+  title: string;
+  content: string;
+  tags: string[];
+}
+
+interface OwnPostRow {
+  id: string;
+  author_id: string;
+  category: PostCategory;
+  title: string;
+  content: string;
+  tags: string[] | null;
+  deleted_at: string | null;
+  is_hidden: boolean | null;
+}
+
+/** Loads a post the signed-in user may edit (no view-count side effect). */
+async function loadOwnPost(
+  postId: string
+): Promise<{ row: OwnPostRow; userId: string; error?: never } | { error: OwnPostError; row?: never; userId?: never }> {
+  const user = await getServerUser();
+  if (!user) return { error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("community_posts")
+    .select("id, author_id, category, title, content, tags, deleted_at, is_hidden")
+    .eq("id", postId)
+    .maybeSingle();
+  if (error) return { error: "failed" };
+  const row = data as OwnPostRow | null;
+  if (!row || row.deleted_at || row.is_hidden) return { error: "not_found" };
+  if (row.author_id !== user.id) return { error: "forbidden" };
+  if (row.category === "notice" && !isAdmin(await getServerRole())) return { error: "forbidden" };
+  return { row, userId: user.id };
+}
+
+export async function getEditablePost(
+  postId: string
+): Promise<{ post: EditablePost; error?: never } | { error: OwnPostError; post?: never }> {
+  const r = await loadOwnPost(postId);
+  if (r.error) return { error: r.error };
+  const { row } = r;
+  return {
+    post: { id: row.id, category: row.category, title: row.title, content: row.content, tags: row.tags ?? [] },
+  };
+}
+
+export interface UpdatePostInput {
+  category: PostCategory;
+  title: string;
+  content: string;
+  tags: string[];
+}
+
+export type OwnPostResult = { ok: true; error?: never } | { error: OwnPostError; ok?: never };
+
+function revalidateCommunity(postId: string) {
+  revalidatePath("/[locale]/community", "layout");
+  revalidatePath(`/[locale]/community/post/${postId}`, "page");
+}
+
+/** Edits title, content, category and tags of the caller's own post. Nothing else is written. */
+export async function updatePost(postId: string, input: UpdatePostInput): Promise<OwnPostResult> {
+  const r = await loadOwnPost(postId);
+  if (r.error) return { error: r.error };
+  const { row, userId } = r;
+
+  const title   = typeof input.title === "string" ? input.title.trim() : "";
+  const content = typeof input.content === "string" ? input.content.trim() : "";
+  const tags    = Array.isArray(input.tags)
+    ? [...new Set(input.tags.filter((t): t is string => typeof t === "string").map((t) => t.trim()).filter(Boolean))]
+    : [];
+  if (title.length < 5 || title.length > 120 || content.length < 20) return { error: "invalid" };
+
+  // Allowed: the user categories, the post's current one, and 'notice' for admins.
+  const category = input.category;
+  const isAdminUser = category === "notice" || row.category === "notice" ? isAdmin(await getServerRole()) : false;
+  const allowed =
+    USER_POST_CATEGORIES.includes(category) || category === row.category || (category === "notice" && isAdminUser);
+  if (!allowed) return { error: category === "notice" ? "forbidden" : "invalid" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("community_posts")
+    .update({ title, content, category, tags })
+    .eq("id", postId)
+    .eq("author_id", userId)
+    .select("id");
+  if (error) return { error: error.code === "42501" ? "forbidden" : "failed" };
+  if (!data || data.length === 0) return { error: "forbidden" };
+
+  revalidateCommunity(postId);
+  return { ok: true };
+}
+
+/**
+ * Soft-deletes the caller's own post (deleted_at / deleted_by, like the admin
+ * delete). Regular authors go through kv_soft_delete_own_post(), because the
+ * read policy hides deleted rows and blocks a direct update; moderators can
+ * still use the direct update when that function is not installed.
+ */
+export async function deletePost(postId: string): Promise<OwnPostResult> {
+  const r = await loadOwnPost(postId);
+  if (r.error) return { error: r.error };
+  const { userId } = r;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("kv_soft_delete_own_post", { p_post_id: postId });
+  if (!error) {
+    if (data === "deleted" || data === "already_deleted") {
+      revalidateCommunity(postId);
+      return { ok: true };
+    }
+    return { error: data === "forbidden" ? "forbidden" : "not_found" };
+  }
+
+  const missing = error.code === "PGRST202" || error.code === "42883";
+  if (!missing) return { error: "failed" };
+  if (!canModerate(await getServerRole())) return { error: "unavailable" };
+
+  const { data: rows, error: updError } = await supabase
+    .from("community_posts")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .update({ deleted_at: new Date().toISOString(), deleted_by: userId, delete_reason: null } as any)
+    .eq("id", postId)
+    .eq("author_id", userId)
+    .select("id");
+  if (updError) return { error: "failed" };
+  if (!rows || rows.length === 0) return { error: "forbidden" };
+
+  revalidateCommunity(postId);
+  return { ok: true };
 }
 
 // ─── listComments ─────────────────────────────────────────────────

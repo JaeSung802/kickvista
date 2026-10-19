@@ -58,3 +58,8 @@ export interface PostListResponse {
   pageSize: number;
   hasMore: boolean;
 }
+
+/** Categories any signed-in user can post in ('notice' is admin-only). */
+export const USER_POST_CATEGORIES: PostCategory[] = [
+  "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
+];

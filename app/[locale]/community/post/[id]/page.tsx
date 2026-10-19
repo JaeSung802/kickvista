@@ -6,6 +6,8 @@ import { getServerUser } from "@/lib/auth";
 import AdBanner from "@/components/ads/AdBanner";
 import AdInContent from "@/components/ads/AdInContent";
 import PostActions from "@/components/community/PostActions";
+import PostOwnerMenu from "@/components/community/PostOwnerMenu";
+import { getServerRole, isAdmin } from "@/lib/admin/roles";
 import CommentSection from "@/components/community/CommentSection";
 import { getPost, listPosts, listComments } from "@/lib/community/actions";
 import type { PostCategory } from "@/lib/community/types";
@@ -73,6 +75,10 @@ export default async function CommunityPostPage({
   const post = postR.status === "fulfilled" ? postR.value : null;
   if (!post) notFound();
   const isLoggedIn = !!user;
+  // Edit / delete: the author only, and notices also need the admin role
+  // (the server actions and RLS check the same again).
+  const isAuthor = !!user && user.id === post.authorId && !post.isRemoved;
+  const canManage = isAuthor && (post.category !== "notice" || isAdmin(await getServerRole()));
 
   const [commentsR, relatedR] = await Promise.allSettled([
     listComments(id),
@@ -127,7 +133,7 @@ export default async function CommunityPostPage({
           <div style={{ height: 3, backgroundColor: catMeta.color }} />
 
           <div style={{ padding: "24px 28px" }}>
-            {/* Category + badges */}
+            {/* Category + badges (+ author menu) */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
               <span
                 style={{
@@ -151,6 +157,11 @@ export default async function CommunityPostPage({
                   borderRadius: 4, padding: "2px 8px" }}>
                   🔥 {isKo ? "인기" : "HOT"}
                 </span>
+              )}
+              {canManage && (
+                <div style={{ marginLeft: "auto" }}>
+                  <PostOwnerMenu postId={post.id} category={post.category} locale={loc} />
+                </div>
               )}
             </div>
 

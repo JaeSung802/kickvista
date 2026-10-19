@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { createPost } from "@/lib/community/actions";
-import type { PostCategory } from "@/lib/community/types";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createPost, updatePost, type EditablePost, type OwnPostError } from "@/lib/community/actions";
+import { USER_POST_CATEGORIES, type PostCategory } from "@/lib/community/types";
 
 interface WritePostFormProps {
   locale: "ko" | "en";
@@ -13,6 +14,8 @@ interface WritePostFormProps {
   backHref?: string;
   isAdmin?: boolean;
   initialCategory?: string | null;
+  /** Edit mode: the author's own post (title, content, category and tags only). */
+  editPost?: EditablePost;
 }
 
 const CATEGORY_META: Record<
@@ -29,9 +32,7 @@ const CATEGORY_META: Record<
   "worldcup-2026":    { labelEn: "2026 World Cup",   labelKo: "2026 월드컵", color: "#dc2626", bg: "#fef2f2", border: "#fca5a5" },
 };
 
-const BASE_CATEGORIES: PostCategory[] = [
-  "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
-];
+const BASE_CATEGORIES = USER_POST_CATEGORIES;
 
 const labels = {
   en: {
@@ -59,6 +60,17 @@ const labels = {
       "English or Korean only",
     ],
     serverError: "Failed to publish. Please try again.",
+    editSubmit: "Save Changes",
+    editSaving: "Saving...",
+    editing: "Editing your post",
+    editErrors: {
+      unauthenticated: "Please sign in again.",
+      forbidden: "You can't edit this post.",
+      not_found: "This post wasn't found. It may have been deleted.",
+      invalid: "Check the title (5–120 characters), content (20+ characters) and category.",
+      unavailable: "Editing isn't available right now. Please try again later.",
+      failed: "Couldn't save your changes. Please try again.",
+    } satisfies Record<OwnPostError, string>,
   },
   ko: {
     categoryLabel: "카테고리",
@@ -85,17 +97,35 @@ const labels = {
       "한국어 또는 영어만 사용",
     ],
     serverError: "게시에 실패했습니다. 다시 시도해 주세요.",
+    editSubmit: "수정 저장",
+    editSaving: "저장 중...",
+    editing: "게시글 수정 중",
+    editErrors: {
+      unauthenticated: "로그인이 필요합니다. 다시 로그인해 주세요.",
+      forbidden: "이 게시글을 수정할 권한이 없습니다.",
+      not_found: "게시글을 찾을 수 없습니다. 삭제되었을 수 있습니다.",
+      invalid: "제목(5~120자), 내용(20자 이상), 카테고리를 확인해 주세요.",
+      unavailable: "지금은 게시글을 수정할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+      failed: "수정 내용을 저장하지 못했습니다. 다시 시도해 주세요.",
+    } satisfies Record<OwnPostError, string>,
   },
 };
 
 const inputCls = "w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-colors";
 const labelCls = "text-xs font-bold uppercase tracking-wider text-gray-500";
 
-export default function WritePostForm({ locale, userNickname, userBadge, teamSlug, leagueSlug, backHref, isAdmin, initialCategory }: WritePostFormProps) {
+export default function WritePostForm({ locale, userNickname, userBadge, teamSlug, leagueSlug, backHref, isAdmin, initialCategory, editPost }: WritePostFormProps) {
   const tx = labels[locale];
-  const ALL_CATEGORIES: PostCategory[] = isAdmin
+  const router = useRouter();
+  const busyRef = useRef(false);
+  const BASE_WITH_NOTICE: PostCategory[] = isAdmin
     ? [...BASE_CATEGORIES, "notice"]
     : BASE_CATEGORIES;
+  // Editing keeps the post's current category selectable (e.g. an older category).
+  const ALL_CATEGORIES: PostCategory[] =
+    editPost && !BASE_WITH_NOTICE.includes(editPost.category)
+      ? [...BASE_WITH_NOTICE, editPost.category]
+      : BASE_WITH_NOTICE;
 
   const resolvedInitial = (
     initialCategory && Object.keys(CATEGORY_META).includes(initialCategory)
@@ -103,10 +133,10 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
       : null
   );
 
-  const [category, setCategory]   = useState<PostCategory | null>(resolvedInitial);
-  const [titleText, setTitle]     = useState("");
-  const [content, setContent]     = useState("");
-  const [tags, setTags]           = useState("");
+  const [category, setCategory]   = useState<PostCategory | null>(editPost?.category ?? resolvedInitial);
+  const [titleText, setTitle]     = useState(editPost?.title ?? "");
+  const [content, setContent]     = useState(editPost?.content ?? "");
+  const [tags, setTags]           = useState(editPost ? editPost.tags.join(", ") : "");
   const [mode, setMode]           = useState<"edit" | "preview">("edit");
   const [loading, setLoading]     = useState(false);
   const [newPostId, setNewPostId] = useState<string | null>(null);
@@ -127,9 +157,35 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
   }
 
   async function handleSubmit() {
+    if (busyRef.current) return;
     if (!validate() || !category) return;
+    busyRef.current = true;
     setLoading(true);
     setServerError(null);
+
+    if (editPost) {
+      let error: OwnPostError | null = null;
+      try {
+        const res = await updatePost(editPost.id, {
+          category,
+          title:   titleText,
+          content,
+          tags:    tags.split(",").map((t) => t.trim()).filter(Boolean),
+        });
+        if (res.ok) {
+          router.push(`/${locale}/community/post/${editPost.id}`);
+          router.refresh();
+          return;
+        }
+        error = res.error;
+      } catch {
+        error = "failed";
+      }
+      setServerError(tx.editErrors[error] ?? tx.editErrors.failed);
+      busyRef.current = false;
+      setLoading(false);
+      return;
+    }
 
     const result = await createPost({
       category,
@@ -141,6 +197,7 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
     });
 
     setLoading(false);
+    busyRef.current = false;
 
     if (result.error) {
       setServerError(tx.serverError);
@@ -190,7 +247,7 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
           <div>
             <div className="text-sm font-bold text-gray-900">{userNickname}</div>
             <div className="text-xs text-gray-400">
-              {locale === "ko" ? "게시글 작성 중" : "Writing a post"}
+              {editPost ? tx.editing : locale === "ko" ? "게시글 작성 중" : "Writing a post"}
             </div>
           </div>
         </div>
@@ -354,9 +411,11 @@ export default function WritePostForm({ locale, userNickname, userBadge, teamSlu
                         : "bg-gray-100 text-gray-400 cursor-not-allowed"
                     }`}
                   >
-                    {loading
-                      ? (locale === "ko" ? "발행 중..." : "Publishing...")
-                      : `✏️ ${tx.submit}`}
+                    {editPost
+                      ? (loading ? tx.editSaving : `💾 ${tx.editSubmit}`)
+                      : loading
+                        ? (locale === "ko" ? "발행 중..." : "Publishing...")
+                        : `✏️ ${tx.submit}`}
                   </button>
                 </div>
               </div>
