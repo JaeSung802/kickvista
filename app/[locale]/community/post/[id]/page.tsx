@@ -90,6 +90,9 @@ export default async function CommunityPostPage({
   const catMeta  = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
   const catLabel = isKo ? catMeta.labelKo : catMeta.labelEn;
   const paragraphs = post.content.split("\n\n").filter(Boolean);
+  // Notices read as one announcement: no ads between their paragraphs
+  // (the banner after the content and the site-wide ads stay).
+  const showInContentAds = post.category !== "notice";
 
   return (
     <>
@@ -234,13 +237,13 @@ export default async function CommunityPostPage({
                     {para}
                   </p>
                   {/* In-content ad after paragraph 1 — only if article is long enough */}
-                  {idx === 0 && paragraphs.length > 2 && (
+                  {showInContentAds && idx === 0 && paragraphs.length > 2 && (
                     <AdInContent
                       slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT ?? "2222222222"}
                     />
                   )}
                   {/* In-content ad after paragraph 3 */}
-                  {idx === 2 && paragraphs.length > 4 && (
+                  {showInContentAds && idx === 2 && paragraphs.length > 4 && (
                     <AdInContent
                       slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_IN_CONTENT ?? "2222222222"}
                     />
