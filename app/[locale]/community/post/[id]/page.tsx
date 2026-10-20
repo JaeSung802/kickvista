@@ -7,6 +7,7 @@ import AdBanner from "@/components/ads/AdBanner";
 import AdInContent from "@/components/ads/AdInContent";
 import PostActions from "@/components/community/PostActions";
 import PostOwnerMenu from "@/components/community/PostOwnerMenu";
+import PostViewTracker from "@/components/community/PostViewTracker";
 import { getServerRole, isAdmin } from "@/lib/admin/roles";
 import CommentSection from "@/components/community/CommentSection";
 import { getPost, listPosts, listComments } from "@/lib/community/actions";
@@ -98,6 +99,7 @@ export default async function CommunityPostPage({
     <>
     <style>{`.kv-related-post:hover { border-color: rgba(34,197,94,0.2) !important; background-color: #ecfdf5 !important; }`}</style>
     <main className="min-h-screen">
+      <PostViewTracker key={post.id} postId={post.id} />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
 
         {/* Breadcrumb */}

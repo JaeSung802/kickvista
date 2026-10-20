@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { togglePostLike } from "@/lib/community/actions";
 
 interface LikeButtonProps {
@@ -29,6 +29,8 @@ export default function LikeButton({
   const [liked,   setLiked]   = useState(initialLiked);
   const [count,   setCount]   = useState(initialCount);
   const [pending, setPending] = useState(false);
+  // Blocks a second click in the same tick, before `pending` re-renders.
+  const busyRef = useRef(false);
   const isSm = size === "sm";
 
   async function handleClick() {
@@ -36,9 +38,10 @@ export default function LikeButton({
       if (loginHref) window.location.href = loginHref;
       return;
     }
-    if (pending) return;
+    if (pending || busyRef.current) return;
 
     if (variant === "upvote") {
+      busyRef.current = true;
       setPending(true);
       const prevLiked = liked;
       const prevCount = count;
@@ -53,6 +56,7 @@ export default function LikeButton({
         setLiked(result.liked!);
         setCount(result.count!);
       }
+      busyRef.current = false;
       setPending(false);
     } else {
       // heart variant — client-only (comment likes not yet persisted)

@@ -264,14 +264,6 @@ export async function getPost(id: string): Promise<PostDetail | null> {
 
   if (error || !data) return null;
 
-  // Fire-and-forget view increment
-  supabase
-    .from("community_posts")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update({ view_count: ((data as any).view_count ?? 0) + 1 })
-    .eq("id", id)
-    .then(() => {});
-
   let isLikedByUser = false;
   if (user) {
     const { data: likeRow } = await supabase
@@ -309,6 +301,26 @@ export async function getPost(id: string): Promise<PostDetail | null> {
     imageUrl:     row.image_url     ?? null,
     isRemoved:    !!row.deleted_at || !!row.is_hidden,
   };
+}
+
+// ─── recordPostView ───────────────────────────────────────────────
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Counts one view through increment_post_view() (atomic +1; hidden, deleted
+ * or missing posts are a no-op). Called once per mount by PostViewTracker,
+ * never while rendering, so metadata, re-renders and revalidation after a
+ * comment do not count again. Best-effort: errors are ignored.
+ */
+export async function recordPostView(postId: string): Promise<void> {
+  if (typeof postId !== "string" || !UUID_RE.test(postId)) return;
+  try {
+    const supabase = await createClient();
+    await supabase.rpc("increment_post_view", { p_post_id: postId });
+  } catch {
+    // ignore — the view count is best-effort
+  }
 }
 
 // ─── createPost ───────────────────────────────────────────────────
@@ -690,16 +702,22 @@ export async function togglePostLike(postId: string): Promise<ToggleLikeResult> 
     .eq("user_id", user.id)
     .maybeSingle();
 
+  let liked: boolean;
   if (existing) {
-    await supabase
+    const { error } = await supabase
       .from("community_post_likes")
       .delete()
       .eq("post_id", postId)
       .eq("user_id", user.id);
+    if (error) return { error: "failed" };
+    liked = false;
   } else {
-    await supabase
+    const { error } = await supabase
       .from("community_post_likes")
       .insert({ post_id: postId, user_id: user.id });
+    // 23505: a parallel request already added this like — it is liked.
+    if (error && error.code !== "23505") return { error: error.code === "42501" ? "unavailable" : "failed" };
+    liked = true;
   }
 
   const { data: updated } = await supabase
@@ -709,7 +727,7 @@ export async function togglePostLike(postId: string): Promise<ToggleLikeResult> 
     .single();
 
   return {
-    liked: !existing,
+    liked,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     count: (updated as any)?.like_count ?? 0,
   };
