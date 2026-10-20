@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
-import LoginForm from "@/components/auth/LoginForm";
+import LoginForm, { type LoginNotice } from "@/components/auth/LoginForm";
 
 export async function generateMetadata({
   params,
@@ -25,10 +25,17 @@ export async function generateMetadata({
 
 export default async function LoginPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const { locale } = await params;
   if (!isValidLocale(locale)) notFound();
-  return <LoginForm locale={locale as Locale} />;
+  // Only known codes are shown; anything else (older links carried Supabase's
+  // message) is treated as a link that could not be completed.
+  const raw = (await searchParams).error;
+  const code = Array.isArray(raw) ? raw[0] : raw;
+  const notice: LoginNotice | null = !code ? null : code === "server_error" ? "server_error" : "link_invalid";
+  return <LoginForm locale={locale as Locale} notice={notice} />;
 }

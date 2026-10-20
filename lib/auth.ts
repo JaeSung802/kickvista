@@ -102,34 +102,81 @@ export async function loadServerProfile(userId: string): Promise<ProfileLoad> {
   }
 }
 
+export type EnsureProfileResult = "exists" | "created" | "error";
+
+const NICKNAME_MIN = 3;
+const NICKNAME_MAX = 20;
+
+function usableNickname(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  return v.length >= NICKNAME_MIN && v.length <= NICKNAME_MAX ? v : null;
+}
+
 /**
- * Upserts a profile row for a new user.
- * Called from the OAuth callback to ensure a profile exists.
+ * Makes sure the signed-in user has a profiles row. Inserts only id and
+ * nickname — role, points, streak and badges keep their column defaults
+ * (the role / points guards refuse anything else from the API roles), and
+ * ON CONFLICT (id) DO NOTHING keeps parallel calls safe. Runs as the user,
+ * so the owner-insert RLS policy applies.
+ *
+ * Needed beyond the OAuth callback: an e-mail / password account only got a
+ * profile when the confirmation link was opened in the browser that signed
+ * up (the PKCE code exchange in /api/auth/callback). Without a profile the
+ * header showed the user as signed out after a successful login.
+ *
+ * Nickname: the one chosen at sign-up (user metadata), else the e-mail name,
+ * else "fan_" + the first 8 characters of the id — the next candidate is tried
+ * when one is rejected as a duplicate or by a check constraint.
  */
-export async function ensureProfile(
-  userId: string,
-  email: string | undefined
-): Promise<void> {
+export async function ensureProfile(user: User): Promise<EnsureProfileResult> {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
-    return;
+    return "error";
   }
 
   try {
     const { createClient } = await import("@/lib/supabase/server");
     const supabase = await createClient();
 
-    const nickname =
-      email?.split("@")[0] ?? `fan_${userId.slice(0, 8)}`;
+    const { data: existing, error: readError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (readError) return "error";
+    if (existing) return "exists";
 
-    await supabase.from("profiles").upsert(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { id: userId, nickname, total_points: 0, current_streak: 0 } as any,
-      { onConflict: "id", ignoreDuplicates: true }
-    );
+    const emailName = user.email?.split("@")[0]?.slice(0, NICKNAME_MAX);
+    const candidates = [
+      usableNickname(user.user_metadata?.nickname),
+      usableNickname(emailName),
+      `fan_${user.id.replace(/-/g, "").slice(0, 8)}`,
+    ].filter((v, i, all): v is string => !!v && all.indexOf(v) === i);
+
+    for (const nickname of candidates) {
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({ id: user.id, nickname }, { onConflict: "id", ignoreDuplicates: true });
+      if (error) {
+        // 23505 unique / 23514 check: try the next nickname.
+        if (error.code !== "23505" && error.code !== "23514") return "error";
+        continue;
+      }
+      // Count it only when the row is really there (a parallel request may
+      // have created it, which is fine too).
+      const { data: row, error: checkError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (checkError) return "error";
+      if (row) return "created";
+    }
+    return "error";
   } catch {
-    // Non-fatal
+    return "error";
   }
 }

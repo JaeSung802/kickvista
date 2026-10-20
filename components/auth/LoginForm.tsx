@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { ensureMyProfile } from "@/lib/auth-actions";
+
+export type LoginNotice = "link_invalid" | "server_error";
 
 const labels = {
   en: {
@@ -22,6 +25,18 @@ const labels = {
     termsLink: "Terms of Service",
     and: "and",
     privacyLink: "Privacy Policy",
+    errors: {
+      invalid_credentials: "Invalid email or password.",
+      email_not_confirmed: "Your email isn't confirmed yet. Open the confirmation link we sent you, then sign in.",
+      user_banned: "This account can't sign in right now.",
+      rate_limited: "Too many attempts. Please wait a moment and try again.",
+      session_not_saved: "You were signed in, but this browser didn't keep the session. Allow cookies for this site and try again.",
+      failed: "Sign-in failed. Please try again in a moment.",
+    },
+    notices: {
+      link_invalid: "The confirmation link couldn't be completed in this browser. Your email may already be confirmed — try signing in with your email and password.",
+      server_error: "Something went wrong while confirming. Try signing in with your email and password.",
+    } satisfies Record<LoginNotice, string>,
   },
   ko: {
     title: "다시 오셨군요",
@@ -41,38 +56,76 @@ const labels = {
     termsLink: "이용약관",
     and: "및",
     privacyLink: "개인정보처리방침",
+    errors: {
+      invalid_credentials: "이메일 또는 비밀번호가 올바르지 않습니다.",
+      email_not_confirmed: "이메일 인증이 아직 완료되지 않았습니다. 받은 메일의 인증 링크를 연 뒤 로그인해 주세요.",
+      user_banned: "이 계정은 현재 로그인할 수 없습니다.",
+      rate_limited: "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+      session_not_saved: "로그인은 되었지만 이 브라우저에 로그인 상태가 저장되지 않았습니다. 이 사이트의 쿠키를 허용한 뒤 다시 시도해 주세요.",
+      failed: "로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+    },
+    notices: {
+      link_invalid: "이 브라우저에서 인증 링크를 처리하지 못했습니다. 이메일 인증은 이미 완료되었을 수 있으니 이메일과 비밀번호로 로그인해 보세요.",
+      server_error: "인증 처리 중 문제가 발생했습니다. 이메일과 비밀번호로 로그인해 보세요.",
+    } satisfies Record<LoginNotice, string>,
   },
 };
 
-export default function LoginForm({ locale }: { locale: "ko" | "en" }) {
+type LoginError = keyof (typeof labels)["ko"]["errors"];
+
+/** Supabase Auth error → message key (the raw message is never shown). */
+function loginErrorKey(err: { code?: string; status?: number }): LoginError {
+  if (err.code === "invalid_credentials") return "invalid_credentials";
+  if (err.code === "email_not_confirmed") return "email_not_confirmed";
+  if (err.code === "user_banned") return "user_banned";
+  if (err.code === "over_request_rate_limit" || err.status === 429) return "rate_limited";
+  return "failed";
+}
+
+export default function LoginForm({ locale, notice }: { locale: "ko" | "en"; notice?: LoginNotice | null }) {
   const t = labels[locale];
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const busyRef = useRef(false);
 
   const supabase = createClient();
 
   async function handleEmailSignIn(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (busyRef.current) return;
+    busyRef.current = true;
     setLoading(true);
     setError(null);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      setError(
-        locale === "ko"
-          ? "이메일 또는 비밀번호가 올바르지 않습니다."
-          : "Invalid email or password."
-      );
+    const fail = (key: LoginError) => {
+      setError(t.errors[key]);
       setLoading(false);
-    } else {
-      window.location.href = `/${locale}`;
+      busyRef.current = false;
+    };
+
+    let signInError: { code?: string; status?: number } | null = null;
+    try {
+      ({ error: signInError } = await supabase.auth.signInWithPassword({ email, password }));
+    } catch {
+      return fail("failed");
     }
+    if (signInError) return fail(loginErrorKey(signInError));
+
+    // The server must see the new session (cookies) before we leave this page;
+    // this also creates a missing profile row.
+    let profile: Awaited<ReturnType<typeof ensureMyProfile>> | "unreachable";
+    try {
+      profile = await ensureMyProfile();
+    } catch {
+      profile = "unreachable";
+    }
+    if (profile === "unauthenticated") {
+      await supabase.auth.signOut().catch(() => {});
+      return fail("session_not_saved");
+    }
+    window.location.href = `/${locale}`;
   }
 
   return (
@@ -116,6 +169,13 @@ export default function LoginForm({ locale }: { locale: "ko" | "en" }) {
 
         {/* Card */}
         <div className="bg-white border border-gray-100 rounded-3xl p-8 flex flex-col gap-5 shadow-xl">
+
+          {/* Notice from the confirmation-link callback */}
+          {notice && !error && (
+            <div role="status" className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-700">
+              {t.notices[notice]}
+            </div>
+          )}
 
           {/* Error */}
           {error && (

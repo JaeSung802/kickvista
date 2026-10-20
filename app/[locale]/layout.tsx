@@ -5,7 +5,7 @@ import Footer from "@/components/layout/Footer";
 import AdAnchor from "@/components/ads/AdAnchor";
 import SettlementModal from "@/components/notifications/SettlementModal";
 import { getDictionary, isValidLocale, type Locale } from "@/lib/i18n";
-import { getServerUser, getServerProfile } from "@/lib/auth";
+import { getServerUser, loadServerProfile, ensureProfile, type ProfileLoad } from "@/lib/auth";
 import { getRank } from "@/lib/ranks";
 
 export async function generateStaticParams() {
@@ -60,7 +60,7 @@ export default async function LocaleLayout({
   ]);
   let navUser: {
     nickname: string;
-    points: number;
+    points: number | null;
     rankBadge: string;
     avatarUrl?: string;
     avatarBorderColor?: string;
@@ -68,8 +68,15 @@ export default async function LocaleLayout({
   } | null = null;
 
   if (supabaseUser) {
-    const profile = await getServerProfile(supabaseUser.id);
-    if (profile) {
+    // A signed-in user without a profile row (e.g. an e-mail sign-up whose
+    // confirmation link was opened in another browser) gets one here instead
+    // of being shown as signed out.
+    let load: ProfileLoad = await loadServerProfile(supabaseUser.id);
+    if (load.status === "missing" && (await ensureProfile(supabaseUser)) === "created") {
+      load = await loadServerProfile(supabaseUser.id);
+    }
+    if (load.status === "ok") {
+      const profile = load.profile;
       const rank = getRank(profile.total_points);
       navUser = {
         nickname: profile.nickname,
@@ -78,6 +85,14 @@ export default async function LocaleLayout({
         avatarUrl: profile.avatar_url ?? undefined,
         avatarBorderColor: profile.avatar_border_color ?? undefined,
         titleBadge: profile.title_badge ?? undefined,
+      };
+    } else {
+      // Still signed in: show the account menu (sign-out works) without points.
+      const meta = supabaseUser.user_metadata?.nickname;
+      navUser = {
+        nickname: typeof meta === "string" && meta.trim() ? meta.trim() : (supabaseUser.email?.split("@")[0] ?? "—"),
+        points: null,
+        rankBadge: getRank(0).badge,
       };
     }
   }

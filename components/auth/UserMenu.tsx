@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 interface UserMenuProps {
   user: {
     nickname: string;
-    points: number;
+    points: number | null;
     rankBadge: string;
     avatarUrl?: string;
     avatarBorderColor?: string;
@@ -96,7 +96,7 @@ export default function UserMenu({ user, locale }: UserMenuProps) {
             )}
           </div>
           <div className="text-xs text-gray-400 leading-tight">
-            {user.points.toLocaleString()} pts
+            {user.points === null ? "—" : user.points.toLocaleString()} pts
           </div>
         </div>
 

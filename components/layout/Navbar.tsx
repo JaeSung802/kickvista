@@ -9,7 +9,7 @@ interface NavbarProps {
   locale: "ko" | "en";
   user?: {
     nickname: string;
-    points: number;
+    points: number | null;
     rankBadge: string;
     avatarUrl?: string;
     avatarBorderColor?: string;
@@ -161,7 +161,7 @@ export default function Navbar({ locale, user, dict }: NavbarProps) {
                   className="text-xs font-bold tabular-nums"
                   style={{ color: "#b45309" }}
                 >
-                  {user.points.toLocaleString()}
+                  {user.points === null ? "—" : user.points.toLocaleString()}
                 </span>
               </a>
             )}
