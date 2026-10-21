@@ -357,6 +357,7 @@ export default async function CommunityPostPage({
           isLoggedIn={isLoggedIn}
           userBadge={isLoggedIn ? "🥉" : undefined}
           initialComments={initialComments}
+          currentUserId={user?.id ?? null}
         />
 
         {/* Back link */}

@@ -525,6 +525,9 @@ export interface CommentAuthorData {
   rankColor: string;
 }
 
+/** "deleted" (by its author or a moderator) or "hidden" (by a moderator): shown as a placeholder, no text. */
+export type CommentRemoved = "deleted" | "hidden" | null;
+
 export interface ReplyData {
   id: string;
   author: CommentAuthorData;
@@ -532,6 +535,7 @@ export interface ReplyData {
   likeCount: number;
   createdAt: string;
   timeAgo: string;
+  removed?: CommentRemoved;
 }
 
 export interface CommentData {
@@ -542,6 +546,7 @@ export interface CommentData {
   createdAt: string;
   timeAgo: string;
   replies: ReplyData[];
+  removed?: CommentRemoved;
 }
 
 function buildCommentAuthor(rawAuthor: AuthorJoin | AuthorJoin[] | null): CommentAuthorData {
@@ -556,8 +561,48 @@ function buildCommentAuthor(rawAuthor: AuthorJoin | AuthorJoin[] | null): Commen
   };
 }
 
+interface ThreadRow {
+  id: string;
+  parent_id: string | null;
+  removed: CommentRemoved;
+  content: string | null;
+  like_count: number | null;
+  created_at: string;
+  author_id: string | null;
+  author_nickname: string | null;
+  author_points: number | null;
+}
+
+const REMOVED_AUTHOR: CommentAuthorData = { id: "", nickname: "", rankBadge: "", rankTier: "", rankColor: "#d1d5db" };
+
+function threadToComments(rows: ThreadRow[]): CommentData[] {
+  const toItem = (r: ThreadRow) => ({
+    id:        r.id,
+    author:    r.removed ? REMOVED_AUTHOR
+               : buildCommentAuthor({ id: r.author_id ?? "", nickname: r.author_nickname ?? "unknown", total_points: r.author_points ?? 0 }),
+    content:   r.removed ? "" : r.content ?? "",
+    likeCount: r.removed ? 0 : r.like_count ?? 0,
+    createdAt: r.created_at,
+    timeAgo:   relativeTime(r.created_at),
+    removed:   r.removed ?? null,
+  });
+  return rows
+    .filter((r) => !r.parent_id)
+    .map((c) => ({ ...toItem(c), replies: rows.filter((r) => r.parent_id === c.id).map(toItem) }));
+}
+
+/**
+ * The comment thread of a post. Uses kv_list_post_comments(): deleted and
+ * hidden comments stay in place as placeholders (no text or author), so
+ * replies keep their parent and the list matches comment_count. Falls back
+ * to the old direct read while that function is not installed.
+ */
 export async function listComments(postId: string): Promise<CommentData[]> {
   const supabase = await createClient();
+
+  const { data: thread, error: threadError } = await supabase.rpc("kv_list_post_comments", { p_post_id: postId });
+  if (!threadError) return threadToComments((thread ?? []) as ThreadRow[]);
+  if (threadError.code !== "PGRST202" && threadError.code !== "42883") return [];
 
   const { data, error } = await supabase
     .from("community_comments")
@@ -584,6 +629,7 @@ export async function listComments(postId: string): Promise<CommentData[]> {
     likeCount: c.like_count ?? 0,
     createdAt: c.created_at,
     timeAgo:   relativeTime(c.created_at),
+    removed:   null,
     replies:   replies
       .filter((r) => r.parent_id === c.id)
       .map((r) => ({
@@ -593,8 +639,42 @@ export async function listComments(postId: string): Promise<CommentData[]> {
         likeCount: r.like_count ?? 0,
         createdAt: r.created_at,
         timeAgo:   relativeTime(r.created_at),
+        removed:   null,
       })),
   }));
+}
+
+// ─── deleteComment ────────────────────────────────────────────────
+
+export type DeleteCommentError = "unauthenticated" | "not_found" | "unavailable" | "failed";
+export type DeleteCommentResult = { ok: true; error?: never } | { error: DeleteCommentError; ok?: never };
+
+const COMMENT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Soft-deletes the caller's own comment or reply through
+ * kv_soft_delete_own_comment(): the database checks the author with
+ * auth.uid(); only the comment id is sent. comment_count does not change.
+ */
+export async function deleteComment(postId: string, commentId: string): Promise<DeleteCommentResult> {
+  if (typeof commentId !== "string" || !COMMENT_ID_RE.test(commentId)) return { error: "not_found" };
+  const user = await getServerUser();
+  if (!user) return { error: "unauthenticated" };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("kv_soft_delete_own_comment", { p_comment_id: commentId });
+  if (error) {
+    if (error.code === "PGRST202" || error.code === "42883") return { error: "unavailable" };
+    if (error.code === "28000") return { error: "unauthenticated" };
+    return { error: "failed" };
+  }
+  if (data === "deleted" || data === "already_deleted") {
+    if (typeof postId === "string" && COMMENT_ID_RE.test(postId)) {
+      revalidatePath(`/[locale]/community/post/${postId}`, "page");
+    }
+    return { ok: true };
+  }
+  return { error: "not_found" };
 }
 
 // ─── createComment ────────────────────────────────────────────────
@@ -636,6 +716,7 @@ export async function createComment(
       createdAt: row.created_at,
       timeAgo:   "just now",
       replies:   [],
+      removed:   null,
     },
   };
 }
@@ -679,6 +760,7 @@ export async function createReply(
       likeCount: 0,
       createdAt: row.created_at,
       timeAgo:   "just now",
+      removed:   null,
     },
   };
 }

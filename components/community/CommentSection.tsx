@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import LikeButton from "@/components/community/LikeButton";
 import ReportModal from "@/components/community/ReportModal";
-import { createComment, createReply } from "@/lib/community/actions";
-import type { CommentData, ReplyData } from "@/lib/community/actions";
+import { createComment, createReply, deleteComment } from "@/lib/community/actions";
+import type { CommentData, ReplyData, CommentRemoved, DeleteCommentError } from "@/lib/community/actions";
 
 interface CommentSectionProps {
   postId: string;
@@ -14,6 +14,89 @@ interface CommentSectionProps {
   userNickname?: string;
   userBadge?: string;
   initialComments?: CommentData[];
+  /** Signed-in user's id: shows the delete button on their own comments. */
+  currentUserId?: string | null;
+}
+
+const deleteLabels = {
+  ko: {
+    delete: "삭제",
+    deleting: "삭제 중...",
+    confirm: "이 댓글을 삭제할까요?\n삭제한 댓글은 되돌릴 수 없으며 '삭제된 댓글입니다'로 표시됩니다.",
+    deleted: "삭제된 댓글입니다.",
+    hidden: "숨겨진 댓글입니다.",
+    errors: {
+      unauthenticated: "로그인이 필요합니다. 다시 로그인해 주세요.",
+      not_found: "댓글을 찾을 수 없습니다. 이미 삭제되었거나 숨겨졌을 수 있습니다.",
+      unavailable: "지금은 댓글을 삭제할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+      failed: "댓글을 삭제하지 못했습니다. 다시 시도해 주세요.",
+    } satisfies Record<DeleteCommentError, string>,
+  },
+  en: {
+    delete: "Delete",
+    deleting: "Deleting...",
+    confirm: "Delete this comment?\nYou can't undo this; it will show as 'This comment was deleted.'",
+    deleted: "This comment was deleted.",
+    hidden: "This comment was hidden.",
+    errors: {
+      unauthenticated: "Please sign in again.",
+      not_found: "This comment wasn't found. It may already be deleted or hidden.",
+      unavailable: "Deleting comments isn't available right now. Please try again later.",
+      failed: "Couldn't delete the comment. Please try again.",
+    } satisfies Record<DeleteCommentError, string>,
+  },
+};
+
+type OnDeleted = (commentId: string) => void;
+
+/** Delete control for the author's own comment / reply (confirm, one request at a time). */
+function DeleteCommentButton({ postId, commentId, locale, onDeleted }: { postId: string; commentId: string; locale: "ko" | "en"; onDeleted: OnDeleted }) {
+  const tx = deleteLabels[locale];
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    if (busyRef.current) return;
+    if (!window.confirm(tx.confirm)) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await deleteComment(postId, commentId);
+      if (result.ok) { onDeleted(commentId); return; }
+      setError(tx.errors[result.error] ?? tx.errors.failed);
+    } catch {
+      setError(tx.errors.failed);
+    }
+    busyRef.current = false;
+    setBusy(false);
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleDelete}
+        disabled={busy}
+        data-testid="comment-delete"
+        className={`text-xs font-medium transition-colors ${busy ? "text-gray-300 cursor-not-allowed" : "text-gray-400 hover:text-red-500"}`}
+      >
+        🗑 {busy ? tx.deleting : tx.delete}
+      </button>
+      {error && <span role="alert" className="text-xs text-red-500">{error}</span>}
+    </>
+  );
+}
+
+/** Placeholder for a deleted / hidden comment: no text, author or actions. */
+function RemovedNote({ removed, locale, small }: { removed: CommentRemoved; locale: "ko" | "en"; small?: boolean }) {
+  const tx = deleteLabels[locale];
+  return (
+    <p data-testid="comment-removed" className={`${small ? "text-xs" : "text-sm"} italic text-gray-400 m-0`}>
+      {removed === "hidden" ? tx.hidden : tx.deleted}
+    </p>
+  );
 }
 
 const RANK_COLORS: Record<string, string> = {
@@ -28,19 +111,36 @@ const RANK_COLORS: Record<string, string> = {
 
 function ReplyItem({
   reply,
+  postId,
   locale,
   isLoggedIn,
   loginHref,
+  currentUserId,
+  onDeleted,
 }: {
   reply: ReplyData;
+  postId: string;
   locale: "ko" | "en";
   isLoggedIn: boolean;
   loginHref: string;
+  currentUserId?: string | null;
+  onDeleted: OnDeleted;
 }) {
   const rankColor = reply.author.rankColor ?? RANK_COLORS[reply.author.rankTier] ?? "#9ca3af";
 
+  if (reply.removed) {
+    return (
+      <div className="flex gap-2.5 py-3 border-b border-gray-100 ml-11" data-comment-id={reply.id}>
+        <div className="w-7 h-7 rounded-full bg-gray-100 shrink-0" />
+        <div className="flex-1 min-w-0 flex items-center"><RemovedNote removed={reply.removed} locale={locale} small /></div>
+      </div>
+    );
+  }
+
+  const isMine = !!currentUserId && reply.author.id === currentUserId;
+
   return (
-    <div className="flex gap-2.5 py-3 border-b border-gray-100 ml-11">
+    <div className="flex gap-2.5 py-3 border-b border-gray-100 ml-11" data-comment-id={reply.id}>
       <div
         className="w-7 h-7 rounded-full bg-gray-50 flex items-center justify-center text-sm shrink-0"
         style={{ border: `2px solid ${rankColor}` }}
@@ -53,15 +153,18 @@ function ReplyItem({
           <span className="text-[11px] text-gray-400">{reply.timeAgo}</span>
         </div>
         <p className="text-sm text-gray-700 leading-snug mb-2">{reply.content}</p>
-        <LikeButton
-          initialCount={reply.likeCount}
-          postId={reply.id}
-          locale={locale}
-          isLoggedIn={isLoggedIn}
-          loginHref={loginHref}
-          variant="heart"
-          size="sm"
-        />
+        <div className="flex items-center gap-3.5 flex-wrap">
+          <LikeButton
+            initialCount={reply.likeCount}
+            postId={reply.id}
+            locale={locale}
+            isLoggedIn={isLoggedIn}
+            loginHref={loginHref}
+            variant="heart"
+            size="sm"
+          />
+          {isMine && <DeleteCommentButton postId={postId} commentId={reply.id} locale={locale} onDeleted={onDeleted} />}
+        </div>
       </div>
     </div>
   );
@@ -76,6 +179,8 @@ function CommentItem({
   isLoggedIn,
   loginHref,
   onReplyAdded,
+  currentUserId,
+  onDeleted,
 }: {
   comment: CommentData;
   postId: string;
@@ -83,6 +188,8 @@ function CommentItem({
   isLoggedIn: boolean;
   loginHref: string;
   onReplyAdded: (commentId: string, reply: ReplyData) => void;
+  currentUserId?: string | null;
+  onDeleted: OnDeleted;
 }) {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText]       = useState("");
@@ -92,6 +199,7 @@ function CommentItem({
 
   const rankColor = comment.author.rankColor ?? RANK_COLORS[comment.author.rankTier] ?? "#9ca3af";
   const replies   = comment.replies ?? [];
+  const isMine    = !comment.removed && !!currentUserId && comment.author.id === currentUserId;
 
   async function handleReplySubmit() {
     const text = replyText.trim();
@@ -113,8 +221,43 @@ function CommentItem({
     setShowReplies(true);
   }
 
+  const replyList = showReplies && replies.map((reply) => (
+    <ReplyItem
+      key={reply.id}
+      reply={reply}
+      postId={postId}
+      locale={locale}
+      isLoggedIn={isLoggedIn}
+      loginHref={loginHref}
+      currentUserId={currentUserId}
+      onDeleted={onDeleted}
+    />
+  ));
+
+  if (comment.removed) {
+    // Keeps its place (and its replies) in the thread; no text, author or actions.
+    return (
+      <div className="border-b border-gray-100" data-comment-id={comment.id}>
+        <div className="flex gap-3 py-4">
+          <div className="w-9 h-9 rounded-full bg-gray-100 shrink-0" />
+          <div className="flex-1 min-w-0 flex items-center gap-3 flex-wrap">
+            <RemovedNote removed={comment.removed} locale={locale} />
+            {replies.length > 0 && (
+              <button onClick={() => setShowReplies((p) => !p)} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                {showReplies
+                  ? (locale === "ko" ? `▲ 답글 숨기기` : `▲ Hide replies`)
+                  : (locale === "ko" ? `▼ 답글 ${replies.length}개` : `▼ ${replies.length} replies`)}
+              </button>
+            )}
+          </div>
+        </div>
+        {replyList}
+      </div>
+    );
+  }
+
   return (
-    <div className="border-b border-gray-100">
+    <div className="border-b border-gray-100" data-comment-id={comment.id}>
       {/* Main comment */}
       <div className="flex gap-3 py-4">
         {/* Avatar */}
@@ -146,7 +289,7 @@ function CommentItem({
           <p className="text-sm text-gray-700 leading-relaxed mb-2.5">{comment.content}</p>
 
           {/* Actions */}
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3.5 flex-wrap">
             <LikeButton
               initialCount={comment.likeCount}
               postId={comment.id}
@@ -174,6 +317,7 @@ function CommentItem({
               isLoggedIn={isLoggedIn}
               loginHref={loginHref}
             />
+            {isMine && <DeleteCommentButton postId={postId} commentId={comment.id} locale={locale} onDeleted={onDeleted} />}
             {replies.length > 0 && (
               <button
                 onClick={() => setShowReplies((p) => !p)}
@@ -230,15 +374,7 @@ function CommentItem({
       </div>
 
       {/* Replies */}
-      {showReplies && replies.map((reply) => (
-        <ReplyItem
-          key={reply.id}
-          reply={reply}
-          locale={locale}
-          isLoggedIn={isLoggedIn}
-          loginHref={loginHref}
-        />
-      ))}
+      {replyList}
     </div>
   );
 }
@@ -254,6 +390,7 @@ export default function CommentSection({
   isLoggedIn = false,
   userBadge = "🥉",
   initialComments = [],
+  currentUserId = null,
 }: CommentSectionProps) {
   const [sortBy, setSortBy]           = useState<SortKey>("top");
   const [commentText, setCommentText] = useState("");
@@ -280,6 +417,14 @@ export default function CommentSection({
     setComments((prev) => [result.comment!, ...prev]);
     setLocalCount((c) => c + 1);
     setCommentText("");
+  }
+
+  // A deleted comment keeps its place (and replies) as a placeholder; the
+  // comment count does not change (it counts top-level comments in any state).
+  function handleDeleted(commentId: string) {
+    const strip = <T extends { id: string; content: string; removed?: CommentRemoved }>(c: T): T =>
+      c.id === commentId ? { ...c, content: "", removed: "deleted" } : c;
+    setComments((prev) => prev.map((c) => ({ ...strip(c), replies: (c.replies ?? []).map(strip) })));
   }
 
   function handleReplyAdded(commentId: string, reply: ReplyData) {
@@ -402,6 +547,8 @@ export default function CommentSection({
                 isLoggedIn={isLoggedIn}
                 loginHref={loginHref}
                 onReplyAdded={handleReplyAdded}
+                currentUserId={currentUserId}
+                onDeleted={handleDeleted}
               />
             ))
           )}
