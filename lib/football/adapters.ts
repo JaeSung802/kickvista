@@ -10,7 +10,9 @@
  */
 
 import type { Fixture, Standings, StandingEntry, LeagueSlug } from "./types";
+import type { Locale } from "@/lib/i18n";
 import { LEAGUE_BY_SLUG, LIVE_STATUSES, FINISHED_STATUSES } from "./constants";
+import { fixtureDateKey, fixtureTimeKST } from "./date-helpers";
 
 const LIVE_SET       = new Set(LIVE_STATUSES);
 const FINISHED_SET   = new Set(FINISHED_STATUSES);
@@ -61,13 +63,8 @@ export function fixtureToMatch(
     ? "cancelled"
     : "upcoming";
 
-  // Extract local time string from the ISO date ("HH:MM")
-  const kickOffTime = fixture.date
-    ? new Date(fixture.date).toLocaleTimeString(
-        locale === "ko" ? "ko-KR" : "en-GB",
-        { hour: "2-digit", minute: "2-digit", hour12: false }
-      )
-    : undefined;
+  // Extract KST kick-off time ("HH:mm") — timezone-independent
+  const kickOffTime = fixture.date ? fixtureTimeKST(fixture.date) : undefined;
 
   return {
     id: String(fixture.id),
@@ -86,7 +83,7 @@ export function fixtureToMatch(
     leagueSlug: fixture.leagueSlug,
     leagueFlag: league.flag,
     venue: fixture.venue,
-    date: fixture.date ? fixture.date.slice(0, 10) : undefined,
+    date: fixture.date ? fixtureDateKey(fixture.date) : undefined,
   };
 }
 
@@ -109,7 +106,7 @@ export interface StandingRowViewModel {
   teamId: number;      // API team ID (for CDN logo URL and slug lookup)
   team: string;
   teamKo?: string;
-  displayName: string;  // pre-resolved: teamKo ?? team (Korean-first, English fallback)
+  displayName: string;  // "en" → name; "ko" or no locale → nameKo ?? name
   flag: string;
   logo?: string;       // API logo URL
   played: number;
@@ -134,14 +131,15 @@ function formatGD(gd: number): string {
  * Convert a domain StandingEntry to the view-model row.
  */
 export function standingEntryToRow(
-  entry: StandingEntry
+  entry: StandingEntry,
+  locale?: Locale
 ): StandingRowViewModel {
   return {
     pos: entry.rank,
     teamId: entry.team.id,
     team: entry.team.name,
     teamKo: entry.team.nameKo,
-    displayName: entry.team.nameKo ?? entry.team.name,
+    displayName: locale === "en" ? entry.team.name : (entry.team.nameKo ?? entry.team.name),
     flag: entry.team.flag,
     logo: entry.team.logo,
     played: entry.played,
@@ -161,11 +159,12 @@ export function standingEntryToRow(
  */
 export function standingsToRows(
   standings: Standings,
+  locale?: Locale,
   limit?: number
 ): StandingRowViewModel[] {
   const rows = standings.table
     .sort((a, b) => a.rank - b.rank)
-    .map(standingEntryToRow);
+    .map((entry) => standingEntryToRow(entry, locale));
 
   return limit !== undefined ? rows.slice(0, limit) : rows;
 }

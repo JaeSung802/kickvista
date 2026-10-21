@@ -20,6 +20,8 @@
 import type { Fixture, Standings, MatchDetail, LeagueSlug } from "./types";
 import { LEAGUE_BY_SLUG, SUPPORTED_LEAGUES, LIVE_STATUSES } from "./constants";
 import { getFootballProvider } from "./provider";
+import { FootballApiError } from "./provider/errors";
+import { fixtureDateKey } from "./date-helpers";
 
 const LIVE_SET = new Set(LIVE_STATUSES);
 const FINISHED_SET = new Set(["FT", "AET", "PEN"]);
@@ -60,18 +62,68 @@ function kstDateString(offsetDays = 0): string {
 // ---------------------------------------------------------------------------
 
 /**
+ * Result of the home match query. "Nothing scheduled", "the request failed" and
+ * "no data source configured" are different states and must render differently;
+ * none of them may be filled in with mock fixtures.
+ *
+ *   ok          — fixtures from the API (failedLeagues lists leagues that failed,
+ *                 so the page can say the list is partial)
+ *   empty       — every league answered and none has a fixture in range
+ *   error       — every league that had no fixtures failed to load
+ *   unavailable — no real data source (API key missing, or mock mode outside tests)
+ *
+ * retryAfterSec: how long the failed requests stay in their backoff (a retry
+ * before that is answered without calling the API again).
+ */
+export type HomeMatchesResult =
+  | { status: "ok"; fixtures: Fixture[]; failedLeagues: LeagueSlug[]; retryAfterSec: number }
+  | { status: "empty" }
+  | { status: "error"; failedLeagues: LeagueSlug[]; retryAfterSec: number }
+  | { status: "unavailable" };
+
+/**
+ * Mock fixtures are only allowed when FOOTBALL_MOCK_MODE=true is set on purpose
+ * for local tests / QA — never on a Vercel deployment (Preview or Production).
+ * A missing API key alone makes getFootballProvider() fall back to mock; the
+ * home page treats that as "unavailable" instead of showing invented matches.
+ */
+function homeMockAllowed(): boolean {
+  return process.env.FOOTBALL_MOCK_MODE === "true" && !process.env.VERCEL_ENV;
+}
+
+/**
  * Fetch home-page matches for the 4 main leagues (PL, La Liga, Bundesliga, Serie A).
  *
  * Fallback chain per league:
- *   1. Range query: today → +2 days (timezone Asia/Seoul) — catches today + tomorrow
- *   2. Last 10 finished results       — shown when there's a mid-week break
- *   3. Next 10 upcoming fixtures      — shown during pre-season / international breaks
+ *   1. Range query: 오늘 + 다음 7일 (timezone Asia/Seoul) — finished/live/upcoming 모두 포함
+ *   2. Next 10 upcoming fixtures      — 오늘~7일 범위에 경기가 없을 때 (국제 A매치 기간 등)
  *
- * Returns deduplicated, sorted, max-20 fixtures — always non-empty when the API
- * is healthy and the season is active.
+ * 과거 종료 경기(fetchFixturesLast)는 홈 일정에 사용하지 않는다.
+ * 오늘 날짜의 finished/live/upcoming 경기는 모두 유지된다.
+ *
+ * Both calls run in strict mode, so a league whose request failed is reported in
+ * failedLeagues instead of being counted as "no matches".
+ *
+ * Returns deduplicated, kickoff-sorted fixtures for the first 3 match days found.
  */
-export async function queryHomeMatches(): Promise<Fixture[]> {
+/** False when the home page has no real football data source (see homeMockAllowed). */
+export function isHomeFootballDataAvailable(): boolean {
+  return !getFootballProvider().isMockMode || homeMockAllowed();
+}
+
+/** Where the home's football data comes from — rendered as a page marker for QA. */
+export function homeFootballSource(): "api" | "mock" | "none" {
+  if (!isHomeFootballDataAvailable()) return "none";
+  return getFootballProvider().isMockMode ? "mock" : "api";
+}
+
+export async function queryHomeMatches(): Promise<HomeMatchesResult> {
   const provider = getFootballProvider();
+  if (!isHomeFootballDataAvailable()) {
+    console.error("[queryHomeMatches] no real football data source (API key missing or mock mode not allowed)");
+    return { status: "unavailable" };
+  }
+
   const HOME_SLUGS: LeagueSlug[] = ["premier-league", "la-liga", "bundesliga", "serie-a"];
 
   // Filter out any slug that isn't registered in LEAGUE_BY_SLUG — prevents
@@ -86,44 +138,46 @@ export async function queryHomeMatches(): Promise<Fixture[]> {
   // KST dates: using toISOString() would return UTC and show yesterday's date
   // in Korean morning hours (UTC+9 is 9 h ahead of UTC).
   const from = kstDateString(0);
-  const to   = kstDateString(2);
+  const to   = kstDateString(7);
 
   // calendar year vs football season: 2026 calendar year → season param 2025 (2025-26)
   console.log(`[queryHomeMatches] KST: ${from}→${to} | calYear=${new Date().getFullYear()} season=${leagues[0]?.season}`);
 
-  const allFixtures = await Promise.all(
-    leagues.map(async (league): Promise<Fixture[]> => {
-      // 1st: date range (today → +2 days, KST)
+  let retryAfterMs = 0;
+  const noteRetry = (err: unknown) => {
+    if (err instanceof FootballApiError && err.retryAfterMs) retryAfterMs = Math.max(retryAfterMs, err.retryAfterMs);
+  };
+
+  const perLeague = await Promise.all(
+    leagues.map(async (league): Promise<{ slug: LeagueSlug; fixtures: Fixture[]; failed: boolean }> => {
+      // 1st: date range (today → +7 days, KST)
       try {
-        const primary = await provider.fetchFixturesRange(league.id, from, to, league.season);
-        if (primary.length > 0) return primary;
+        const primary = await provider.fetchFixturesRange(league.id, from, to, league.season, { strict: true });
+        if (primary.length > 0) return { slug: league.slug, fixtures: primary, failed: false };
       } catch (err) {
         console.error(`[matches] league=${league.id} primary failed:`, err);
+        noteRetry(err);
       }
 
-      // 2nd: last 10 finished
+      // 2nd: next 10 upcoming
       try {
-        const last = await provider.fetchFixturesLast(league.id, league.season, 10);
-        if (last.length > 0) return last;
-      } catch (err) {
-        console.error(`[matches] league=${league.id} fallback last failed:`, err);
-      }
-
-      // 3rd: next 10 upcoming
-      try {
-        const next = await provider.fetchFixturesNext(league.id, league.season, 10);
-        return next;
+        const next = await provider.fetchFixturesNext(league.id, league.season, 10, { strict: true });
+        return { slug: league.slug, fixtures: next, failed: false };
       } catch (err) {
         console.error(`[matches] league=${league.id} fallback next failed:`, err);
-        return [];
+        noteRetry(err);
+        return { slug: league.slug, fixtures: [], failed: true };
       }
     })
   );
 
-  // Dedupe by fixture.id, sort by kickoff time, cap at 20
+  const failedLeagues = perLeague.filter((r) => r.failed).map((r) => r.slug);
+  const retryAfterSec = failedLeagues.length > 0 ? Math.ceil(retryAfterMs / 1000) : 0;
+
+  // Dedupe by fixture.id, sort by kickoff time
   const seen = new Set<number>();
   const merged: Fixture[] = [];
-  for (const fixtures of allFixtures) {
+  for (const { fixtures } of perLeague) {
     for (const f of fixtures) {
       if (!seen.has(f.id)) {
         seen.add(f.id);
@@ -132,7 +186,25 @@ export async function queryHomeMatches(): Promise<Fixture[]> {
     }
   }
   merged.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  return merged.slice(0, 20);
+
+  if (merged.length === 0) {
+    return failedLeagues.length > 0 ? { status: "error", failedLeagues, retryAfterSec } : { status: "empty" };
+  }
+
+  // 가장 이른 고유 날짜 3개를 선택해 그 날짜의 경기를 모두 반환한다.
+  // fixtureDateKey: RealProvider(+09:00 offset)와 MockProvider(UTC Z) 모두 KST 날짜 보장.
+  const firstThreeDates = [
+    ...new Set(merged.map((fixture) => fixtureDateKey(fixture.date))),
+  ].slice(0, 3);
+
+  const allowedDates = new Set(firstThreeDates);
+
+  return {
+    status: "ok",
+    fixtures: merged.filter((fixture) => allowedDates.has(fixtureDateKey(fixture.date))),
+    failedLeagues,
+    retryAfterSec,
+  };
 }
 
 /**
@@ -257,7 +329,8 @@ export async function queryRecentResults(
  * Fetch the standings table for a single league.
  */
 export async function queryStandings(
-  leagueSlug: LeagueSlug
+  leagueSlug: LeagueSlug,
+  opts?: { strict?: boolean }
 ): Promise<Standings | null> {
   const provider = getFootballProvider();
   const league = LEAGUE_BY_SLUG[leagueSlug];
@@ -266,7 +339,8 @@ export async function queryStandings(
     return null;
   }
   try {
-    const result = await provider.fetchStandings(league.id, league.season);
+    // strict (home): a failed request is not cached, so the next view can recover
+    const result = await provider.fetchStandings(league.id, league.season, opts);
     return result;
   } catch (err) {
     console.error(`[query] fetchStandings failed for ${leagueSlug}:`, err);

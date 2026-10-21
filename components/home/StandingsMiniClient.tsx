@@ -18,9 +18,11 @@ const LEAGUE_TABS = [
 interface Props {
   standingsData: StandingsMap;
   locale: Locale;
+  /** true when there is no real football data source — standings were not requested */
+  unavailable?: boolean;
 }
 
-export default function StandingsMiniClient({ standingsData, locale }: Props) {
+export default function StandingsMiniClient({ standingsData, locale, unavailable = false }: Props) {
   const isKo = locale === "ko";
 
   // Default to first league that has data
@@ -77,8 +79,12 @@ export default function StandingsMiniClient({ standingsData, locale }: Props) {
         style={{ animation: "fadeIn 0.18s ease" }}
       >
         {rows.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-6">
-            {isKo ? "데이터 없음" : "No data"}
+          // A missing table is a failed or skipped request (the provider returns
+          // null for both), never an empty league — so say it can't be shown.
+          <p className="text-xs text-gray-400 text-center py-6" data-home-state="standings-none">
+            {unavailable
+              ? (isKo ? "지금은 순위 정보를 제공할 수 없습니다" : "Standings are not available right now")
+              : (isKo ? "순위 정보를 불러오지 못했습니다" : "Couldn't load standings")}
           </p>
         ) : (
           <>

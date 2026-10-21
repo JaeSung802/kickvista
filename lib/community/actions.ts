@@ -90,6 +90,8 @@ export interface ListPostsResult {
   page: number;
   pageSize: number;
   hasMore: boolean;
+  /** true when the query failed (posts is then empty, not "no posts") */
+  failed?: boolean;
 }
 
 export async function listPosts({
@@ -140,7 +142,7 @@ export async function listPosts({
 
   if (error || !data) {
     console.error("[listPosts] query error:", error?.message, error?.details, error?.hint);
-    return { posts: [], total: 0, page, pageSize: limit, hasMore: false };
+    return { posts: [], total: 0, page, pageSize: limit, hasMore: false, failed: true };
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

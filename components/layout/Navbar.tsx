@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import LocaleSwitcher from "@/components/layout/LocaleSwitcher";
 import UserMenu from "@/components/auth/UserMenu";
@@ -58,18 +58,25 @@ const defaultLabels = {
 
 export default function Navbar({ locale, user, dict }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen,   setMoreOpen]   = useState(false);
   const pathname = usePathname();
-  const labels = { ...defaultLabels[locale], ...dict };
+  const labels   = { ...defaultLabels[locale], ...dict };
+  const moreRef  = useRef<HTMLDivElement>(null);
 
-  const navLinks = [
-    { label: labels.home,       href: `/${locale}` },
-    { label: labels.leagues,    href: `/${locale}/leagues` },
-    { label: labels.matches,    href: `/${locale}/league/epl` },
-    { label: labels.standings,  href: `/${locale}/league/epl/standings` },
-    { label: labels.aiPicks,    href: `/${locale}/analysis` },
+  // ── 6 primary links shown directly in the desktop nav ──────────────────────
+  const primaryLinks = [
+    { label: labels.home,      href: `/${locale}` },
+    { label: labels.matches,   href: `/${locale}/league/epl` },
+    { label: labels.leagues,   href: `/${locale}/leagues` },
+    { label: labels.standings, href: `/${locale}/league/epl/standings` },
+    { label: labels.aiPicks,   href: `/${locale}/analysis` },
+    { label: labels.community, href: `/${locale}/community` },
+  ];
+
+  // ── 4 overflow links in the "More" dropdown ─────────────────────────────────
+  const moreLinks = [
     { label: labels.transfers,  href: `/${locale}/transfers` },
     { label: labels.teams,      href: `/${locale}/team` },
-    { label: labels.community,  href: `/${locale}/community` },
     { label: labels.notice,     href: `/${locale}/notice` },
     { label: labels.attendance, href: `/${locale}/attendance` },
   ];
@@ -80,6 +87,30 @@ export default function Navbar({ locale, user, dict }: NavbarProps) {
     if (path === `/${locale}`) return current === `/${locale}`;
     return current.startsWith(path);
   }
+
+  const moreIsActive = moreLinks.some((link) => isActive(link.href));
+
+  // Close More dropdown on outside click or Escape
+  useEffect(() => {
+    if (!moreOpen) return;
+
+    function onMouseDown(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMoreOpen(false);
+    }
+
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown",   onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown",   onKeyDown);
+    };
+  }, [moreOpen]);
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
@@ -119,26 +150,80 @@ export default function Navbar({ locale, user, dict }: NavbarProps) {
             </span>
           </a>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-0.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            {navLinks.map((link) => {
+          {/* Desktop Nav — xl+ only */}
+          <nav
+            className="hidden xl:flex items-center gap-0.5"
+            aria-label={locale === "ko" ? "기본 메뉴" : "Main navigation"}
+          >
+            {primaryLinks.map((link) => {
               const active = isActive(link.href);
               return (
                 <a
-                  key={link.label}
+                  key={link.href}
                   href={link.href}
-                  className={`
-                    px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap
-                    ${active
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                    active
                       ? "text-emerald-600 bg-emerald-50"
                       : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                    }
-                  `}
+                  }`}
                 >
                   {link.label}
                 </a>
               );
             })}
+
+            {/* More dropdown */}
+            <div ref={moreRef} className="relative">
+              <button
+                onClick={() => setMoreOpen((prev) => !prev)}
+                aria-expanded={moreOpen}
+                aria-haspopup="menu"
+                aria-controls="more-dropdown"
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  moreIsActive || moreOpen
+                    ? "text-emerald-600 bg-emerald-50"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                }`}
+              >
+                {locale === "ko" ? "더보기" : "More"}
+                <svg
+                  className={`w-3.5 h-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {moreOpen && (
+                <div
+                  id="more-dropdown"
+                  role="menu"
+                  className="absolute top-full right-0 mt-1 w-44 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50"
+                >
+                  {moreLinks.map((link) => {
+                    const active = isActive(link.href);
+                    return (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        role="menuitem"
+                        onClick={() => setMoreOpen(false)}
+                        className={`block px-4 py-2.5 text-sm font-medium transition-colors ${
+                          active
+                            ? "text-emerald-600 bg-emerald-50"
+                            : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
+                        }`}
+                      >
+                        {link.label}
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </nav>
 
           {/* Right: locale + coin badge + auth + mobile toggle */}
@@ -167,15 +252,18 @@ export default function Navbar({ locale, user, dict }: NavbarProps) {
             )}
 
             <div className="hidden sm:inline-flex flex-shrink-0">
-              <UserMenu
-                user={user ?? null}
-                locale={locale}
-              />
+              <UserMenu user={user ?? null} locale={locale} />
             </div>
 
+            {/* Hamburger — xl:hidden */}
             <button
-              className="md:hidden p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-              aria-label="Toggle menu"
+              className="xl:hidden p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+              aria-label={
+                mobileOpen
+                  ? (locale === "ko" ? "메뉴 닫기" : "Close menu")
+                  : (locale === "ko" ? "메뉴 열기" : "Open menu")
+              }
+              aria-expanded={mobileOpen}
               onClick={() => setMobileOpen((prev) => !prev)}
             >
               {mobileOpen ? (
@@ -192,23 +280,21 @@ export default function Navbar({ locale, user, dict }: NavbarProps) {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile menu — xl:hidden, all 10 links in a single column */}
       {mobileOpen && (
-        <div className="md:hidden bg-white border-t border-gray-200">
+        <div className="xl:hidden bg-white border-t border-gray-200">
           <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col gap-0.5">
-            {navLinks.map((link) => {
+            {[...primaryLinks, ...moreLinks].map((link) => {
               const active = isActive(link.href);
               return (
                 <a
-                  key={link.label}
+                  key={link.href}
                   href={link.href}
-                  className={`
-                    px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
-                    ${active
+                  className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    active
                       ? "text-emerald-600 bg-emerald-50"
                       : "text-gray-700 hover:text-gray-900 hover:bg-gray-100"
-                    }
-                  `}
+                  }`}
                   onClick={() => setMobileOpen(false)}
                 >
                   {link.label}
@@ -216,9 +302,8 @@ export default function Navbar({ locale, user, dict }: NavbarProps) {
               );
             })}
 
-            {/* Mobile auth */}
-            <div className="flex items-center gap-3 pt-3 mt-1 border-t border-gray-200">
-              <LocaleSwitcher currentLocale={locale} />
+            {/* Auth row — sm:hidden; LocaleSwitcher is always in the header, only UserMenu here */}
+            <div className="sm:hidden flex items-center gap-3 pt-3 mt-1 border-t border-gray-200">
               <UserMenu user={user ?? null} locale={locale} />
             </div>
           </div>

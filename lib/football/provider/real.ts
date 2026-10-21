@@ -8,6 +8,8 @@ import {
   normalizeTeam,
 } from "../normalizer";
 import { CACHE_TTL, cacheTags } from "../cache";
+import { unstable_cache } from "next/cache";
+import { FootballApiError, type FootballApiErrorKind, type FootballFetchOptions } from "./errors";
 
 // ---------------------------------------------------------------------------
 // KST date helper (UTC+9)
@@ -68,6 +70,25 @@ function cacheSet(key: string, data: unknown, ttlSeconds: number): void {
 }
 
 // ---------------------------------------------------------------------------
+// Strict requests (home page): failure backoff + in-flight coalescing
+//
+// Strict results are cached through unstable_cache, which stores only what the
+// callback returns: a validated API response, including a valid empty list.
+// Failures throw, so they never reach the shared Data Cache and a retry can
+// recover as soon as the API is healthy again. Without that cache, every page
+// view during an outage would call the API again, so a failed URL is not
+// requested again from this instance for 30 s, doubling up to 5 min while it
+// keeps failing (reset on success). Concurrent misses for the same URL in this
+// instance share one request.
+// ---------------------------------------------------------------------------
+
+const FAILURE_BACKOFF_MS = 30_000;
+const FAILURE_BACKOFF_MAX_MS = 300_000;
+
+const _failures = new Map<string, { count: number; until: number; kind: FootballApiErrorKind }>();
+const _inflight = new Map<string, Promise<unknown>>();
+
+// ---------------------------------------------------------------------------
 // RealFootballProvider
 //
 // Caching strategy:
@@ -108,13 +129,21 @@ export class RealFootballProvider implements IFootballProvider {
    *                   • bypasses the in-process Map cache (uses only a 5-second
    *                     dedup TTL to coalesce parallel requests in the same cycle)
    *                   Use for all date-sensitive fixture queries.
+   * @param throwOnError When true, failures throw FootballApiError instead of
+   *                   returning the empty shape `{ response: [] }` (used by strictFetch).
    */
   private async apiFetch<T>(
     path: string,
     revalidate: number,
     tags?: string[],
     noStore = false,
+    throwOnError = false,
   ): Promise<T> {
+    const fail = (kind: FootballApiErrorKind): T => {
+      if (throwOnError) throw new FootballApiError(kind, path);
+      return { response: [] } as T;
+    };
+
     const url = `https://${this.host}${path}`;
 
     // ── In-process dedup cache ────────────────────────────────────────────────
@@ -157,19 +186,20 @@ export class RealFootballProvider implements IFootballProvider {
       } else {
         console.error("[real-provider] Network error for", path, fetchErr);
       }
-      return { response: [] } as T;
+      return fail((fetchErr as Error).message === "TIMEOUT" ? "timeout" : "network");
     }
 
     const text = await res.text();
 
     // ── Rate limit handling ───────────────────────────────────────────────────
     if (!res.ok || res.status === 429) {
-      if (text.includes("rateLimit") || text.includes("Too many requests")) {
+      const rateLimited = text.includes("rateLimit") || text.includes("Too many requests");
+      if (rateLimited) {
         console.warn("[real-provider] RATE LIMIT hit for", path, "— returning empty shape");
       } else {
         console.error("[real-provider] HTTP", res.status, "for", path, text.slice(0, 300));
       }
-      return { response: [] } as T;
+      return fail(rateLimited ? "rate_limit" : "http");
     }
 
     let json: T;
@@ -177,7 +207,7 @@ export class RealFootballProvider implements IFootballProvider {
       json = JSON.parse(text) as T;
     } catch (parseErr) {
       console.error("[real-provider] JSON parse failed for", path, parseErr);
-      return { response: [] } as T;
+      return fail("parse");
     }
 
     // ── API-level error check (HTTP 200 with error body) ──────────────────────
@@ -190,12 +220,13 @@ export class RealFootballProvider implements IFootballProvider {
 
     if (hasErrors) {
       const errStr = JSON.stringify(errors);
-      if (errStr.includes("rateLimit") || errStr.includes("Too many")) {
+      const rateLimited = errStr.includes("rateLimit") || errStr.includes("Too many");
+      if (rateLimited) {
         console.warn("[real-provider] API rate-limit in body for", path, "— returning empty shape");
       } else {
         console.error("[real-provider] API-level errors for", path, errStr);
       }
-      return { response: [] } as T;
+      return fail(rateLimited ? "rate_limit" : "api_error");
     }
 
     // ── 배포 확인용 응답 로그 ─────────────────────────────────────────────────
@@ -219,6 +250,52 @@ export class RealFootballProvider implements IFootballProvider {
     cacheSet(url, json, dedupTtl);
 
     return json;
+  }
+
+  /**
+   * Strict request: a validated response (an empty list included) is cached for
+   * `revalidate` seconds in the shared Data Cache; a failure throws
+   * FootballApiError and is not cached (see the backoff notes above).
+   */
+  private async strictFetch<T>(path: string, revalidate: number, tags?: string[]): Promise<T> {
+    const url = `https://${this.host}${path}`;
+
+    const cached = cacheGet<T>(url);
+    if (cached !== undefined) return cached;
+
+    const failed = _failures.get(url);
+    if (failed && failed.until > Date.now()) {
+      throw new FootballApiError(failed.kind, path, failed.until - Date.now());
+    }
+
+    let pending = _inflight.get(url) as Promise<T> | undefined;
+    if (!pending) {
+      pending = unstable_cache(
+        // no-store: the raw response must not land in the fetch cache; only the
+        // validated result returned here is cached.
+        () => this.apiFetch<T>(path, revalidate, undefined, true, true),
+        ["football-api-strict", url],
+        { revalidate, ...(tags?.length ? { tags } : {}) },
+      )().then(
+        (json) => {
+          _failures.delete(url);
+          cacheSet(url, json, revalidate);
+          return json;
+        },
+        (err) => {
+          if (!(err instanceof FootballApiError)) throw err;
+          // Recorded once per request, however many callers share it.
+          const prev = _failures.get(url);
+          const count = prev && prev.until + FAILURE_BACKOFF_MAX_MS > Date.now() ? prev.count + 1 : 1;
+          const wait = Math.min(FAILURE_BACKOFF_MS * 2 ** (count - 1), FAILURE_BACKOFF_MAX_MS);
+          _failures.set(url, { count, until: Date.now() + wait, kind: err.kind });
+          throw new FootballApiError(err.kind, path, wait);
+        },
+      );
+      _inflight.set(url, pending);
+      pending.then(() => _inflight.delete(url), () => _inflight.delete(url));
+    }
+    return pending;
   }
 
   // ---------------------------------------------------------------------------
@@ -247,13 +324,12 @@ export class RealFootballProvider implements IFootballProvider {
     return normalized;
   }
 
-  async fetchStandings(leagueId: number, season: number): Promise<Standings | null> {
-    const data = await this.apiFetch<{ response: unknown[] }>(
-      `/standings?league=${leagueId}&season=${season}`,
-      CACHE_TTL.STANDINGS,
-      cacheTags("standings", leagueId),
+  async fetchStandings(leagueId: number, season: number, opts?: FootballFetchOptions): Promise<Standings | null> {
+    const path = `/standings?league=${leagueId}&season=${season}`;
+    const data = opts?.strict
+      ? await this.strictFetch<{ response: unknown[] }>(path, CACHE_TTL.STANDINGS, cacheTags("standings", leagueId))
       // noStore = false (default) — standings change only after FT; caching is fine
-    );
+      : await this.apiFetch<{ response: unknown[] }>(path, CACHE_TTL.STANDINGS, cacheTags("standings", leagueId));
 
     if (!data?.response?.length) {
       console.warn(`[real-provider] fetchStandings league=${leagueId} season=${season}: empty response`);
@@ -375,17 +451,16 @@ export class RealFootballProvider implements IFootballProvider {
     leagueId: number,
     from: string,
     to: string,
-    season?: number
+    season?: number,
+    opts?: FootballFetchOptions
   ): Promise<Fixture[]> {
     const league = SUPPORTED_LEAGUES.find((l) => l.id === leagueId);
     const resolvedSeason = season ?? league?.season ?? new Date().getFullYear();
 
-    const data = await this.apiFetch<{ response: unknown[] }>(
-      `/fixtures?from=${from}&to=${to}&league=${leagueId}&season=${resolvedSeason}&timezone=Asia%2FSeoul`,
-      CACHE_TTL.FIXTURES_TODAY,
-      cacheTags("fixtures", leagueId),
-      // noStore = false — ISR 캐시 활용
-    );
+    const path = `/fixtures?from=${from}&to=${to}&league=${leagueId}&season=${resolvedSeason}&timezone=Asia%2FSeoul`;
+    const data = opts?.strict
+      ? await this.strictFetch<{ response: unknown[] }>(path, CACHE_TTL.FIXTURES_TODAY, cacheTags("fixtures", leagueId))
+      : await this.apiFetch<{ response: unknown[] }>(path, CACHE_TTL.FIXTURES_TODAY, cacheTags("fixtures", leagueId)); // ISR 캐시 활용
 
     const raw = data?.response ?? [];
     return normalizeFixtures(raw, resolvedSeason);
@@ -410,14 +485,13 @@ export class RealFootballProvider implements IFootballProvider {
   async fetchFixturesNext(
     leagueId: number,
     season: number,
-    n: number
+    n: number,
+    opts?: FootballFetchOptions
   ): Promise<Fixture[]> {
-    const data = await this.apiFetch<{ response: unknown[] }>(
-      `/fixtures?league=${leagueId}&season=${season}&status=NS&next=${n}`,
-      CACHE_TTL.FIXTURES_TODAY,
-      cacheTags("fixtures", leagueId),
-      // noStore = false — ISR 캐시 활용
-    );
+    const path = `/fixtures?league=${leagueId}&season=${season}&status=NS&next=${n}&timezone=Asia%2FSeoul`;
+    const data = opts?.strict
+      ? await this.strictFetch<{ response: unknown[] }>(path, CACHE_TTL.FIXTURES_TODAY, cacheTags("fixtures", leagueId))
+      : await this.apiFetch<{ response: unknown[] }>(path, CACHE_TTL.FIXTURES_TODAY, cacheTags("fixtures", leagueId)); // ISR 캐시 활용
 
     const raw = data?.response ?? [];
     return normalizeFixtures(raw, season);

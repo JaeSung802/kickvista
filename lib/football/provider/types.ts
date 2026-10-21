@@ -1,4 +1,5 @@
 import type { Fixture, Standings, MatchDetail, Team, H2HData, TeamStatistics, FixturePlayerStats } from "../types";
+import type { FootballFetchOptions } from "./errors";
 
 /**
  * IFootballProvider
@@ -25,7 +26,7 @@ export interface IFootballProvider {
    * Fetch the standings table for a given league and season.
    * Returns null if the data cannot be retrieved.
    */
-  fetchStandings(leagueId: number, season: number): Promise<Standings | null>;
+  fetchStandings(leagueId: number, season: number, opts?: FootballFetchOptions): Promise<Standings | null>;
 
   /**
    * Fetch full match detail (events, statistics, lineups) for a single fixture.
@@ -48,8 +49,9 @@ export interface IFootballProvider {
   /**
    * Fetch fixtures within a date range (inclusive) with KST timezone.
    * More reliable than single-date query for cross-midnight kick-offs.
+   * With `{ strict: true }` a failed request throws FootballApiError instead of returning [].
    */
-  fetchFixturesRange(leagueId: number, from: string, to: string, season?: number): Promise<Fixture[]>;
+  fetchFixturesRange(leagueId: number, from: string, to: string, season?: number, opts?: FootballFetchOptions): Promise<Fixture[]>;
 
   /**
    * Fetch the N most recent finished fixtures for a league.
@@ -59,9 +61,10 @@ export interface IFootballProvider {
 
   /**
    * Fetch the N next scheduled (NS) fixtures for a league.
-   * Last-resort fallback so the home page always shows something.
+   * Fallback when the date-range query returns nothing.
+   * With `{ strict: true }` a failed request throws FootballApiError instead of returning [].
    */
-  fetchFixturesNext(leagueId: number, season: number, n: number): Promise<Fixture[]>;
+  fetchFixturesNext(leagueId: number, season: number, n: number, opts?: FootballFetchOptions): Promise<Fixture[]>;
 
   /**
    * Fetch head-to-head record between two teams (last 10 matches).

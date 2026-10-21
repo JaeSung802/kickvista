@@ -60,6 +60,7 @@ export async function listHotPosts({
     page,
     pageSize: limit,
     hasMore: offset + limit < total,
+    ...(pool.failed ? { failed: true } : {}),
   };
 }
 

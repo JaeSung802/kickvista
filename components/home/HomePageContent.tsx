@@ -1,11 +1,10 @@
 /**
  * HomePageContent — Server Component (assembler)
  *
- * Portal-style 2-column layout:
- * - Left (2/3): Today's matches + Community hot posts
- * - Right (1/3): Standings mini + AI Analysis CTA + Notices
- *
- * Visually distinct from league pages via dark hero + portal layout.
+ * 3-column dashboard layout:
+ * - Left  (xl 3/12): Popular league rail — sticky, xl+ only
+ * - Center (xl 6/12, lg 2/3): Today's matches + Community hot posts
+ * - Right  (xl 3/12, lg 1/3): Standings mini + AI Analysis CTA + Notices
  */
 
 import type { Locale } from "@/lib/i18n";
@@ -19,16 +18,35 @@ import AdSidebar from "@/components/ads/AdSidebar";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { LeagueLogo } from "@/components/ui/LeagueLogo";
 import StandingsMiniClient from "./StandingsMiniClient";
+import HomeRetryButton from "./HomeRetryButton";
 import { WorldCupGroupsDynamic, KoreaMatchScheduleDynamic } from "@/components/worldcup/WorldCupLoaders";
 import { isWorldCupVisible } from "@/lib/worldcup/visibility";
 
 export type StandingsMap = Partial<Record<string, StandingRowViewModel[]>>;
 
+/**
+ * Home match list state. Only "ok" carries matches; the other states render
+ * their own message and never fall back to mock or placeholder fixtures.
+ * partial = some leagues failed to load, the list shows the ones that answered.
+ */
+export type HomeMatchesState =
+  | { status: "ok"; matches: MatchViewModel[]; partial: boolean; retryAfterSec: number }
+  | { status: "empty" }
+  | { status: "error"; retryAfterSec: number }
+  | { status: "unavailable" };
+
 interface HomePageContentProps {
   locale: Locale;
-  matches: MatchViewModel[];
+  matchesState: HomeMatchesState;
+  /** "api" | "mock" | "none" — rendered as data-football-source for QA (no secrets) */
+  footballSource?: string;
   standingsData: StandingsMap;
+  /** true when there is no real football data source (standings were not requested) */
+  standingsUnavailable?: boolean;
   hotPosts: PostListItem[];
+  hotPostsFailed?: boolean;
+  dateFilter?: string;
+  viewFilter?: string;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -57,6 +75,34 @@ export function SectionHeader({
   );
 }
 
+// ─── Empty / failure message box ──────────────────────────────────────────────
+
+function StatusBox({
+  tone,
+  message,
+  retry,
+  retryAfterSec = 0,
+  locale,
+}: {
+  tone: "empty" | "error";
+  message: string;
+  retry?: boolean;
+  retryAfterSec?: number;
+  locale: Locale;
+}) {
+  return (
+    <div
+      role={tone === "error" ? "alert" : "status"}
+      data-home-state={tone}
+      className="bg-white border border-gray-200 rounded-xl py-12 px-4 text-center shadow-sm flex flex-col items-center gap-3"
+    >
+      <span className="text-3xl" aria-hidden="true">{tone === "error" ? "⚠️" : "⚽"}</span>
+      <p className={`text-sm ${tone === "error" ? "text-gray-600" : "text-gray-400"}`}>{message}</p>
+      {retry && <HomeRetryButton locale={locale} retryAfterSec={retryAfterSec} />}
+    </div>
+  );
+}
+
 // ─── Today's Matches compact list ─────────────────────────────────────────────
 
 function MatchRow({ match, locale }: { match: MatchViewModel; locale: Locale }) {
@@ -66,7 +112,7 @@ function MatchRow({ match, locale }: { match: MatchViewModel; locale: Locale }) 
   const awayWins   = (match.awayScore ?? 0) > (match.homeScore ?? 0);
 
   return (
-    <div className="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors">
+    <div data-match-row={match.id} data-match-status={match.status} className="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors">
       {/* League flag */}
       <span className="text-sm shrink-0 w-5">{match.leagueFlag}</span>
 
@@ -369,22 +415,132 @@ export function QuickLinksBar({ locale }: { locale: Locale }) {
               <span>{isKo ? l.ko : l.en}</span>
             </a>
           ))}
-          <span className="w-px h-4 bg-gray-200 shrink-0 mx-1" />
-          <a
-            href={`/${locale}/analysis`}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-emerald-700 transition-colors whitespace-nowrap"
-          >
-            🤖 {isKo ? "AI 분석" : "AI Analysis"}
-          </a>
-          <a
-            href={`/${locale}/community`}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-emerald-700 transition-colors whitespace-nowrap"
-          >
-            💬 {isKo ? "커뮤니티" : "Community"}
-          </a>
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Date + LIVE filter bar ───────────────────────────────────────────────────
+
+function MatchFilterBar({
+  dates,
+  liveCount,
+  activeDate,
+  activeView,
+  locale,
+  basePath,
+}: {
+  dates: string[];
+  liveCount: number;
+  activeDate: string | undefined;
+  activeView: string | undefined;
+  locale: Locale;
+  basePath: string;
+}) {
+  const isKo = locale === "ko";
+  const isLiveView = activeView === "live";
+  const today = kstToday();
+
+  function buildUrl(date?: string, view?: string) {
+    const qs = new URLSearchParams();
+    if (date) qs.set("date", date);
+    if (view) qs.set("view", view);
+    const q = qs.toString();
+    return q ? `${basePath}?${q}` : basePath;
+  }
+
+  function dateLabel(dateKey: string) {
+    const diffDays = Math.round(
+      (new Date(dateKey).getTime() - new Date(today).getTime()) / 86400000
+    );
+    if (diffDays === 0) return isKo ? "오늘" : "Today";
+    if (diffDays === 1) return isKo ? "내일" : "Tomorrow";
+    if (diffDays === 2) return isKo ? "모레" : "Day after";
+    return formatDateLabel(dateKey, locale, false);
+  }
+
+  return (
+    <div data-match-filters className="flex flex-wrap items-center gap-1.5 pb-2">
+      <a
+        href={buildUrl(undefined, isLiveView ? "live" : undefined)}
+        className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+          !activeDate
+            ? "bg-emerald-600 text-white border-emerald-600"
+            : "bg-white text-gray-500 border-gray-200 hover:border-emerald-400 hover:text-emerald-600"
+        }`}
+      >
+        {isKo ? "전체" : "All"}
+      </a>
+
+      {dates.slice(0, 3).map((d) => (
+        <a
+          key={d}
+          href={buildUrl(d, isLiveView ? "live" : undefined)}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
+            activeDate === d
+              ? "bg-emerald-600 text-white border-emerald-600"
+              : "bg-white text-gray-500 border-gray-200 hover:border-emerald-400 hover:text-emerald-600"
+          }`}
+        >
+          {dateLabel(d)}
+        </a>
+      ))}
+
+      {(liveCount > 0 || isLiveView) && <span className="w-px h-4 bg-gray-200 mx-0.5 shrink-0" />}
+
+      {(liveCount > 0 || isLiveView) && (
+        <a
+          href={buildUrl(activeDate, isLiveView ? undefined : "live")}
+          className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-colors ${
+            isLiveView
+              ? "bg-red-600 text-white border-red-600"
+              : "bg-white text-red-500 border-red-200 hover:border-red-400"
+          }`}
+        >
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500" />
+          </span>
+          {liveCount > 0 ? `LIVE (${liveCount})` : "LIVE"}
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ─── Left league rail (xl+) ───────────────────────────────────────────────────
+
+function HomeLeagueRail({ locale }: { locale: Locale }) {
+  const isKo = locale === "ko";
+  return (
+    <aside aria-label={isKo ? "인기 리그" : "Popular Leagues"} className="sticky top-20">
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-xs font-bold text-gray-600 uppercase tracking-wide">
+            {isKo ? "인기 리그" : "Popular Leagues"}
+          </h2>
+        </div>
+        <div className="p-2 flex flex-col gap-0.5">
+          {LEAGUE_QUICK.map((l) => (
+            <a
+              key={l.href}
+              href={`/${locale}/league/${l.href}`}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors group"
+            >
+              <LeagueLogo
+                logo={l.logo}
+                name={isKo ? l.ko : l.en}
+                flag={l.flag}
+                size={22}
+                className="shrink-0 group-hover:scale-110 transition-transform"
+              />
+              <span className="truncate">{isKo ? l.ko : l.en}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </aside>
   );
 }
 
@@ -392,18 +548,42 @@ export function QuickLinksBar({ locale }: { locale: Locale }) {
 
 export default function HomePageContent({
   locale,
-  matches,
+  matchesState,
+  footballSource,
   standingsData,
+  standingsUnavailable = false,
   hotPosts,
+  hotPostsFailed = false,
+  dateFilter,
+  viewFilter,
 }: HomePageContentProps) {
   const isKo = locale === "ko";
+  const showWorldCup = isWorldCupVisible();
+  const matches = matchesState.status === "ok" ? matchesState.matches : [];
   const adBanner = process.env.NEXT_PUBLIC_ADSENSE_SLOT_BANNER ?? "0000000000";
   const adRect   = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RECTANGLE ?? "1111111111";
 
-  const liveMatches  = matches.filter((m) => m.status === "live");
-  const otherMatches = matches.filter((m) => m.status !== "live");
-  const leagueGroups = groupMatchesByLeague([...liveMatches, ...otherMatches], locale);
-  const showWorldCup = isWorldCupVisible();
+  const uniqueDates = [...new Set(matches.map((m) => m.date ?? "").filter(Boolean))].sort();
+  const validDate   = dateFilter && uniqueDates.includes(dateFilter) ? dateFilter : undefined;
+  const isLiveView  = viewFilter === "live";
+  const liveCount   = matches.filter((m) => m.status === "live").length;
+
+  let filteredMatches = matches;
+  if (validDate)  filteredMatches = filteredMatches.filter((m) => m.date === validDate);
+  if (isLiveView) filteredMatches = filteredMatches.filter((m) => m.status === "live");
+
+  const leagueGroups = groupMatchesByLeague(filteredMatches, locale);
+
+  const today = kstToday();
+  const sectionTitle = (() => {
+    if (isLiveView) return isKo ? "⚽ LIVE 경기" : "⚽ Live Matches";
+    if (!validDate)  return isKo ? "⚽ 경기 일정" : "⚽ Match Schedule";
+    const diffDays = Math.round((new Date(validDate).getTime() - new Date(today).getTime()) / 86400000);
+    if (diffDays === 0) return isKo ? "⚽ 오늘의 경기" : "⚽ Today's Matches";
+    if (diffDays === 1) return isKo ? "⚽ 내일의 경기" : "⚽ Tomorrow's Matches";
+    const dateStr = formatDateLabel(validDate, locale, false);
+    return isKo ? `⚽ ${dateStr} 경기` : `⚽ ${dateStr} Matches`;
+  })();
 
   return (
     <>
@@ -414,13 +594,18 @@ export default function HomePageContent({
         </div>
       </div>
 
-      {/* ── Main 2-col portal layout ── */}
+      {/* ── Main 3-col portal layout ── */}
       <div className="bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-12 gap-6">
 
-            {/* ── LEFT — main content (2/3) ── */}
-            <div className="lg:col-span-2 flex flex-col gap-6">
+            {/* ── LEFT — league rail (xl only, display:none below xl) ── */}
+            <div className="hidden xl:block xl:col-span-3">
+              <HomeLeagueRail locale={locale} />
+            </div>
+
+            {/* ── CENTER — main content ── */}
+            <div className="lg:col-span-2 xl:col-span-6 flex flex-col gap-6">
 
               {/* World Cup Group Standings — 기간 한정 노출 */}
               {showWorldCup && (
@@ -435,20 +620,65 @@ export default function HomePageContent({
               )}
 
               {/* Today's Matches — grouped by league */}
-              <section id="matches">
+              <section id="matches" data-football-source={footballSource}>
                 <SectionHeader
-                  title={isKo ? "⚽ 오늘의 경기" : "⚽ Today's Matches"}
+                  title={sectionTitle}
                   href={`/${locale}/league/premier-league`}
                   linkLabel={isKo ? "전체 리그" : "All leagues"}
                 />
 
-                {leagueGroups.length === 0 ? (
-                  <div className="bg-white border border-gray-200 rounded-xl py-12 text-center shadow-sm">
-                    <span className="text-3xl">⚽</span>
-                    <p className="text-sm text-gray-400 mt-2">
-                      {isKo ? "오늘 예정된 경기가 없습니다" : "No matches scheduled today"}
+                {matchesState.status === "ok" && (
+                  <MatchFilterBar
+                    dates={uniqueDates}
+                    liveCount={liveCount}
+                    activeDate={validDate}
+                    activeView={isLiveView ? "live" : undefined}
+                    locale={locale}
+                    basePath={`/${locale}`}
+                  />
+                )}
+
+                {matchesState.status === "ok" && matchesState.partial && (
+                  <div
+                    role="status"
+                    data-home-state="partial"
+                    className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5"
+                  >
+                    <p className="text-xs text-amber-800">
+                      {isKo
+                        ? "일부 리그의 경기 정보를 불러오지 못했습니다."
+                        : "Some leagues could not be loaded."}
                     </p>
+                    <HomeRetryButton locale={locale} retryAfterSec={matchesState.retryAfterSec} />
                   </div>
+                )}
+
+                {matchesState.status === "error" ? (
+                  <StatusBox
+                    tone="error"
+                    retry
+                    retryAfterSec={matchesState.retryAfterSec}
+                    locale={locale}
+                    message={isKo
+                      ? "경기 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+                      : "Couldn't load matches. Please try again in a moment."}
+                  />
+                ) : matchesState.status === "unavailable" ? (
+                  <StatusBox
+                    tone="error"
+                    locale={locale}
+                    message={isKo
+                      ? "지금은 경기 정보를 제공할 수 없습니다."
+                      : "Match data is not available right now."}
+                  />
+                ) : leagueGroups.length === 0 ? (
+                  <StatusBox
+                    tone="empty"
+                    locale={locale}
+                    message={isLiveView
+                      ? (isKo ? "현재 진행 중인 경기가 없습니다" : "No live matches right now")
+                      : (isKo ? "예정된 경기가 없습니다" : "No upcoming matches")}
+                  />
                 ) : (
                   <div className="flex flex-col gap-3">
                     {leagueGroups.map((group) => (
@@ -522,7 +752,14 @@ export default function HomePageContent({
                   linkLabel={isKo ? "커뮤니티 전체" : "View all"}
                 />
                 <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                  {hotPosts.length === 0 ? (
+                  {hotPostsFailed ? (
+                    <div role="alert" data-home-state="posts-error" className="py-10 px-4 flex flex-col items-center gap-3 text-center">
+                      <p className="text-sm text-gray-600">
+                        {isKo ? "인기 글을 불러오지 못했습니다." : "Couldn't load posts."}
+                      </p>
+                      <HomeRetryButton locale={locale} />
+                    </div>
+                  ) : hotPosts.length === 0 ? (
                     <div className="py-12 text-center text-gray-400 text-sm">
                       {isKo ? "아직 게시글이 없습니다" : "No posts yet — be the first!"}
                     </div>
@@ -547,14 +784,13 @@ export default function HomePageContent({
               <AdBanner slot={adBanner} />
             </div>
 
-            {/* ── RIGHT — sidebar (1/3) ── */}
-            <div className="flex flex-col gap-5">
+            {/* ── RIGHT — sidebar ── */}
+            <div className="lg:col-span-1 xl:col-span-3 flex flex-col gap-5">
 
-              {/* Korea Match Schedule — 기간 한정 노출 */}
               {showWorldCup && <KoreaMatchScheduleDynamic isKo={isKo} />}
 
               {/* League standings mini */}
-              <StandingsMiniClient standingsData={standingsData} locale={locale} />
+              <StandingsMiniClient standingsData={standingsData} locale={locale} unavailable={standingsUnavailable} />
 
               {/* AI Analysis CTA */}
               <a

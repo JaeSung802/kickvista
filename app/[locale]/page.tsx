@@ -5,23 +5,16 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildMetadata } from "@/lib/seo/metadata";
 import { websiteJsonLd, koreaScheduleJsonLd } from "@/lib/seo/jsonld";
 import { isWorldCupVisible } from "@/lib/worldcup/visibility";
-import { queryHomeMatches, queryStandings } from "@/lib/football/query";
+import { queryHomeMatches, queryStandings, isHomeFootballDataAvailable, homeFootballSource } from "@/lib/football/query";
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
 
 import { listHotPosts } from "@/lib/community/hotPosts";
-import HeroSection from "@/components/home/HeroSection";
 import { QuickLinksBar } from "@/components/home/HomePageContent";
-import HomePageContent, { type StandingsMap } from "@/components/home/HomePageContent";
+import HomePageContent, { type StandingsMap, type HomeMatchesState } from "@/components/home/HomePageContent";
 
-/**
- * force-dynamic  → Next.js Full Route Cache 완전 비활성화.
- *                  빌드 시 pre-render된 HTML이 아닌, 매 요청마다 서버 렌더링.
- * revalidate = 0 → Data Cache(fetch 레이어)도 0초로 세팅 — belt-and-suspenders.
- *                  force-dynamic이 이미 이를 함축하지만 명시적으로 선언해 두면
- *                  Vercel 대시보드에서도 "No Cache" 상태로 확인 가능.
- */
-export const dynamic   = "force-dynamic";
-export const revalidate = 0;
+// 홈 화면의 기본 재검증 주기: 5분
+// API-Football 요청은 provider에 설정된 개별 next.revalidate 캐시를 따른다.
+export const revalidate = 300;
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
 
@@ -47,9 +40,21 @@ export async function generateMetadata({
 
 // ─── Async data fetcher (runs inside Suspense) ────────────────────────────────
 
-async function HomeContent({ locale }: { locale: Locale }) {
+async function HomeContent({
+  locale,
+  dateFilter,
+  viewFilter,
+}: {
+  locale: Locale;
+  dateFilter?: string;
+  viewFilter?: string;
+}) {
   // allSettled: a slow or failing API (standings, hot posts) never blocks the
   // rest of the page — each result is checked individually.
+  // Without a real data source the standings widget is skipped as well, so the
+  // mock provider's tables never reach the page.
+  const footballAvailable = isHomeFootballDataAvailable();
+  const noStandings = Promise.resolve(null);
   const [
     fixturesResult,
     plResult,
@@ -59,33 +64,50 @@ async function HomeContent({ locale }: { locale: Locale }) {
     hotPostsResult,
   ] = await Promise.allSettled([
     queryHomeMatches(),
-    queryStandings("premier-league"),
-    queryStandings("la-liga"),
-    queryStandings("bundesliga"),
-    queryStandings("serie-a"),
+    footballAvailable ? queryStandings("premier-league", { strict: true }) : noStandings,
+    footballAvailable ? queryStandings("la-liga",        { strict: true }) : noStandings,
+    footballAvailable ? queryStandings("bundesliga",     { strict: true }) : noStandings,
+    footballAvailable ? queryStandings("serie-a",        { strict: true }) : noStandings,
     listHotPosts({ limit: 12 }),
   ]);
 
-  const fixtures    = fixturesResult.status  === "fulfilled" ? fixturesResult.value  : [];
+  // A rejected query is a failure, never an empty schedule.
+  const fixtures    = fixturesResult.status  === "fulfilled"
+    ? fixturesResult.value
+    : { status: "error" as const, failedLeagues: [], retryAfterSec: 0 };
   const plStandings = plResult.status        === "fulfilled" ? plResult.value        : null;
   const laLiga      = laLigaResult.status    === "fulfilled" ? laLigaResult.value    : null;
   const bundesliga  = bundesResult.status    === "fulfilled" ? bundesResult.value    : null;
   const serieA      = serieAResult.status    === "fulfilled" ? serieAResult.value    : null;
   const hotPosts    = hotPostsResult.status  === "fulfilled" ? hotPostsResult.value.posts : [];
+  const hotPostsFailed =
+    hotPostsResult.status === "rejected" || hotPostsResult.value.failed === true;
+
+  const matchesState: HomeMatchesState =
+    fixtures.status === "ok"
+      ? { status: "ok", matches: fixturesToMatches(fixtures.fixtures, locale), partial: fixtures.failedLeagues.length > 0, retryAfterSec: fixtures.retryAfterSec }
+      : fixtures.status === "error"
+      ? { status: "error", retryAfterSec: fixtures.retryAfterSec }
+      : { status: fixtures.status };
 
   const standingsData: StandingsMap = {
-    ...(plStandings && { "premier-league": standingsToRows(plStandings) }),
-    ...(laLiga      && { "la-liga":        standingsToRows(laLiga) }),
-    ...(bundesliga  && { "bundesliga":     standingsToRows(bundesliga) }),
-    ...(serieA      && { "serie-a":        standingsToRows(serieA) }),
+    ...(plStandings && { "premier-league": standingsToRows(plStandings, locale) }),
+    ...(laLiga      && { "la-liga":        standingsToRows(laLiga,      locale) }),
+    ...(bundesliga  && { "bundesliga":     standingsToRows(bundesliga,  locale) }),
+    ...(serieA      && { "serie-a":        standingsToRows(serieA,      locale) }),
   };
 
   return (
     <HomePageContent
       locale={locale}
-      matches={fixturesToMatches(fixtures, locale)}
+      matchesState={matchesState}
+      footballSource={homeFootballSource()}
       standingsData={standingsData}
+      standingsUnavailable={!footballAvailable}
       hotPosts={hotPosts}
+      hotPostsFailed={hotPostsFailed}
+      dateFilter={dateFilter}
+      viewFilter={viewFilter}
     />
   );
 }
@@ -96,9 +118,21 @@ function HomeContentSkeleton() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left column skeleton */}
-          <div className="lg:col-span-2 flex flex-col gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-12 gap-6">
+          {/* Left league rail skeleton — xl only */}
+          <div className="hidden xl:block xl:col-span-3">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="shimmer h-10 w-full" />
+              {[...Array(7)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-t border-gray-100">
+                  <div className="shimmer h-5 w-5 rounded shrink-0" />
+                  <div className="shimmer h-3 flex-1 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Center column skeleton */}
+          <div className="lg:col-span-2 xl:col-span-6 flex flex-col gap-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="shimmer h-10 w-full" />
@@ -115,7 +149,7 @@ function HomeContentSkeleton() {
             ))}
           </div>
           {/* Right column skeleton */}
-          <div className="flex flex-col gap-4">
+          <div className="lg:col-span-1 xl:col-span-3 flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="shimmer h-10 w-full" />
               {[...Array(6)].map((_, i) => (
@@ -138,14 +172,17 @@ function HomeContentSkeleton() {
 
 export default async function HomePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ date?: string; view?: string }>;
 }) {
   const { locale } = await params;
+  const { date, view } = await searchParams;
   if (!isValidLocale(locale)) notFound();
-  const loc        = locale as Locale;
-  const jsonLd     = websiteJsonLd(loc);
-  const wcJsonLds  = isWorldCupVisible() ? koreaScheduleJsonLd(loc) : [];
+  const loc       = locale as Locale;
+  const jsonLd    = websiteJsonLd(loc);
+  const wcJsonLds = isWorldCupVisible() ? koreaScheduleJsonLd(loc) : [];
 
   return (
     <>
@@ -160,12 +197,13 @@ export default async function HomePage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
         />
       ))}
-      {/* Renders instantly — no data dependency */}
-      <HeroSection locale={loc} />
-      <QuickLinksBar locale={loc} />
+      {/* QuickLinksBar — hidden at xl where the league rail takes over */}
+      <div className="xl:hidden">
+        <QuickLinksBar locale={loc} />
+      </div>
       {/* Data-dependent section streams in behind the skeleton */}
       <Suspense fallback={<HomeContentSkeleton />}>
-        <HomeContent locale={loc} />
+        <HomeContent locale={loc} dateFilter={date} viewFilter={view} />
       </Suspense>
     </>
   );
