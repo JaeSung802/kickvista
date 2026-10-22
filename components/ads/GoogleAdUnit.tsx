@@ -41,28 +41,22 @@ export default function GoogleAdUnit({
   const containerRef = useRef<HTMLDivElement>(null);
   const pushed = useRef(false);
 
+  // One push per unit, once, on mount. push({}) does not name the unit it is
+  // for, so a push cannot be tied to the unit that made it; pushing exactly once
+  // per mounted unit keeps the number of pushes equal to the number of units.
+  // (Pushing lazily on intersection lost pushes in local mock tests when an
+  // unfilled unit collapsed before its own push ran.) The ref keeps it to one
+  // push per mount, also under React Strict Mode's double effect in development.
   useEffect(() => {
     if (pushed.current || !containerRef.current) return;
-
-    const el = containerRef.current;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0].isIntersecting || pushed.current) return;
-        try {
-          window.adsbygoogle = window.adsbygoogle || [];
-          window.adsbygoogle.push({});
-          pushed.current = true;
-        } catch {
-          // adsbygoogle not ready yet; script's onload will handle it
-        }
-        observer.disconnect();
-      },
-      { rootMargin: "300px" }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
+    pushed.current = true;
+    try {
+      window.adsbygoogle = window.adsbygoogle || [];
+      window.adsbygoogle.push({});
+    } catch (err) {
+      // Only the error type: AdSense messages can carry the client ID or URLs.
+      console.warn("[ads] adsbygoogle.push failed:", err instanceof Error ? err.name : typeof err);
+    }
   }, []);
 
   const clientId = process.env.NEXT_PUBLIC_ADSENSE_ID;
