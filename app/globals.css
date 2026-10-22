@@ -168,3 +168,17 @@ body {
   border: 1px solid var(--accent-border);
   color: var(--accent);
 }
+
+/* AdSense marks units it could not fill with data-ad-status="unfilled".
+   Hide them and collapse what was built around them, so an unfilled ad leaves
+   no empty block: the banner (label + reserved space), the home's top ad band
+   and the fixed mobile anchor (its spacer follows the anchor's height, so it
+   drops to 0 too). !important because these elements carry an inline display. */
+ins.adsbygoogle[data-ad-status="unfilled"] {
+  display: none !important;
+}
+[data-ad-banner]:has(ins.adsbygoogle[data-ad-status="unfilled"]),
+[data-home-top-ad]:has(ins.adsbygoogle[data-ad-status="unfilled"]),
+[data-ad-anchor]:has(ins.adsbygoogle[data-ad-status="unfilled"]) {
+  display: none !important;
+}

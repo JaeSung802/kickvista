@@ -101,11 +101,10 @@ export default async function LocaleLayout({
     <>
       <Navbar locale={locale as Locale} user={navUser} />
       {/*
-       * pb-14 md:pb-0 — reserves 56px at the bottom on mobile so the sticky
-       * AdAnchor never covers the last line of body content or the footer.
-       * On desktop the anchor is hidden, so no padding is needed.
+       * No fixed bottom padding here: AdAnchor reserves its own measured height
+       * after the footer, so it never covers the footer or the last content.
        */}
-      <div className="bg-gray-50 min-h-screen pb-14 md:pb-0">
+      <div className="bg-gray-50 min-h-screen">
         {children}
       </div>
       <Footer locale={locale as Locale} />

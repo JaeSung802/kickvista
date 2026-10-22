@@ -46,6 +46,7 @@ export default function AdBanner({ slot = DEFAULT_SLOT, className = "" }: AdBann
   return (
     <div
       className={className}
+      data-ad-banner=""
       style={{
         display: "flex",
         flexDirection: "column",
@@ -71,6 +72,7 @@ export default function AdBanner({ slot = DEFAULT_SLOT, className = "" }: AdBann
           <GoogleAdUnit
             slot={slot}
             format="horizontal"
+            fullWidthResponsive={false}
             style={{ minHeight: 90, width: "100%" }}
           />
         ) : (

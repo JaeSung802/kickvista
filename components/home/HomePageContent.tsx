@@ -587,8 +587,8 @@ export default function HomePageContent({
 
   return (
     <>
-      {/* ── Top ad ── */}
-      <div className="bg-gray-50 border-b border-gray-200">
+      {/* ── Top ad ── (data-home-top-ad: collapsed by globals.css when the unit is unfilled) */}
+      <div data-home-top-ad="" className="bg-gray-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <AdBanner slot={adBanner} />
         </div>

@@ -17,6 +17,12 @@ interface GoogleAdUnitProps {
   format?: "auto" | "rectangle" | "vertical" | "horizontal" | "fluid";
   style?: React.CSSProperties;
   className?: string;
+  /**
+   * data-full-width-responsive. true (default) lets AdSense widen the unit to
+   * the screen and choose its height on mobile; banners pass false so the unit
+   * keeps a banner shape instead of growing into a tall block.
+   */
+  fullWidthResponsive?: boolean;
 }
 
 declare global {
@@ -30,6 +36,7 @@ export default function GoogleAdUnit({
   format = "auto",
   style,
   className,
+  fullWidthResponsive = true,
 }: GoogleAdUnitProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pushed = useRef(false);
@@ -69,7 +76,7 @@ export default function GoogleAdUnit({
         data-ad-client={clientId}
         data-ad-slot={slot}
         data-ad-format={format}
-        data-full-width-responsive="true"
+        data-full-width-responsive={fullWidthResponsive ? "true" : "false"}
       />
     </div>
   );

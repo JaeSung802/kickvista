@@ -11,11 +11,15 @@
  *  - `useEffect` mounts on client only → zero SSR output, no hydration mismatch
  *  - `env(safe-area-inset-bottom)` respects iPhone notch / home-indicator area
  *
- * Parent layout should add `pb-14 md:pb-0` to the main content wrapper so
- * the anchor never covers body content before the user dismisses it.
+ * Space reservation: a spacer after the anchor's position in the layout (the
+ * very end of the page, after the footer) takes the anchor's measured height,
+ * so the last content is never covered. A ResizeObserver keeps it in sync
+ * while the ad loads or the width changes; it drops to 0 whenever the anchor
+ * is not displayed (e.g. collapsed by globals.css when the unit is unfilled),
+ * and the spacer goes away when the user dismisses the anchor.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import AdLabel from "./AdLabel";
 import GoogleAdUnit from "./GoogleAdUnit";
 
@@ -34,11 +38,23 @@ const DEFAULT_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_ANCHOR  ?? "";
 export default function AdAnchor({ slot = DEFAULT_SLOT }: AdAnchorProps) {
   const [mounted, setMounted] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [space, setSpace] = useState(0);
+  const anchorRef = useRef<HTMLDivElement>(null);
 
   // Render nothing on the server — avoids hydration mismatch and SSR ad calls
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Reserve exactly the anchor's rendered height (0 while it is hidden).
+  useEffect(() => {
+    const el = anchorRef.current;
+    if (!el) return;
+    // ResizeObserver reports the current size as soon as observation starts.
+    const observer = new ResizeObserver(() => setSpace(Math.ceil(el.getBoundingClientRect().height)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [mounted, dismissed]);
 
   if (!mounted || dismissed) return null;
 
@@ -50,8 +66,11 @@ export default function AdAnchor({ slot = DEFAULT_SLOT }: AdAnchorProps) {
     : null;
 
   return (
+    <>
     <div
+      ref={anchorRef}
       className="md:hidden"
+      data-ad-anchor=""
       style={{
         position: "fixed",
         bottom: 0,
@@ -117,6 +136,7 @@ export default function AdAnchor({ slot = DEFAULT_SLOT }: AdAnchorProps) {
           <GoogleAdUnit
             slot={slot}
             format="horizontal"
+            fullWidthResponsive={false}
             style={{ minHeight: 50, width: "100%", display: "block" }}
           />
         ) : (
@@ -147,5 +167,7 @@ export default function AdAnchor({ slot = DEFAULT_SLOT }: AdAnchorProps) {
         )}
       </div>
     </div>
+    <div aria-hidden="true" data-ad-anchor-spacer="" style={{ height: space }} />
+    </>
   );
 }
