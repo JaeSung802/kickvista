@@ -2,9 +2,11 @@
  * HomePageContent — Server Component (assembler)
  *
  * 3-column dashboard layout:
- * - Left  (xl 3/12): Popular league rail — sticky, xl+ only
- * - Center (xl 6/12, lg 2/3): Today's matches + Community hot posts
- * - Right  (xl 3/12, lg 1/3): Standings mini + AI Analysis CTA + Notices
+ * - Left  (xl 220px): Popular league rail — sticky, xl+ only
+ * - Center (flexible): Today's matches + Community hot posts
+ * - Right  (lg+ 320px): Standings mini + AI Analysis CTA + Notices + sidebar ad.
+ *   Fixed width so the 300px sidebar ad always fits (a 3/12 column was ~286px
+ *   at 1280px+, and a 1/3 column can drop below 300px with a desktop scrollbar).
  */
 
 import type { Locale } from "@/lib/i18n";
@@ -597,15 +599,15 @@ export default function HomePageContent({
       {/* ── Main 3-col portal layout ── */}
       <div className="bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[220px_minmax(0,1fr)_320px] gap-6">
 
             {/* ── LEFT — league rail (xl only, display:none below xl) ── */}
-            <div className="hidden xl:block xl:col-span-3">
+            <div className="hidden xl:block">
               <HomeLeagueRail locale={locale} />
             </div>
 
             {/* ── CENTER — main content ── */}
-            <div className="lg:col-span-2 xl:col-span-6 flex flex-col gap-6">
+            <div className="min-w-0 flex flex-col gap-6">
 
               {/* World Cup Group Standings — 기간 한정 노출 */}
               {showWorldCup && (
@@ -785,7 +787,7 @@ export default function HomePageContent({
             </div>
 
             {/* ── RIGHT — sidebar ── */}
-            <div className="lg:col-span-1 xl:col-span-3 flex flex-col gap-5">
+            <div className="min-w-0 flex flex-col gap-5">
 
               {showWorldCup && <KoreaMatchScheduleDynamic isKo={isKo} />}
 

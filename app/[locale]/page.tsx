@@ -118,9 +118,9 @@ function HomeContentSkeleton() {
   return (
     <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[220px_minmax(0,1fr)_320px] gap-6">
           {/* Left league rail skeleton — xl only */}
-          <div className="hidden xl:block xl:col-span-3">
+          <div className="hidden xl:block">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="shimmer h-10 w-full" />
               {[...Array(7)].map((_, i) => (
@@ -132,7 +132,7 @@ function HomeContentSkeleton() {
             </div>
           </div>
           {/* Center column skeleton */}
-          <div className="lg:col-span-2 xl:col-span-6 flex flex-col gap-4">
+          <div className="min-w-0 flex flex-col gap-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="shimmer h-10 w-full" />
@@ -149,7 +149,7 @@ function HomeContentSkeleton() {
             ))}
           </div>
           {/* Right column skeleton */}
-          <div className="lg:col-span-1 xl:col-span-3 flex flex-col gap-4">
+          <div className="min-w-0 flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="shimmer h-10 w-full" />
               {[...Array(6)].map((_, i) => (

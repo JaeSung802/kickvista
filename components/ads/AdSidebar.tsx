@@ -42,6 +42,7 @@ export default function AdSidebar({ slot = DEFAULT_SLOT, variant = "medium", cla
   return (
     <div
       className={className}
+      data-ad-wrapper=""
       style={{
         position: "sticky",
         top: 24,
