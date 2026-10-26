@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { Fragment } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { isValidLocale, type Locale } from "@/lib/i18n";
 import { buildCommunityMetadata } from "@/lib/seo/metadata";
 import { getServerUser } from "@/lib/auth";
@@ -11,8 +11,9 @@ import PostCard from "@/components/community/PostCard";
 // ssr:false dynamic import는 Client Component 안에서만 가능 — WorldCupLoaders에서 담당
 import { WorldCupWidgetDynamic as WorldCupWidget, WorldCupInfoPanelDynamic as WorldCupInfoPanel } from "@/components/worldcup/WorldCupLoaders";
 import { TeamLogo } from "@/components/ui/TeamLogo";
+import HomeRetryButton from "@/components/home/HomeRetryButton";
 import { isWorldCupVisible } from "@/lib/worldcup/visibility";
-import { listPosts } from "@/lib/community/actions";
+import { listPosts, type ListPostsResult } from "@/lib/community/actions";
 import { listHotPosts } from "@/lib/community/hotPosts";
 import type { Metadata } from "next";
 
@@ -67,6 +68,54 @@ const ALL_CATEGORIES: PostCategory[] = [
   "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
 ];
 
+// ─── List rules (URL values) ──────────────────────────────────────────────────
+// category: a tab category or worldcup-2026 (direct URL only); "notice" goes to
+//   the official notice board; anything else → redirect without the filter.
+// sort: hot (default) | latest | trending; anything else → redirect without it.
+// page: 1–9999 written as a plain number ("2", not "02", "-1", "2.5", "1e3");
+//   anything else → redirect to page 1; past the last page → the last page.
+// Pinned posts are loaded separately and shown above page 1 only; the paged
+// list excludes them, so every page holds PAGE_SIZE regular posts.
+
+const LIST_CATEGORIES: PostCategory[] = [...ALL_CATEGORIES, "worldcup-2026"];
+const SORTS: SortKey[] = ["hot", "latest", "trending"];
+const PAGE_SIZE = 20;
+const PINNED_LIMIT = 5;
+const PAGE_RE = /^[1-9]\d{0,3}$/;
+
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+function listHref(loc: Locale, { category, sort, page }: { category: PostCategory | null; sort: SortKey; page: number }) {
+  const q = new URLSearchParams();
+  if (category) q.set("category", category);
+  if (sort !== "hot") q.set("sort", sort);
+  if (page > 1) q.set("page", String(page));
+  const qs = q.toString();
+  return `/${loc}/community${qs ? `?${qs}` : ""}`;
+}
+
+/** "3분 전" / "3m ago" … from the post's created_at (the list helper only has English). */
+function timeAgo(iso: string, isKo: boolean): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60)     return isKo ? "방금 전" : "just now";
+  if (diff < 3600)   return isKo ? `${Math.floor(diff / 60)}분 전` : `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400)  return isKo ? `${Math.floor(diff / 3600)}시간 전` : `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return isKo ? `${Math.floor(diff / 86400)}일 전` : `${Math.floor(diff / 86400)}d ago`;
+  return new Date(iso).toLocaleDateString(isKo ? "ko-KR" : "en-GB", { timeZone: "Asia/Seoul", month: "short", day: "numeric" });
+}
+
+/** Page numbers around the current page: 1 … 4 5 [6] 7 8 … 20 */
+function pageWindow(current: number, last: number): (number | "gap")[] {
+  const out: (number | "gap")[] = [];
+  const from = Math.max(2, current - 2), to = Math.min(last - 1, current + 2);
+  out.push(1);
+  if (from > 2) out.push("gap");
+  for (let n = from; n <= to; n++) out.push(n);
+  if (to < last - 1) out.push("gap");
+  if (last > 1) out.push(last);
+  return out;
+}
+
 // ─── Team boards ──────────────────────────────────────────────────────────────
 
 const TEAM_BOARDS = [
@@ -119,6 +168,16 @@ const labels = {
     online: "Online",
     allBoards: "All Boards →",
     noPosts: "No posts yet — be the first!",
+    allPosts: "All Posts",
+    pinnedTitle: "📌 Pinned",
+    loadFailed: "Couldn't load posts",
+    loadFailedHint: "Please try again in a moment.",
+    pinnedFailed: "Pinned posts couldn't be loaded.",
+    sortLabel: "Sort",
+    pageOf: (p: number, last: number) => `Page ${p} of ${last}`,
+    prev: "Prev",
+    next: "Next",
+    pagination: "Pages",
   },
   ko: {
     pageTitle: "커뮤니티",
@@ -150,6 +209,16 @@ const labels = {
     online: "접속 중",
     allBoards: "전체 팀 보기 →",
     noPosts: "아직 게시글이 없습니다 — 첫 번째로 작성해보세요!",
+    allPosts: "모든 게시글",
+    pinnedTitle: "📌 고정 게시글",
+    loadFailed: "게시글을 불러오지 못했습니다",
+    loadFailedHint: "잠시 후 다시 시도해 주세요.",
+    pinnedFailed: "고정 게시글을 불러오지 못했습니다.",
+    sortLabel: "정렬",
+    pageOf: (p: number, last: number) => `${p} / ${last} 페이지`,
+    prev: "이전",
+    next: "다음",
+    pagination: "페이지",
   },
 };
 
@@ -187,7 +256,7 @@ export default async function CommunityPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ category?: string; sort?: string; page?: string }>;
+  searchParams: Promise<{ category?: string | string[]; sort?: string | string[]; page?: string | string[] }>;
 }) {
   const { locale } = await params;
   const sp         = await searchParams;
@@ -198,31 +267,62 @@ export default async function CommunityPage({
   const user   = await getServerUser();
   const isLoggedIn = !!user;
 
-  const activeCategory = (sp.category as PostCategory | undefined) ?? null;
-  const activeSort     = (sp.sort as SortKey | undefined) ?? "hot";
+  // ── Validate URL values (see "List rules") ─────────────────────────────────
+  const rawCategory = first(sp.category), rawSort = first(sp.sort), rawPage = first(sp.page);
+  if (rawCategory === "notice") redirect(`/${loc}/notice`);
+  const categoryOk = rawCategory === undefined || (LIST_CATEGORIES as string[]).includes(rawCategory);
+  const sortOk     = rawSort === undefined || (SORTS as string[]).includes(rawSort);
+  const pageOk     = rawPage === undefined || PAGE_RE.test(rawPage);
+  const activeCategory = categoryOk && rawCategory ? (rawCategory as PostCategory) : null;
+  const activeSort: SortKey = sortOk && rawSort ? (rawSort as SortKey) : "hot";
+  const activePage = categoryOk && pageOk && rawPage ? Number(rawPage) : 1;
+  const repeated = [sp.category, sp.sort, sp.page].some(Array.isArray);
+  if (!categoryOk || !sortOk || !pageOk || repeated) {
+    redirect(listHref(loc, { category: activeCategory, sort: activeSort, page: activePage }));
+  }
   // World Cup promotion (widget, info panel) follows the shared display window;
   // existing World Cup posts stay reachable via ?category= (never as a tab).
   const showWorldCup   = isWorldCupVisible();
   const isWorldCupList = activeCategory === "worldcup-2026";
-  const activePage     = Math.max(1, parseInt(sp.page ?? "1", 10));
 
-  const [mainR, trendingR] = await Promise.allSettled([
-    listPosts({ category: activeCategory, sort: activeSort, page: activePage, limit: 20, excludeNotice: true }),
+  // Pinned posts: the newest PINNED_LIMIT pinned posts of this filter are shown above
+  // page 1 and left out of the paged list on every page (the same set each time);
+  // any further pinned posts stay in the list. If the pinned query fails, nothing is
+  // left out — the list then holds every post — and a note says pinned posts are missing.
+  const failedResult: ListPostsResult = { posts: [], total: 0, page: activePage, pageSize: PAGE_SIZE, hasMore: false, failed: true };
+  const [pinnedR, trendingR] = await Promise.allSettled([
+    listPosts({ category: activeCategory, sort: "latest", page: 1, limit: PINNED_LIMIT, excludeNotice: true, pinned: "only" }),
     listHotPosts({ limit: 5 }),
   ]);
+  const pinnedResult  = pinnedR.status === "fulfilled" ? pinnedR.value : failedResult;
+  const shownPinned   = pinnedResult.failed ? [] : pinnedResult.posts;
+  const trendingPosts = trendingR.status === "fulfilled" ? trendingR.value.posts : [];
 
-  const mainResult    = mainR.status    === "fulfilled" ? mainR.value    : { posts: [], total: 0, hasMore: false };
-  const trendingResult = trendingR.status === "fulfilled" ? trendingR.value : { posts: [] };
-  const { posts, total, hasMore } = mainResult;
-  const trendingPosts = trendingResult.posts;
+  const listArgs = { category: activeCategory, sort: activeSort, limit: PAGE_SIZE, excludeNotice: true, excludeIds: shownPinned.map((p) => p.id) };
+  const mainResult = await listPosts({ ...listArgs, page: activePage }).catch(() => failedResult);
 
-  const pinnedPosts  = posts.filter((p) => p.isPinned);
-  const regularPosts = posts.filter((p) => !p.isPinned);
+  // Past the last page (or a page the database refuses as out of range): look up
+  // the real page count with page 1 and redirect to the last page.
+  if (activePage > 1 && (mainResult.failed || mainResult.posts.length === 0)) {
+    const probe = mainResult.failed ? await listPosts({ ...listArgs, page: 1 }).catch(() => failedResult) : mainResult;
+    if (!probe.failed) {
+      const last = Math.max(1, Math.ceil(probe.total / PAGE_SIZE));
+      if (activePage > last) redirect(listHref(loc, { category: activeCategory, sort: activeSort, page: last }));
+    }
+  }
 
-  const sortOptions: { key: SortKey; label: string; href: string }[] = [
-    { key: "hot",      label: tx.sortHot,      href: `/${loc}/community/hot${activeCategory ? `?category=${activeCategory}` : ""}` },
-    { key: "latest",   label: tx.sortLatest,   href: `/${loc}/community/latest${activeCategory ? `?category=${activeCategory}` : ""}` },
-    { key: "trending", label: tx.sortTrending, href: activeCategory ? `/${loc}/community?category=${activeCategory}&sort=trending` : `/${loc}/community?sort=trending` },
+  const loadFailed   = !!mainResult.failed;
+  const regularPosts = mainResult.posts;
+  const total        = mainResult.total;                      // paged list (without the shown pinned posts)
+  const postCount    = total + shownPinned.length;            // every post of this filter
+  const lastPage     = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pinnedPosts  = activePage === 1 ? shownPinned : [];
+  const pinnedFailed = !!pinnedResult.failed && !loadFailed;
+
+  const sortOptions: { key: SortKey; label: string }[] = [
+    { key: "hot",      label: tx.sortHot },
+    { key: "latest",   label: tx.sortLatest },
+    { key: "trending", label: tx.sortTrending },
   ];
 
   const BANNER_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_BANNER ?? "0000000000";
@@ -234,7 +334,7 @@ export default async function CommunityPage({
       <div className="bg-white border-b border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2.5 mb-1.5">
                 <span className="w-0.5 h-6 rounded-full bg-emerald-600 shrink-0" />
                 <h1 className="text-2xl font-black text-gray-900">{tx.pageTitle}</h1>
@@ -244,14 +344,14 @@ export default async function CommunityPage({
             {isLoggedIn ? (
               <a
                 href={`/${loc}/community/write`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors"
+                className="inline-flex w-full items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors sm:w-auto"
               >
                 ✏️ {tx.writePost}
               </a>
             ) : (
               <a
                 href={`/${loc}/auth/login`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 text-sm font-bold rounded-lg border border-emerald-200 hover:bg-emerald-50 transition-colors"
+                className="inline-flex w-full items-center justify-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-700 text-sm font-bold rounded-lg border border-emerald-200 hover:bg-emerald-50 transition-colors sm:w-auto"
               >
                 ✏️ {tx.loginCta}
               </a>
@@ -271,12 +371,12 @@ export default async function CommunityPage({
           {/* ── Main content (2/3) ─────────────────────────────────── */}
           <div className="lg:col-span-2 flex flex-col gap-6">
 
-            {/* Category filter + sort */}
-            <div className="flex flex-col gap-2">
-              {/* Category pills */}
-              <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {/* Toolbar: categories (scroll sideways on mobile) + heading/count + sort */}
+            <div className="flex flex-col gap-3" data-community-toolbar="">
+              <nav aria-label={isKo ? "카테고리" : "Categories"} className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
                 <a
-                  href={`/${loc}/community${activeSort !== "hot" ? `?sort=${activeSort}` : ""}`}
+                  href={listHref(loc, { category: null, sort: activeSort, page: 1 })}
+                  aria-current={!activeCategory ? "page" : undefined}
                   className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                     !activeCategory
                       ? "bg-emerald-600 text-white"
@@ -291,7 +391,8 @@ export default async function CommunityPage({
                   return (
                     <a
                       key={cat}
-                      href={`/${loc}/community?category=${cat}${activeSort !== "hot" ? `&sort=${activeSort}` : ""}`}
+                      href={listHref(loc, { category: cat, sort: activeSort, page: 1 })}
+                      aria-current={isActive ? "page" : undefined}
                       className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors"
                       style={{
                         backgroundColor: isActive ? meta.bg : "#ffffff",
@@ -303,26 +404,32 @@ export default async function CommunityPage({
                     </a>
                   );
                 })}
-              </div>
+              </nav>
 
-              {/* Sort pills */}
-              <div className="flex gap-1.5">
-                {sortOptions.map((opt) => {
-                  const isActive = opt.key === "trending" && activeSort === "trending";
-                  return (
-                    <a
-                      key={opt.key}
-                      href={opt.href}
-                      className={`px-3 py-1 rounded-md text-xs font-semibold border transition-colors ${
-                        isActive
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      {opt.label}
-                    </a>
-                  );
-                })}
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="min-w-0 truncate text-sm font-bold text-gray-800" data-community-heading="">
+                  {activeCategory
+                    ? (isKo ? (CATEGORY_META[activeCategory] ?? CATEGORY_META["general"]).labelKo : (CATEGORY_META[activeCategory] ?? CATEGORY_META["general"]).labelEn)
+                    : tx.allPosts}
+                  {!loadFailed && <span className="ml-1.5 text-xs font-normal text-gray-400">({postCount})</span>}
+                </h2>
+                <div role="group" aria-label={tx.sortLabel} className="flex shrink-0 rounded-lg border border-gray-200 bg-white p-0.5" data-community-sort={activeSort}>
+                  {sortOptions.map((opt) => {
+                    const isActive = opt.key === activeSort;
+                    return (
+                      <a
+                        key={opt.key}
+                        href={listHref(loc, { category: activeCategory, sort: opt.key, page: 1 })}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                          isActive ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-800"
+                        }`}
+                      >
+                        {opt.label}
+                      </a>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -331,21 +438,19 @@ export default async function CommunityPage({
               <WorldCupInfoPanel isKo={isKo} />
             )}
 
-            {/* Pinned posts */}
+            {/* Pinned posts — page 1 only, loaded separately from the paged list */}
             {pinnedPosts.length > 0 && (
-              <section>
-                <SectionHeader title={isKo ? "📌 고정 게시글" : "📌 Pinned"} />
+              <section data-community-pinned={pinnedPosts.length}>
+                <SectionHeader title={tx.pinnedTitle} />
                 <div className="flex flex-col gap-1.5">
-                  {pinnedPosts.map((post) => {
-                    const meta = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
-                    return (
+                  {pinnedPosts.map((post) => (
+                    <Fragment key={post.id}>
                       <PostCard
-                        key={post.id}
                         href={`/${loc}/community/post/${post.id}`}
                         title={post.title}
                         preview={post.preview}
-                        timeAgo={post.timeAgo}
-                        category={meta}
+                        timeAgo={timeAgo(post.createdAt, isKo)}
+                        category={CATEGORY_META[post.category] ?? CATEGORY_META["general"]}
                         isPinned={post.isPinned}
                         isHot={post.isHot}
                         authorName={post.authorName}
@@ -357,24 +462,30 @@ export default async function CommunityPage({
                         isKo={isKo}
                         imageUrl={post.imageUrl}
                       />
-                    );
-                  })}
+                    </Fragment>
+                  ))}
                 </div>
               </section>
             )}
+            {/* Pinned query failed: the list below then includes the pinned posts (nothing is hidden) */}
+            {pinnedFailed && (
+              <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5" data-community-state="pinned-error">
+                <p className="text-xs text-gray-500">{tx.pinnedFailed}</p>
+                <HomeRetryButton locale={loc} />
+              </div>
+            )}
 
             {/* Regular posts */}
-            <section>
-              <SectionHeader
-                title={
-                  activeCategory
-                    ? (isKo ? (CATEGORY_META[activeCategory] ?? CATEGORY_META["general"]).labelKo : (CATEGORY_META[activeCategory] ?? CATEGORY_META["general"]).labelEn)
-                    : (isKo ? "모든 게시글" : "All Posts")
-                }
-                count={total}
-              />
-              {regularPosts.length === 0 ? (
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
+            <section data-community-list={loadFailed ? "error" : regularPosts.length}>
+              {loadFailed ? (
+                <div role="alert" data-community-state="error" className="bg-white rounded-xl border border-gray-200 shadow-sm p-10 text-center flex flex-col items-center gap-3">
+                  <span className="text-3xl" aria-hidden="true">⚠️</span>
+                  <p className="text-sm font-semibold text-gray-700">{tx.loadFailed}</p>
+                  <p className="text-xs text-gray-400">{tx.loadFailedHint}</p>
+                  <HomeRetryButton locale={loc} />
+                </div>
+              ) : regularPosts.length === 0 && pinnedPosts.length > 0 ? null : regularPosts.length === 0 ? (
+                <div data-community-state="empty" className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
                   <span className="text-4xl">⚽</span>
                   <p className="text-gray-400 text-sm mt-3">
                     {isWorldCupList ? (isKo ? "게시글이 없습니다." : "No posts.") : tx.noPosts}
@@ -391,65 +502,75 @@ export default async function CommunityPage({
                 </div>
               ) : (
                 <div className="flex flex-col gap-1.5">
-                  {regularPosts.map((post, idx) => {
-                    const meta = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
-                    return (
-                      <Fragment key={post.id}>
-                        <PostCard
-                          href={`/${loc}/community/post/${post.id}`}
-                          title={post.title}
-                          preview={post.preview}
-                          timeAgo={post.timeAgo}
-                          category={meta}
-                          isPinned={post.isPinned}
-                          isHot={post.isHot}
-                          authorName={post.authorName}
-                          authorBadge={post.authorBadge}
-                          rankColor={post.rankColor}
-                          upvotes={post.likeCount}
-                          comments={post.commentCount}
-                          views={post.viewCount}
-                          isKo={isKo}
-                          imageUrl={post.imageUrl}
-                        />
-                        {(idx === 3 || idx === 7) && regularPosts.length > idx + 1 && (
-                          <AdBanner slot={BANNER_SLOT} />
-                        )}
-                      </Fragment>
-                    );
-                  })}
+                  {regularPosts.map((post, idx) => (
+                    <Fragment key={post.id}>
+                      <PostCard
+                        href={`/${loc}/community/post/${post.id}`}
+                        title={post.title}
+                        preview={post.preview}
+                        timeAgo={timeAgo(post.createdAt, isKo)}
+                        category={CATEGORY_META[post.category] ?? CATEGORY_META["general"]}
+                        isPinned={post.isPinned}
+                        isHot={post.isHot}
+                        authorName={post.authorName}
+                        authorBadge={post.authorBadge}
+                        rankColor={post.rankColor}
+                        upvotes={post.likeCount}
+                        comments={post.commentCount}
+                        views={post.viewCount}
+                        isKo={isKo}
+                        imageUrl={post.imageUrl}
+                      />
+                      {(idx === 3 || idx === 7) && regularPosts.length > idx + 1 && (
+                        <AdBanner slot={BANNER_SLOT} />
+                      )}
+                    </Fragment>
+                  ))}
                 </div>
               )}
             </section>
 
             {/* Pagination */}
-            {(activePage > 1 || hasMore) && (
-              <div className="flex justify-center gap-2 pt-2">
-                {activePage > 1 && (
-                  <a
-                    href={`/${loc}/community?${new URLSearchParams({
-                      ...(activeCategory ? { category: activeCategory } : {}),
-                      ...(activeSort !== "hot" ? { sort: activeSort } : {}),
-                      page: String(activePage - 1),
-                    }).toString()}`}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-gray-300 transition-colors"
-                  >
-                    ← {isKo ? "이전" : "Prev"}
-                  </a>
-                )}
-                {hasMore && (
-                  <a
-                    href={`/${loc}/community?${new URLSearchParams({
-                      ...(activeCategory ? { category: activeCategory } : {}),
-                      ...(activeSort !== "hot" ? { sort: activeSort } : {}),
-                      page: String(activePage + 1),
-                    }).toString()}`}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                  >
-                    {isKo ? "다음" : "Next"} →
-                  </a>
-                )}
-              </div>
+            {!loadFailed && lastPage > 1 && (
+              <nav aria-label={tx.pagination} className="flex flex-col items-center gap-2 pt-2" data-community-pagination={`${activePage}/${lastPage}`}>
+                <div className="flex flex-wrap items-center justify-center gap-1">
+                  {activePage > 1 && (
+                    <a
+                      href={listHref(loc, { category: activeCategory, sort: activeSort, page: activePage - 1 })}
+                      rel="prev"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:border-gray-300"
+                    >
+                      ← {tx.prev}
+                    </a>
+                  )}
+                  {pageWindow(activePage, lastPage).map((n, i) =>
+                    n === "gap" ? (
+                      <span key={`gap-${i}`} className="px-1 text-sm text-gray-400" aria-hidden="true">…</span>
+                    ) : (
+                      <a
+                        key={n}
+                        href={listHref(loc, { category: activeCategory, sort: activeSort, page: n })}
+                        aria-current={n === activePage ? "page" : undefined}
+                        className={`min-w-9 rounded-lg px-2.5 py-2 text-center text-sm font-semibold tabular-nums ${
+                          n === activePage ? "bg-emerald-600 text-white" : "border border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                        }`}
+                      >
+                        {n}
+                      </a>
+                    ),
+                  )}
+                  {activePage < lastPage && (
+                    <a
+                      href={listHref(loc, { category: activeCategory, sort: activeSort, page: activePage + 1 })}
+                      rel="next"
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 hover:border-gray-300"
+                    >
+                      {tx.next} →
+                    </a>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400">{tx.pageOf(activePage, lastPage)}</p>
+              </nav>
             )}
 
             <AdBanner slot={BANNER_SLOT} />
@@ -477,7 +598,7 @@ export default async function CommunityPage({
             {/* Community stats */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm grid grid-cols-3 divide-x divide-gray-100 overflow-hidden">
               {[
-                { value: total > 0 ? String(total) : "0", label: tx.posts },
+                { value: loadFailed ? "—" : String(postCount), label: tx.posts },
                 { value: "—", label: tx.members },
                 { value: "—", label: tx.online },
               ].map((stat) => (

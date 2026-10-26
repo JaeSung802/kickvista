@@ -59,6 +59,10 @@ export interface ListPostsParams {
   limit?: number;
   excludeId?: string;
   excludeNotice?: boolean;
+  /** "only" = pinned posts only; omitted = pinned and regular posts (unchanged behaviour). */
+  pinned?: "only";
+  /** Post ids to leave out (e.g. the pinned posts already shown above the list). */
+  excludeIds?: string[];
 }
 
 export interface PostListItem {
@@ -101,6 +105,8 @@ export async function listPosts({
   limit = 20,
   excludeId,
   excludeNotice = false,
+  pinned,
+  excludeIds,
 }: ListPostsParams = {}): Promise<ListPostsResult> {
   const supabase = await createClient();
   const offset = (page - 1) * limit;
@@ -121,6 +127,8 @@ export async function listPosts({
   if (category)                  query = query.eq("category", category);
   else if (excludeNotice)        query = query.neq("category", "notice");
   if (excludeId)                 query = query.neq("id", excludeId);
+  if (pinned === "only")         query = query.eq("is_pinned", true);
+  if (excludeIds?.length)        query = query.not("id", "in", `(${excludeIds.join(",")})`);
   // team_slug / league_slug 컬럼 없음 — 필터 제거
 
   switch (sort) {
@@ -135,6 +143,10 @@ export async function listPosts({
       query = query.order("like_count", { ascending: false })
                    .order("created_at", { ascending: false });
   }
+
+  // Pinned posts: id as a tie-breaker so posts with the same created_at are always
+  // picked and ordered the same way (the list leaves out exactly the ones shown).
+  if (pinned === "only") query = query.order("id", { ascending: false });
 
   query = query.range(offset, offset + limit - 1);
 
