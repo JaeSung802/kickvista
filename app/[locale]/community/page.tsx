@@ -61,8 +61,8 @@ const CATEGORY_META: Record<
   "worldcup-2026":    { labelEn: "2026 World Cup",   labelKo: "2026 월드컵", color: "#dc2626", bg: "#fef2f2", border: "#fca5a5"   },
 };
 
-// "worldcup-2026" is added in front only while the World Cup is shown
-// (isWorldCupVisible) or when that category is open via its URL.
+// "worldcup-2026" is not a tab: existing World Cup posts stay reachable via
+// ?category=worldcup-2026, which shows the list without a tab.
 const ALL_CATEGORIES: PostCategory[] = [
   "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
 ];
@@ -200,11 +200,10 @@ export default async function CommunityPage({
 
   const activeCategory = (sp.category as PostCategory | undefined) ?? null;
   const activeSort     = (sp.sort as SortKey | undefined) ?? "hot";
-  // World Cup promotion (widget, info panel, category tab) follows the shared
-  // display window; existing World Cup posts stay reachable via ?category=.
+  // World Cup promotion (widget, info panel) follows the shared display window;
+  // existing World Cup posts stay reachable via ?category= (never as a tab).
   const showWorldCup   = isWorldCupVisible();
-  const categoryTabs: PostCategory[] =
-    showWorldCup || activeCategory === "worldcup-2026" ? ["worldcup-2026", ...ALL_CATEGORIES] : ALL_CATEGORIES;
+  const isWorldCupList = activeCategory === "worldcup-2026";
   const activePage     = Math.max(1, parseInt(sp.page ?? "1", 10));
 
   const [mainR, trendingR] = await Promise.allSettled([
@@ -286,7 +285,7 @@ export default async function CommunityPage({
                 >
                   {tx.allCategories}
                 </a>
-                {categoryTabs.map((cat) => {
+                {ALL_CATEGORIES.map((cat) => {
                   const meta     = CATEGORY_META[cat] ?? CATEGORY_META["general"];
                   const isActive = activeCategory === cat;
                   return (
@@ -327,8 +326,8 @@ export default async function CommunityPage({
               </div>
             </div>
 
-            {/* 월드컵 정보 패널 — worldcup-2026 탭 선택 시 표시 */}
-            {showWorldCup && activeCategory === "worldcup-2026" && (
+            {/* 월드컵 정보 패널 — ?category=worldcup-2026 목록에서, 노출 기간에만 */}
+            {showWorldCup && isWorldCupList && (
               <WorldCupInfoPanel isKo={isKo} />
             )}
 
@@ -376,13 +375,12 @@ export default async function CommunityPage({
               />
               {regularPosts.length === 0 ? (
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-                  <span className="text-4xl">{activeCategory === "worldcup-2026" ? "🏆" : "⚽"}</span>
+                  <span className="text-4xl">⚽</span>
                   <p className="text-gray-400 text-sm mt-3">
-                    {activeCategory === "worldcup-2026"
-                      ? (isKo ? "월드컵 관련 글을 준비 중입니다. 잠시 후 다시 확인해주세요!" : "World Cup posts are being prepared. Check back soon!")
-                      : tx.noPosts}
+                    {isWorldCupList ? (isKo ? "게시글이 없습니다." : "No posts.") : tx.noPosts}
                   </p>
-                  {isLoggedIn && (
+                  {/* New posts cannot use the World Cup category, so no "first post" button there */}
+                  {isLoggedIn && !isWorldCupList && (
                     <a
                       href={`/${loc}/community/write`}
                       className="inline-block mt-4 px-5 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors"
