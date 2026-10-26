@@ -8,6 +8,7 @@ import {
   normalizeTeam,
 } from "../normalizer";
 import { CACHE_TTL, cacheTags } from "../cache";
+import { parseMatchCore } from "../match-core";
 import { unstable_cache } from "next/cache";
 import { FootballApiError, type FootballApiErrorKind, type FootballFetchOptions } from "./errors";
 
@@ -352,7 +353,31 @@ export class RealFootballProvider implements IFootballProvider {
     };
   }
 
-  async fetchMatchDetail(fixtureId: number): Promise<MatchDetail | null> {
+  async fetchMatchDetail(fixtureId: number, opts?: FootballFetchOptions): Promise<MatchDetail | null> {
+    if (opts?.strict) {
+      // Match page: one request; a failure throws (FootballApiError), a valid
+      // answer without the fixture returns null (= the match does not exist).
+      // Events, lineups and team statistics come in this same response (core).
+      const data = await this.strictFetch<{ response: unknown[] }>(
+        `/fixtures?id=${fixtureId}`,
+        CACHE_TTL.MATCH_DETAIL_LIVE,
+        cacheTags("match", fixtureId),
+      );
+      if (!data?.response?.length) return null;
+      const raw = data.response[0] as Record<string, unknown>;
+      const season = (raw?.league as Record<string, unknown>)?.season as number ?? new Date().getFullYear();
+      const fixture = normalizeFixture(raw as unknown as Parameters<typeof normalizeFixture>[0], season);
+      if (!fixture) return null;
+      const statusRaw = ((raw?.fixture as Record<string, unknown>)?.status as Record<string, unknown>)?.short;
+      return {
+        ...fixture,
+        events: [],
+        statistics: [],
+        core: parseMatchCore(raw, fixture.homeTeam.id, fixture.awayTeam.id),
+        ...(typeof statusRaw === "string" ? { statusRaw } : {}),
+      };
+    }
+
     const [matchData, lineupData] = await Promise.all([
       this.apiFetch<{ response: unknown[] }>(
         `/fixtures?id=${fixtureId}`,

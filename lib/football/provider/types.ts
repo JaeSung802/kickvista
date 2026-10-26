@@ -32,7 +32,7 @@ export interface IFootballProvider {
    * Fetch full match detail (events, statistics, lineups) for a single fixture.
    * Returns null if the fixture is not found or the request fails.
    */
-  fetchMatchDetail(fixtureId: number): Promise<MatchDetail | null>;
+  fetchMatchDetail(fixtureId: number, opts?: FootballFetchOptions): Promise<MatchDetail | null>;
 
   /**
    * Fetch team information by its numeric ID.

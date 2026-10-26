@@ -114,7 +114,7 @@ function MatchRow({ match, locale }: { match: MatchViewModel; locale: Locale }) 
   const awayWins   = (match.awayScore ?? 0) > (match.homeScore ?? 0);
 
   return (
-    <div data-match-row={match.id} data-match-status={match.status} className="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors">
+    <a href={`/${locale}/match/${match.id}`} data-match-row={match.id} data-match-status={match.status} className="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-50 transition-colors">
       {/* League flag */}
       <span className="text-sm shrink-0 w-5">{match.leagueFlag}</span>
 
@@ -154,7 +154,7 @@ function MatchRow({ match, locale }: { match: MatchViewModel; locale: Locale }) 
         </span>
         <TeamLogo logo={match.awayLogo} name={match.awayTeam} size={18} />
       </div>
-    </div>
+    </a>
   );
 }
 

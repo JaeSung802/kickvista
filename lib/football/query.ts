@@ -383,6 +383,30 @@ export async function queryMatchDetail(
 }
 
 /**
+ * Match page result. "not_found" means the API answered and has no such
+ * fixture; "error" means the request failed (never shown as not found or as
+ * mock data); "unavailable" means there is no real data source (same rule as
+ * the home page: mock only with FOOTBALL_MOCK_MODE=true outside Vercel).
+ */
+export type MatchDetailResult =
+  | { status: "ok"; match: MatchDetail }
+  | { status: "not_found" }
+  | { status: "error"; retryAfterSec: number }
+  | { status: "unavailable" };
+
+export async function queryMatchDetailResult(fixtureId: number): Promise<MatchDetailResult> {
+  if (!isHomeFootballDataAvailable()) return { status: "unavailable" };
+  try {
+    const match = await getFootballProvider().fetchMatchDetail(fixtureId, { strict: true });
+    return match ? { status: "ok", match } : { status: "not_found" };
+  } catch (err) {
+    console.error(`[queryMatchDetailResult] fixture=${fixtureId} failed:`, err);
+    const retryAfterMs = err instanceof FootballApiError && err.retryAfterMs ? err.retryAfterMs : 0;
+    return { status: "error", retryAfterSec: Math.ceil(retryAfterMs / 1000) };
+  }
+}
+
+/**
  * Fetch per-player statistics for a finished fixture (ratings, goals, assists).
  * Used for Man of the Match selection. Returns [] on error.
  */

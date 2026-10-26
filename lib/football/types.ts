@@ -1,6 +1,8 @@
 // Core domain types for football data
 // These mirror the structure of football-data.org / api-football.com APIs
 
+import type { MatchCore } from "./match-core";
+
 export type LeagueSlug =
   | "premier-league"
   | "la-liga"
@@ -128,6 +130,14 @@ export interface LineupPlayer {
 export interface MatchDetail extends Fixture {
   events: MatchEvent[];
   statistics: MatchStatistic[];
+  /**
+   * The provider's own status code (e.g. "ABD", "INT", "AWD"). `status` maps
+   * codes it does not know to "NS", so the match page uses this to avoid showing
+   * an abandoned or interrupted match as "not started".
+   */
+  statusRaw?: string;
+  /** Match page only (strict request): events, lineups and team statistics from the same response. */
+  core?: MatchCore;
 }
 
 export type SyncResult =
