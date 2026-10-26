@@ -11,6 +11,7 @@ import PostCard from "@/components/community/PostCard";
 // ssr:false dynamic import는 Client Component 안에서만 가능 — WorldCupLoaders에서 담당
 import { WorldCupWidgetDynamic as WorldCupWidget, WorldCupInfoPanelDynamic as WorldCupInfoPanel } from "@/components/worldcup/WorldCupLoaders";
 import { TeamLogo } from "@/components/ui/TeamLogo";
+import { isWorldCupVisible } from "@/lib/worldcup/visibility";
 import { listPosts } from "@/lib/community/actions";
 import { listHotPosts } from "@/lib/community/hotPosts";
 import type { Metadata } from "next";
@@ -60,8 +61,10 @@ const CATEGORY_META: Record<
   "worldcup-2026":    { labelEn: "2026 World Cup",   labelKo: "2026 월드컵", color: "#dc2626", bg: "#fef2f2", border: "#fca5a5"   },
 };
 
+// "worldcup-2026" is added in front only while the World Cup is shown
+// (isWorldCupVisible) or when that category is open via its URL.
 const ALL_CATEGORIES: PostCategory[] = [
-  "worldcup-2026", "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
+  "match-discussion", "transfer-news", "tactics", "highlights", "predictions", "general",
 ];
 
 // ─── Team boards ──────────────────────────────────────────────────────────────
@@ -197,6 +200,11 @@ export default async function CommunityPage({
 
   const activeCategory = (sp.category as PostCategory | undefined) ?? null;
   const activeSort     = (sp.sort as SortKey | undefined) ?? "hot";
+  // World Cup promotion (widget, info panel, category tab) follows the shared
+  // display window; existing World Cup posts stay reachable via ?category=.
+  const showWorldCup   = isWorldCupVisible();
+  const categoryTabs: PostCategory[] =
+    showWorldCup || activeCategory === "worldcup-2026" ? ["worldcup-2026", ...ALL_CATEGORIES] : ALL_CATEGORIES;
   const activePage     = Math.max(1, parseInt(sp.page ?? "1", 10));
 
   const [mainR, trendingR] = await Promise.allSettled([
@@ -278,7 +286,7 @@ export default async function CommunityPage({
                 >
                   {tx.allCategories}
                 </a>
-                {ALL_CATEGORIES.map((cat) => {
+                {categoryTabs.map((cat) => {
                   const meta     = CATEGORY_META[cat] ?? CATEGORY_META["general"];
                   const isActive = activeCategory === cat;
                   return (
@@ -320,7 +328,7 @@ export default async function CommunityPage({
             </div>
 
             {/* 월드컵 정보 패널 — worldcup-2026 탭 선택 시 표시 */}
-            {activeCategory === "worldcup-2026" && (
+            {showWorldCup && activeCategory === "worldcup-2026" && (
               <WorldCupInfoPanel isKo={isKo} />
             )}
 
@@ -465,8 +473,8 @@ export default async function CommunityPage({
               <span className="text-xs font-semibold text-amber-700 shrink-0">{isKo ? "보기" : "View"} →</span>
             </a>
 
-            {/* 월드컵 D-Day 위젯 */}
-            <WorldCupWidget locale={loc} isKo={isKo} />
+            {/* 월드컵 D-Day 위젯 (노출 기간에만) */}
+            {showWorldCup && <WorldCupWidget locale={loc} isKo={isKo} />}
 
             {/* Community stats */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm grid grid-cols-3 divide-x divide-gray-100 overflow-hidden">

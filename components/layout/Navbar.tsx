@@ -73,9 +73,10 @@ export default function Navbar({ locale, user, dict }: NavbarProps) {
     { label: labels.community, href: `/${locale}/community` },
   ];
 
-  // ── 4 overflow links in the "More" dropdown ─────────────────────────────────
+  // ── Overflow links in the "More" dropdown ──────────────────────────────────
+  // Transfers is left out until it has a real data source (/transfers shows a
+  // "coming soon" notice).
   const moreLinks = [
-    { label: labels.transfers,  href: `/${locale}/transfers` },
     { label: labels.teams,      href: `/${locale}/team` },
     { label: labels.notice,     href: `/${locale}/notice` },
     { label: labels.attendance, href: `/${locale}/attendance` },

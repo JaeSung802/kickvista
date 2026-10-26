@@ -169,12 +169,12 @@ export function buildCommunityMetadata(locale: Locale, category?: string): Metad
     locale,
     title:
       locale === "ko"
-        ? "축구 커뮤니티 — 경기 토론 · 이적 뉴스 · 월드컵 소식"
-        : "Football Community — Match Discussion, Transfer News & World Cup",
+        ? "축구 커뮤니티 — 경기 토론 · 이적 뉴스 · 전술 분석"
+        : "Football Community — Match Discussion, Transfer News & Tactics",
     description:
       locale === "ko"
-        ? "킥비스타 커뮤니티에서 2026 월드컵, 손흥민·토트넘 뉴스, 경기 토론, 이적 루머를 나누세요."
-        : "Join KickVista to discuss 2026 World Cup, Tottenham, Premier League transfers, tactics and the latest football news.",
+        ? "킥비스타 커뮤니티에서 경기 토론, 이적 뉴스, 전술 분석과 최신 축구 소식을 나누세요."
+        : "Join the KickVista community to discuss matches, transfer news, tactics and the latest football news.",
     path: "/community",
   });
 }
