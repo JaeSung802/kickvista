@@ -11,6 +11,7 @@ import PostViewTracker from "@/components/community/PostViewTracker";
 import { getServerRole, isAdmin } from "@/lib/admin/roles";
 import CommentSection from "@/components/community/CommentSection";
 import { getPost, listPosts, listComments } from "@/lib/community/actions";
+import { isNewsBotPost, splitNewsSource, isStaleNewsPost } from "@/lib/community/newsbot";
 import type { PostCategory } from "@/lib/community/types";
 import type { Metadata } from "next";
 
@@ -36,6 +37,14 @@ function formatDate(iso: string, locale: string): string {
   return new Date(iso).toLocaleDateString(
     locale === "ko" ? "ko-KR" : "en-GB",
     { year: "numeric", month: "long", day: "numeric" }
+  );
+}
+
+/** Registration date of a post on KickVista, always in KST (not the source article's date). */
+function formatRegisteredDateKST(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(
+    locale === "ko" ? "ko-KR" : "en-GB",
+    { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric" }
   );
 }
 
@@ -90,7 +99,12 @@ export default async function CommunityPostPage({
 
   const catMeta  = CATEGORY_META[post.category] ?? CATEGORY_META["general"];
   const catLabel = isKo ? catMeta.labelKo : catMeta.labelEn;
-  const paragraphs = post.content.split("\n\n").filter(Boolean);
+  // News-bot post: label, registration date, 30-day notice and a clickable source
+  // link (display only — the stored title and body are not changed).
+  const isBot   = isNewsBotPost(post);
+  const news    = isBot ? splitNewsSource(post.content) : null;
+  const isStale = isBot && isStaleNewsPost(post.createdAt);
+  const paragraphs = (news ? news.body : post.content).split("\n\n").filter(Boolean);
   // Notices read as one announcement: no ads between their paragraphs
   // (the banner after the content and the site-wide ads stay).
   const showInContentAds = post.category !== "notice";
@@ -233,6 +247,35 @@ export default async function CommunityPostPage({
           {/* Post body */}
           <div style={{ padding: "0 28px 28px", borderTop: "1px solid #f3f4f6" }}>
             <div style={{ paddingTop: 24, display: "flex", flexDirection: "column", gap: 20 }}>
+              {isBot && (
+                <div
+                  data-newsbot-label=""
+                  style={{ display: "flex", flexDirection: "column", gap: 6, padding: "12px 14px",
+                    borderRadius: 10, backgroundColor: "#f8fafc", border: "1px solid #e2e8f0" }}
+                >
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#4338ca", backgroundColor: "#eef2ff",
+                      border: "1px solid #c7d2fe", borderRadius: 4, padding: "2px 8px" }}>
+                      {isKo ? "자동 수집 · AI 생성 요약" : "Auto-collected · AI-generated summary"}
+                    </span>
+                    <span data-newsbot-registered={post.createdAt} style={{ fontSize: 12, color: "#64748b" }}>
+                      {isKo ? "게시물 등록일 " : "Posted on KickVista "}{formatRegisteredDateKST(post.createdAt, loc)}
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 12, color: "#64748b", lineHeight: 1.6 }}>
+                    {isKo
+                      ? "기사를 바탕으로 자동 생성된 요약이라 원문과 다를 수 있습니다. 등록일은 원문 기사의 발행일이 아닙니다."
+                      : "This summary was generated automatically from a news article and may differ from it. The date above is when it was posted here, not when the article was published."}
+                  </p>
+                  {isStale && (
+                    <p data-newsbot-stale="" role="note" style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "#b45309", lineHeight: 1.6 }}>
+                      {isKo
+                        ? "등록된 지 30일 이상 지난 게시물입니다. 현재 상황은 원문과 최신 보도를 확인해 주세요."
+                        : "This post was published more than 30 days ago. Please check the original article and the latest reports for the current situation."}
+                    </p>
+                  )}
+                </div>
+              )}
               {paragraphs.map((para, idx) => (
                 <Fragment key={idx}>
                   <p style={{ color: "#374151", fontSize: 15, lineHeight: 1.85, margin: 0 }}>
@@ -252,6 +295,24 @@ export default async function CommunityPostPage({
                   )}
                 </Fragment>
               ))}
+              {news && (
+                <div data-newsbot-source={news.source.kind} style={{ fontSize: 14 }}>
+                  {news.source.kind === "ok" ? (
+                    <a
+                      href={news.source.url}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow"
+                      style={{ color: "#059669", fontWeight: 700, textDecoration: "underline" }}
+                    >
+                      {isKo ? "기사 원문 보기" : "Read the original article"} ↗
+                    </a>
+                  ) : (
+                    <span style={{ color: "#6b7280" }}>
+                      {isKo ? "원문 링크를 확인할 수 없습니다." : "The original article link is not available."}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

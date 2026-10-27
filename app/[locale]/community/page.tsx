@@ -8,6 +8,7 @@ import { getServerUser } from "@/lib/auth";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
 import PostCard from "@/components/community/PostCard";
+import { isNewsBotPost } from "@/lib/community/newsbot";
 // ssr:false dynamic import는 Client Component 안에서만 가능 — WorldCupLoaders에서 담당
 import { WorldCupWidgetDynamic as WorldCupWidget, WorldCupInfoPanelDynamic as WorldCupInfoPanel } from "@/components/worldcup/WorldCupLoaders";
 import { TeamLogo } from "@/components/ui/TeamLogo";
@@ -461,6 +462,7 @@ export default async function CommunityPage({
                         views={post.viewCount}
                         isKo={isKo}
                         imageUrl={post.imageUrl}
+                        aiSummary={isNewsBotPost(post)}
                       />
                     </Fragment>
                   ))}
@@ -520,6 +522,7 @@ export default async function CommunityPage({
                         views={post.viewCount}
                         isKo={isKo}
                         imageUrl={post.imageUrl}
+                        aiSummary={isNewsBotPost(post)}
                       />
                       {(idx === 3 || idx === 7) && regularPosts.length > idx + 1 && (
                         <AdBanner slot={BANNER_SLOT} />

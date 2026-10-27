@@ -16,6 +16,7 @@ import {
 import { fixturesToMatches, standingsToRows } from "@/lib/football/adapters";
 import LeagueHeader from "@/components/league/LeagueHeader";
 import PostCard from "@/components/community/PostCard";
+import { isNewsBotPost } from "@/lib/community/newsbot";
 import AdBanner from "@/components/ads/AdBanner";
 import AdSidebar from "@/components/ads/AdSidebar";
 import { getPostsByLeague } from "@/lib/community/teamPosts";
@@ -438,6 +439,7 @@ export default async function LeagueOverviewPage({
                       <PostCard
                         key={post.id}
                         href={`/${loc}/community/post/${post.id}`}
+                        aiSummary={isNewsBotPost(post)}
                         title={post.title}
                         preview={post.preview}
                         timeAgo={post.timeAgo}

@@ -24,12 +24,14 @@ export interface PostCardProps {
   views: number;
   isKo: boolean;
   imageUrl?: string | null;
+  /** News-bot post (see lib/community/newsbot.ts) — shows an "AI summary" badge. */
+  aiSummary?: boolean;
 }
 
 export default function PostCard({
   href, title, preview, timeAgo, category,
   isPinned, isHot, authorName, authorBadge,
-  rankColor, upvotes, comments, views, isKo, imageUrl,
+  rankColor, upvotes, comments, views, isKo, imageUrl, aiSummary,
 }: PostCardProps) {
   return (
     <a
@@ -53,6 +55,11 @@ export default function PostCard({
               {isHot && (
                 <span className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">
                   🔥 {isKo ? "인기" : "HOT"}
+                </span>
+              )}
+              {aiSummary && (
+                <span data-ai-summary="" className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5">
+                  {isKo ? "AI 요약" : "AI summary"}
                 </span>
               )}
               <span

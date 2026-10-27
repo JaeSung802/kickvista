@@ -12,6 +12,7 @@ import {
   canonicalLeagueUrl,
 } from "@/lib/football/slugs";
 import PostCard from "@/components/community/PostCard";
+import { isNewsBotPost } from "@/lib/community/newsbot";
 import AdSlot from "@/components/ads/AdSlot";
 import type { Metadata } from "next";
 
@@ -305,6 +306,7 @@ export default async function TeamCommunityPage({
                     <PostCard
                       key={post.id}
                       href={`/${loc}/community/post/${post.id}`}
+                      aiSummary={isNewsBotPost(post)}
                       title={post.title}
                       preview={post.preview}
                       timeAgo={post.timeAgo}
@@ -372,6 +374,7 @@ export default async function TeamCommunityPage({
                     <PostCard
                       key={post.id}
                       href={`/${loc}/community/post/${post.id}`}
+                      aiSummary={isNewsBotPost(post)}
                       title={post.title}
                       preview={post.preview}
                       timeAgo={post.timeAgo}

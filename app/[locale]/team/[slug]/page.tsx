@@ -16,6 +16,7 @@ import {
 import { getPostsByTeam } from "@/lib/community/teamPosts";
 import { sportsTeamJsonLd } from "@/lib/seo/jsonld";
 import PostCard from "@/components/community/PostCard";
+import { isNewsBotPost } from "@/lib/community/newsbot";
 import AdSlot from "@/components/ads/AdSlot";
 import { TeamLogo } from "@/components/ui/TeamLogo";
 import { getLiveSquad } from "@/lib/football/squads";
@@ -416,6 +417,7 @@ export default async function TeamPage({
                       <PostCard
                         key={post.id}
                         href={`/${loc}/community/post/${post.id}`}
+                        aiSummary={isNewsBotPost(post)}
                         title={post.title}
                         preview={post.preview}
                         timeAgo={post.timeAgo}

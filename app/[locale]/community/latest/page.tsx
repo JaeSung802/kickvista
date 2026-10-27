@@ -3,6 +3,7 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getServerUser } from "@/lib/auth";
 import AdSlot from "@/components/ads/AdSlot";
 import PostCard from "@/components/community/PostCard";
+import { isNewsBotPost } from "@/lib/community/newsbot";
 import { listLatestPosts } from "@/lib/community/hotPosts";
 import type { Metadata } from "next";
 
@@ -225,6 +226,7 @@ export default async function LatestPostsPage({
                   <PostCard
                     key={post.id}
                     href={`/${loc}/community/post/${post.id}`}
+                    aiSummary={isNewsBotPost(post)}
                     title={post.title}
                     preview={post.preview}
                     timeAgo={post.timeAgo}
@@ -289,6 +291,7 @@ export default async function LatestPostsPage({
                   <PostCard
                     key={post.id}
                     href={`/${loc}/community/post/${post.id}`}
+                    aiSummary={isNewsBotPost(post)}
                     title={post.title}
                     preview={post.preview}
                     timeAgo={post.timeAgo}

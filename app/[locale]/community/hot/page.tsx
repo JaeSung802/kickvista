@@ -3,6 +3,7 @@ import { isValidLocale, type Locale } from "@/lib/i18n";
 import { getServerUser } from "@/lib/auth";
 import AdSlot from "@/components/ads/AdSlot";
 import PostCard from "@/components/community/PostCard";
+import { isNewsBotPost } from "@/lib/community/newsbot";
 import { listHotPosts } from "@/lib/community/hotPosts";
 import type { Metadata } from "next";
 
@@ -252,6 +253,7 @@ export default async function HotPostsPage({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <PostCard
                         href={`/${loc}/community/post/${post.id}`}
+                        aiSummary={isNewsBotPost(post)}
                         title={post.title}
                         preview={post.preview}
                         timeAgo={post.timeAgo}
