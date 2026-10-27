@@ -40,7 +40,7 @@ const defaultLabels = {
     community:  "Community",
     notice:     "📢 Notices",
     attendance: "Attendance",
-    transfers:  "Transfer News",
+    transfers:  "Transfer Center",
   },
   ko: {
     home:       "홈",
@@ -52,7 +52,7 @@ const defaultLabels = {
     community:  "커뮤니티",
     notice:     "📢 공지사항",
     attendance: "출석",
-    transfers:  "이적 소식",
+    transfers:  "이적 센터",
   },
 };
 
@@ -74,9 +74,8 @@ export default function Navbar({ locale, user, dict }: NavbarProps) {
   ];
 
   // ── Overflow links in the "More" dropdown ──────────────────────────────────
-  // Transfers is left out until it has a real data source (/transfers shows a
-  // "coming soon" notice).
   const moreLinks = [
+    { label: labels.transfers,  href: `/${locale}/transfers` },
     { label: labels.teams,      href: `/${locale}/team` },
     { label: labels.notice,     href: `/${locale}/notice` },
     { label: labels.attendance, href: `/${locale}/attendance` },

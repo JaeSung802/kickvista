@@ -93,4 +93,12 @@ export interface IFootballProvider {
    * Fetch the next N scheduled fixtures for a specific team in a league season.
    */
   fetchTeamFixturesNext(teamId: number, leagueId: number, season: number, n: number): Promise<Fixture[]>;
+
+  /**
+   * Raw `response` array of GET /transfers?team=<id> (every recorded transfer of players linked
+   * to the team; no date filter in the API). Always strict: a failed request throws
+   * FootballApiError. Not cached here — the caller caches the trimmed, normalised result
+   * (the raw response can be large).
+   */
+  fetchTeamTransfers(teamId: number): Promise<unknown[]>;
 }

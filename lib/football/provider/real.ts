@@ -541,6 +541,14 @@ export class RealFootballProvider implements IFootballProvider {
     return normalizeFixtures(data?.response ?? [], season);
   }
 
+  async fetchTeamTransfers(teamId: number): Promise<unknown[]> {
+    const path = `/transfers?team=${teamId}`;
+    // noStore + throwOnError: no Data Cache entry for the raw body; failures throw.
+    const data = await this.apiFetch<{ response?: unknown }>(path, 0, undefined, true, true);
+    if (!Array.isArray(data?.response)) throw new FootballApiError("parse", path);
+    return data.response;
+  }
+
   async fetchHeadToHead(team1Id: number, team2Id: number): Promise<H2HData> {
     const data = await this.apiFetch<{ response: unknown[] }>(
       `/fixtures/headtohead?h2h=${team1Id}-${team2Id}&last=10`,

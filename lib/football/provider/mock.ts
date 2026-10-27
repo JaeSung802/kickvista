@@ -1,6 +1,7 @@
 import type { Fixture, Standings, MatchDetail, Team, H2HData, TeamStatistics, FixturePlayerStats } from "../types";
 import type { IFootballProvider } from "./types";
 import { MOCK_FIXTURES, MOCK_STANDINGS } from "../mock-data";
+import { mockTeamTransfers } from "../mock-transfers";
 import { LEAGUE_BY_SLUG, SUPPORTED_LEAGUES, FINISHED_STATUSES } from "../constants";
 
 const FINISHED_SET = new Set(FINISHED_STATUSES);
@@ -107,6 +108,12 @@ export class MockFootballProvider implements IFootballProvider {
   async fetchFixturePlayers(_fixtureId: number): Promise<FixturePlayerStats[]> {
     return [];
   }
+
+  // Local test data only (shown solely when FOOTBALL_MOCK_MODE=true outside Vercel — see transfers-query.ts).
+  async fetchTeamTransfers(teamId: number): Promise<unknown[]> {
+    return mockTeamTransfers(teamId);
+  }
+
 }
 
 // Re-export LEAGUE_BY_SLUG so consumers can resolve slugs without importing constants directly
